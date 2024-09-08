@@ -1,0 +1,64 @@
+# Install required libraries
+# pip install opcua confluent_kafka
+
+from opcua import Client
+from confluent_kafka import Producer
+import json
+import time
+# OPC UA server details
+opcua_url = "opc.tcp://localhost:4840"
+
+# Kafka server details
+kafka_bootstrap_servers = "192.168.108.88:9092"
+kafka_topic = "ISPE"  # Replace with your Kafka topic name
+kafka_cluster_id = "TL9IbAzwR0OH9h1ENpQnMg"
+
+# Connect to OPC UA server
+opcua_client = Client(opcua_url)
+opcua_client.connect()
+
+# Kafka producer configuration
+kafka_conf = {
+    'bootstrap.servers': kafka_bootstrap_servers,
+    'client.id': kafka_cluster_id
+}
+kafka_producer = Producer(kafka_conf)
+
+
+# Dictionary mapping OPC UA node IDs to Kafka topics
+node_topic_mapping = {
+ #   "ns=4;i=85": "ISPE",
+    "ns=4;s=|var|CODESYS Control Win V3 x64.Application.Main.Scene1": "Test",
+ #   "ns=4;i=|var|CODESYS Control Win V3 x64.Application.Main.Scene1": "Test"
+}
+# Dictionary to store previous values
+previous_values = {}
+
+def read_opcua_data():
+    data = {}
+    for node_id in node_topic_mapping.keys():
+        node = opcua_client.get_node(node_id)
+        value = node.get_value()
+        timestamp = time.time()
+        health_status = "Good"  # Replace with actual health status if available
+        data[node_id] = {"value": value, "timestamp": timestamp, "health_status": health_status}
+    return data
+
+def send_to_kafka(data):
+    for node_id, data_dict in data.items():
+        topic = node_topic_mapping[node_id]
+        value = data_dict["value"]
+        if value != previous_values.get(node_id):
+            kafka_producer.produce(topic, key="opcua_data", value=json.dumps(data_dict))
+            previous_values[node_id] = value
+    kafka_producer.flush()
+
+try:
+    while True:
+        data = read_opcua_data()
+        send_to_kafka(data)
+        time.sleep(1)  # Adjust the sleep time as needed
+except KeyboardInterrupt:
+    pass
+finally:
+    opcua_client.disconnect()
