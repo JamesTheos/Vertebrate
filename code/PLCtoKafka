@@ -29,7 +29,7 @@ kafka_producer = Producer(kafka_conf)
 node_topic_mapping = {
  #   "ns=4;i=85": "ISPE",
     "ns=4;s=|var|CODESYS Control Win V3 x64.Application.Main.Scene1": "Test",
- #   "ns=4;i=|var|CODESYS Control Win V3 x64.Application.Main.Scene1": "Test"
+    "ns=4;s=|var|CODESYS Control Win V3 x64.Application.SFC.Step2.t": "Test2"
 }
 # Dictionary to store previous values
 previous_values = {}
