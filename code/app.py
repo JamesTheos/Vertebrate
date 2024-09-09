@@ -12,7 +12,7 @@ kafka_conf = {
     'auto.offset.reset': 'earliest'
 }
 consumer = Consumer(kafka_conf)
-consumer.subscribe(['Test2'])  # Replace 'Test' with your Kafka topic
+consumer.subscribe(['Test2'])  # Replace 'Test2' with your Kafka topic
 
 data_store = []
 
@@ -29,7 +29,7 @@ def consume_messages():
                 print(msg.error())
                 break
         data = json.loads(msg.value().decode('utf-8'))
-        data_store.append(data)
+        data_store.append(data['value'])  # Read only the 'value' from the message
 
 @app.route('/')
 def index():

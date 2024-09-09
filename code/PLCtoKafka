@@ -49,7 +49,7 @@ def send_to_kafka(data):
         topic = node_topic_mapping[node_id]
         value = data_dict["value"]
         if value != previous_values.get(node_id):
-            kafka_producer.produce(topic, key="opcua_data", value=json.dumps(data_dict))
+            kafka_producer.produce(topic, key="ISPE_Rome", value=json.dumps(data_dict))
             previous_values[node_id] = value
     kafka_producer.flush()
 

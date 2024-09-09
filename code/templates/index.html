@@ -4,11 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kafka Data Visualization</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <style>
+        .line {
+            fill: none;
+            stroke: steelblue;
+            stroke-width: 2px;
+        }
+    </style>
 </head>
 <body>
     <h1>Kafka Data Visualization</h1>
-    <canvas id="myChart" width="400" height="200"></canvas>
+    <svg width="960" height="500"></svg>
     <script>
         async function fetchData() {
             const response = await fetch('/data');
@@ -18,29 +25,33 @@
 
         async function createChart() {
             const data = await fetchData();
-            const ctx = document.getElementById('myChart').getContext('2d');
-            const chart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: data.map((_, index) => index),
-                    datasets: [{
-                        label: 'Kafka Data',
-                        data: data.map(item => item.value), // Adjust based on your data structure
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    scales: {
-                        x: {
-                            beginAtZero: true
-                        },
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
+            const svg = d3.select("svg"),
+                  margin = {top: 20, right: 20, bottom: 30, left: 50},
+                  width = +svg.attr("width") - margin.left - margin.right,
+                  height = +svg.attr("height") - margin.top - margin.bottom,
+                  g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+            const x = d3.scaleLinear().rangeRound([0, width]);
+            const y = d3.scaleLinear().rangeRound([height, 0]);
+
+            const line = d3.line()
+                .x((d, i) => x(i))
+                .y(d => y(d));
+
+            x.domain([0, data.length - 1]);
+            y.domain(d3.extent(data, d => d));
+
+            g.append("g")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(x));
+
+            g.append("g")
+                .call(d3.axisLeft(y));
+
+            g.append("path")
+                .datum(data)
+                .attr("class", "line")
+                .attr("d", line);
         }
 
         createChart();
