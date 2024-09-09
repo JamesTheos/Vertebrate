@@ -12,9 +12,12 @@ kafka_conf = {
     'auto.offset.reset': 'earliest'
 }
 consumer = Consumer(kafka_conf)
-consumer.subscribe(['Test2'])  # Replace 'Test2' with your Kafka topic
+consumer.subscribe(['Test2', 'Test3'])  # Replace with your Kafka topics
 
-data_store = []
+data_store = {
+    'Test2': [],
+    'Test3': []
+}
 
 def consume_messages():
     global data_store
@@ -28,16 +31,18 @@ def consume_messages():
             else:
                 print(msg.error())
                 break
+        topic = msg.topic()
         data = json.loads(msg.value().decode('utf-8'))
-        data_store.append(data['value'])  # Read only the 'value' from the message
+        data_store[topic].append(data['value'])  # Read only the 'value' from the message
+        print(f"New data for {topic}: {data['value']}")  # Add this line for debugging
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/data')
-def get_data():
-    return jsonify(data_store)
+@app.route('/data/<topic>')
+def get_data(topic):
+    return jsonify(data_store.get(topic, []))
 
 if __name__ == '__main__':
     threading.Thread(target=consume_messages, daemon=True).start()
