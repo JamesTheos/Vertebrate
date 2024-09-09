@@ -1,14 +1,19 @@
-<html lang="en"></html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kafka Data Visualization</title>
+    <title>ISPE Data Visualization</title>
     <script src="https://d3js.org/d3.v6.min.js"></script>
     <style>
         body {
             background-color: teal;
-            color: white;
+            color: whitesmoke;
             font-family: Arial, sans-serif;
+        }
+        .line {
+            fill: blanchedalmond;
+            stroke-width: 2px;
         }
         .line {
             fill: none;
@@ -21,21 +26,33 @@
     </style>
 </head>
 <body>
-    <h1>Kafka Data Visualization</h1>
+    <h1>ISPE Data Visualization</h1>
     <div>
-        <h2>Topic: Test2</h2>
+        <h2>Topic: Scene 1 on</h2>
         <svg id="chart1" width="960" height="500"></svg>
     </div>
     <div>
-        <h2>Topic: Test3</h2>
+        <h2>Topic: Scene 2 on</h2>
         <svg id="chart2" width="960" height="500"></svg>
     </div>
     <script>
         async function fetchData(topic) {
-            const response = await fetch(`/data/${topic}`);
-            const data = await response.json();
-            console.log(`Data for ${topic}:`, data);  // Debugging log
-            return data;
+            try {
+                console.log(`Fetching data for topic: ${topic}`);  // Debugging log
+                const response = await fetch(`/data/${topic}`);
+                console.log(`Response status for ${topic}:`, response.status);  // Debugging log
+
+                if (!response.ok) {
+                    throw new Error(`Network response was not ok: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                console.log(`Data for ${topic}:`, data);  // Debugging log
+                return data;
+            } catch (error) {
+                console.error(`Error fetching data for ${topic}:`, error);
+                return [];
+            }
         }
 
         async function createChart(topic, svgId) {
@@ -50,15 +67,20 @@
                   height = +svg.attr("height") - margin.top - margin.bottom,
                   g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
-            const x = d3.scaleLinear().rangeRound([0, width]);
+            const x = d3.scaleTime().rangeRound([0, width]);
             const y = d3.scaleLinear().rangeRound([height, 0]);
 
             const line = d3.line()
-                .x((d, i) => x(i))
-                .y(d => y(d));
+                .x(d => x(new Date(d.timestamp)))  
+                .y(d => y(d.value));
 
-            x.domain([0, data.length - 1]);
-            y.domain(d3.extent(data, d => d));
+            if (data.length === 0) {
+                console.warn(`No data available for ${topic}`);
+                return;
+            }
+
+            x.domain(d3.extent(data, d => new Date(d.timestamp)));  
+            y.domain(d3.extent(data, d => d.value));
 
             g.append("g")
                 .attr("transform", `translate(0,${height})`)
@@ -82,7 +104,7 @@
         refreshCharts();
 
         // Refresh every 5 seconds
-        setInterval(refreshCharts, 3000);
+        setInterval(refreshCharts, 5000);
     </script>
 </body>
 </html>
