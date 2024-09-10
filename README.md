@@ -27,18 +27,15 @@ Industrial Data Centric Tech Stack
 
 --------------Kafka - Terminal --------------
 C:\10_Projects\Kafka\kafka
-
 .\bin\windows\zookeeper-server-start.bat .\config\zookeeper.properties
 .\bin\windows\kafka-server-start.bat .\config\server.properties
 
 --------------Kafka UI - Docker --------------
 Run the Docker for the Kafka UI
 Kafka UI Container: http://localhost:8080/
-Cluster ID = TL9IbAzwR0OH9h1ENpQnMg
-from now on will use node 192.168.108.88:9092
 
-TL9IbAzwR0OH9h1ENpQnMg
-192.168.108.88:9092
+Cluster ID = **<check the kafka log>**  # was TL9IbAzwR0OH9h1ENpQnMg
+from now on will use node **<check the kafka log>**:9092
 
 --------------PLC - Taskbar --------------
 make sure the plc is running
