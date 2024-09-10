@@ -12,8 +12,14 @@ Industrial Data Centric Tech Stack
  - install github desktop and subscribe to our repo
  - install docker desktop (https://www.docker.com/products/docker-desktop/)
  - download the Kafka UI container from Github (https://github.com/provectus/kafka-ui)
- - 
+ - Install Python from MS store
+ - Download Kafka Scala 2.13   to run the zookeeper and broker (https://kafka.apache.org/downloads)
+ - install/update Java JavaSetup8u421
+
+
+ for Vertebrate project, we need extra libraries
+ on terminal run:  
+   - pip install opcua confluent_kafka
+   - pip install Flask
  
- on terminal run:  pip install opcua confluent_kafka
- Install Python from MS store
- Add Extensions for: -
+ 
