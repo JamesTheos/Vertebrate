@@ -1,0 +1,26 @@
+Flask
+confluent_kafka
+
+
+
+Explanation of the Code
+Flask:
+
+from flask import Flask, render_template, jsonify: Imports the necessary components from Flask to create the web application, render HTML templates, and return JSON responses.
+app = Flask(__name__): Initializes the Flask application.
+@app.route('/'): Defines the route for the home page.
+@app.route('/data/<topic>'): Defines the route to fetch data for a specific topic.
+confluent_kafka:
+
+from confluent_kafka import Consumer, KafkaException: Imports the Kafka consumer and exception handling classes.
+consumer = Consumer(kafka_conf): Initializes the Kafka consumer with the specified configuration.
+consumer.subscribe(['Test2', 'Test3']): Subscribes the consumer to the specified Kafka topics.
+msg = consumer.poll(timeout=1.0): Polls for new messages from the Kafka topics.
+json:
+
+import json: Imports the JSON module to parse JSON data.
+data = json.loads(msg.value().decode('utf-8')): Parses the JSON data from the Kafka message.
+threading:
+
+import threading: Imports the threading module to run the Kafka consumer in a separate thread.
+threading.Thread(target=consume_messages, daemon=True).start(): Starts the Kafka consumer in a separate thread.
