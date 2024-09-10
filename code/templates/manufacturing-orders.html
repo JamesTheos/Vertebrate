@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Manufacturing Orders - ISPE Rome Demo{% endblock %}
+
+{% block content %}
+<h2>Manufacturing Orders</h2>
+<form id="order-form">
+    <input type="text" id="order-number" placeholder="Manufacturing Order Number" required>
+    <input type="text" id="product" placeholder="Product" required>
+    <input type="text" id="lot-number" placeholder="Lot Number" required>
+    <button type="submit">Submit Order</button>
+</form>
+    <script>
+        document.getElementById('order-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const orderNumber = document.getElementById('order-number').value;
+            const product = document.getElementById('product').value;
+            const lotNumber = document.getElementById('lot-number').value;
+
+            const response = await fetch('/submit-order', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    orderNumber: orderNumber,
+                    product: product,
+                    lotNumber: lotNumber
+                })
+            });
+
+            if (response.ok) {
+                alert('Order submitted successfully!');
+            } else {
+                alert('Failed to submit order.');
+            }
+        });
+    </script>
+{% endblock %}

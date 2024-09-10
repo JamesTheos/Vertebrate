@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ISPE Rome Demo{% endblock %}</title>
+    <style>  
+        body {
+            font-family: Arial, sans-serif;
+            color: teal;  
+            font-family: Arial, sans-serif;
+        } 
+       .toolbar {
+            display: flex;
+            background-color: teal;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        .toolbar a {
+            margin: 0 10px;
+            padding: 10px;
+            background-color: rgba(8, 185, 176, 0.377);
+            color: whitesmoke;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 5px;
+            flex-grow: 1;
+            text-align: center;
+        }
+        .line {
+            fill: none;
+            stroke: rgb(180, 70, 70);
+            stroke-width: 2px;
+        }
+        .line1 {
+            stroke: rgb(180, 70, 70);
+        }
+        .line2 {
+            stroke: rgb(70, 180, 70);
+        }
+        svg {
+            background-color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <a href="/trending" class="nav-button">Trending</a>
+        <a href="/manufacturing-orders" class="nav-button">Manufacturing Orders</a>
+        <a href="/order-management" class="nav-button">Order Management</a>
+        <a href="/scada" class="nav-button">SCADA Layout</a>
+    </div>
+    <div class="content">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

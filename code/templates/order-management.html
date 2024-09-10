@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Order Management - ISPE Rome Demo{% endblock %}
+
+{% block content %}
+<h2>Order Management</h2>
+<div class="order-list">
+    <table>
+        <thead>
+            <tr>
+                <th>Order Number</th>
+                <th>Product</th>
+                <th>Lot Number</th>
+            </tr>
+        </thead>
+        <tbody id="order-list-body">
+            <!-- Orders will be dynamically inserted here -->
+        </tbody>
+    </table>
+</div>
+    <script>
+        async function loadOrders() {
+            const response = await fetch('/orders');
+            const orders = await response.json();
+            const orderListBody = document.getElementById('order-list-body');
+            orderListBody.innerHTML = '';  // Clear existing orders
+
+            orders.forEach(order => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${order.orderNumber}</td>
+                    <td>${order.product}</td>
+                    <td>${order.lotNumber}</td>
+                `;
+                orderListBody.appendChild(row);
+            });
+        }
+
+        // Initial load
+        loadOrders();
+
+        // Refresh every 10 seconds
+        setInterval(loadOrders, 5000);
+    </script>
+{% endblock %}

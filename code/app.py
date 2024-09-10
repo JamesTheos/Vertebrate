@@ -1,5 +1,5 @@
-from flask import Flask, render_template, jsonify
-from confluent_kafka import Consumer, KafkaException
+from flask import Flask, render_template, jsonify, request
+from confluent_kafka import Consumer, Producer, KafkaException
 import threading
 import json
 
@@ -14,13 +14,21 @@ kafka_conf = {
 consumer = Consumer(kafka_conf)
 consumer.subscribe(['Test2', 'Test3'])  # Replace with your Kafka topics
 
+# Kafka producer configuration
+producer_conf = {
+    'bootstrap.servers': '192.168.108.88:9092'
+}
+producer = Producer(producer_conf)
+
 data_store = {
     'Test2': [],
-    'Test3': []
+    'Test3': [],
+    'manufacturing_orders': []
 }
 
 def consume_messages():
     global data_store
+    print("Starting consume_messages thread", flush=True)  # Initial print statement
     while True:
         msg = consumer.poll(timeout=1.0)
         if msg is None:
@@ -40,7 +48,7 @@ def consume_messages():
             'value': data['value']  # Assuming the message contains 'value'
         })
         print(f"New data for {topic}: {data['value']} at {timestamp}", flush=True)  # Debugging log
-       # print("Current data store message to follow", flush=True)  # Debugging log
+        #print("Current data store message to follow", flush=True)  # Debugging log
        # print(f"Current data store: {data_store}", flush=True)  # Debugging log
        # print("Current data store message above me", flush=True)  # Debugging log
 
@@ -48,11 +56,56 @@ def consume_messages():
 def index():
     return render_template('index.html')
 
+@app.route('/trending')
+def trending():
+    return render_template('trending.html')
+
+@app.route('/manufacturing-orders')
+def manufacturing_orders():
+    return render_template('manufacturing-orders.html')
+
+@app.route('/order-management')
+def order_management():
+    return render_template('order-management.html')
+
+@app.route('/scada')
+def scada():
+    return render_template('scada.html')
+
 @app.route('/data/<topic>')
 def get_data(topic):
     data = data_store.get(topic, [])
     print(f"Serving data for {topic}: {data}", flush=True)  # Debugging log
     return jsonify(data)
+
+@app.route('/submit-order', methods=['POST'])
+def submit_order():
+    order_data = request.json
+    order_number = order_data.get('orderNumber')
+    product = order_data.get('product')
+    lot_number = order_data.get('lotNumber')
+
+    if not order_number or not product or not lot_number:
+        return jsonify({'error': 'Missing data'}), 400
+
+    message = {
+        'orderNumber': order_number,
+        'product': product,
+        'lotNumber': lot_number
+    }
+
+    producer.produce('manufacturing_orders', json.dumps(message).encode('utf-8'))
+    producer.flush()
+
+    # Store the order in the data_store for order management
+    data_store['manufacturing_orders'].append(message)
+
+    return jsonify({'status': 'Order submitted successfully'})
+
+@app.route('/orders')
+def get_orders():
+    orders = data_store.get('manufacturing_orders', [])
+    return jsonify(orders)
 
 if __name__ == '__main__':
     threading.Thread(target=consume_messages, daemon=True).start()

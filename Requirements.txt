@@ -24,3 +24,5 @@ threading:
 
 import threading: Imports the threading module to run the Kafka consumer in a separate thread.
 threading.Thread(target=consume_messages, daemon=True).start(): Starts the Kafka consumer in a separate thread.
+
+Check the readme file

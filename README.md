@@ -10,13 +10,13 @@ Industrial Data Centric Tech Stack
  - create a folder in C: called 10_Projects where all the project files will be (PLC; kafka,...)
  - download and install codesys control win to be able to program and engineer a PLC (https://store.codesys.com/en/codesys-control-win-sl-1.html)
  - install vscode (https://code.visualstudio.com/)
- - install github desktop and subscribe to our repo
+ - install github desktop and subscribe to our repo and use VScode as the editor
  - install docker desktop (https://www.docker.com/products/docker-desktop/)
  - download the Kafka UI container from Github (https://github.com/provectus/kafka-ui)
  - Install Python from MS store
  - Download Kafka Scala 2.13   to run the zookeeper and broker (https://kafka.apache.org/downloads) - currently apps running from the terminal
  - install/update Java JavaSetup8u421
-
+ - install UAexpert OPC viewer to be able to see and manupliate PLC data for testing
 
  for Vertebrate project, we need extra libraries
  on terminal run:  
@@ -39,6 +39,7 @@ Run the Docker for the Kafka UI
 
 --------------PLC - Taskbar --------------
 - make sure the plc is running
+- open UAexpert and subscribe to the programs tags
 
 --------------Kafka producer and consumer - VScode --------------
 - Run the producer PLCtoKafka python app

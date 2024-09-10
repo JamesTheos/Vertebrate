@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Trending - ISPE Rome Demo{% endblock %}
+
+{% block content %}
+<h2>Trends</h2>
+<div>
+    <h3>Topic: Scene 1 on</h3>
+    <svg id="chart1" width="960" height="500"></svg>
+</div>
+<div>
+    <h3>Topic: Scene 2 on</h3>
+    <svg id="chart2" width="960" height="500"></svg>
+</div>
+<script src="https://d3js.org/d3.v6.min.js"></script>
+<script>
+    async function fetchData(topic) {
+        try {
+            console.log(`Fetching data for topic: ${topic}`);  // Debugging log
+            const response = await fetch(`/data/${topic}`);
+            console.log(`Response status for ${topic}:`, response.status);  // Debugging log
+
+            if (!response.ok) {
+                throw new Error(`Network response was not ok: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            console.log(`Data for ${topic}:`, data);  // Debugging log
+            return data;
+        } catch (error) {
+            console.error(`Error fetching data for ${topic}:`, error);
+            return [];
+        }
+    }
+
+    async function createChart(topic, svgId) {
+        const data = await fetchData(topic);
+        console.log(`Creating chart for ${topic} with data:`, data);  // Debugging log
+
+        const svg = d3.select(`#${svgId}`);
+        svg.selectAll("*").remove();  // Clear previous content
+
+        const margin = {top: 20, right: 20, bottom: 30, left: 50},
+              width = +svg.attr("width") - margin.left - margin.right,
+              height = +svg.attr("height") - margin.top - margin.bottom,
+              g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const x = d3.scaleTime().rangeRound([0, width]);
+        const y = d3.scaleLinear().rangeRound([height, 0]);
+
+        const line = d3.line()
+            .x(d => x(new Date(d.timestamp * 1000)))  // Convert seconds to milliseconds
+            .y(d => y(d.value));
+
+        if (data.length === 0) {
+            console.warn(`No data available for ${topic}`);
+            return;
+        }
+
+        x.domain(d3.extent(data, d => new Date(d.timestamp * 1000)));  // Convert seconds to milliseconds
+        y.domain(d3.extent(data, d => d.value));
+
+        g.append("g")
+            .attr("transform", `translate(0,${height})`)
+            .call(d3.axisBottom(x));
+
+        g.append("g")
+            .call(d3.axisLeft(y));
+
+        g.append("path")
+            .datum(data)
+            .attr("class", "line")
+            .attr("d", line);
+    }
+
+    function refreshCharts() {
+        createChart('Test2', 'chart1');  // Plot for topic Test2
+        createChart('Test3', 'chart2');  // Plot for topic Test3
+    }
+
+    // Initial load
+    refreshCharts();
+
+    // Refresh every 10 seconds
+    setInterval(refreshCharts, 3000);
+</script>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}SCADA Layout - ISPE Rome Demo{% endblock %}
+
+{% block content %}
+<h2>SCADA Layout</h2>
+<div class="scada-container">
+    <div id="latest-value1" class="scada-value">Latest Value for Scene 1: N/A</div>
+    <div id="latest-value2" class="scada-value">Latest Value for Scene 2: N/A</div>
+</div>
+    <script>
+        async function fetchData(topic) {
+            try {
+                const response = await fetch(`/data/${topic}`);
+                if (!response.ok) {
+                    throw new Error(`Network response was not ok: ${response.statusText}`);
+                }
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error(`Error fetching data for ${topic}:`, error);
+                return [];
+            }
+        }
+
+        async function updateScadaValues() {
+            const data1 = await fetchData('Test2');
+            const data2 = await fetchData('Test3');
+
+            const latestValue1 = data1.length > 0 ? data1[data1.length - 1].value : 'N/A';
+            const latestValue2 = data2.length > 0 ? data2[data2.length - 1].value : 'N/A';
+
+            document.getElementById('latest-value1').textContent = `Latest Value for Scene 1: ${latestValue1}`;
+            document.getElementById('latest-value2').textContent = `Latest Value for Scene 2: ${latestValue2}`;
+        }
+
+        // Initial load
+        updateScadaValues();
+
+        // Refresh every 10 seconds
+        setInterval(updateScadaValues, 3000);
+    </script>
+{% endblock %}
