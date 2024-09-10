@@ -27,22 +27,22 @@ Industrial Data Centric Tech Stack
 
 --------------Kafka - Terminal --------------
 C:\10_Projects\Kafka\kafka
-.\bin\windows\zookeeper-server-start.bat .\config\zookeeper.properties
-.\bin\windows\kafka-server-start.bat .\config\server.properties
+- .\bin\windows\zookeeper-server-start.bat .\config\zookeeper.properties
+- .\bin\windows\kafka-server-start.bat .\config\server.properties
 
 --------------Kafka UI - Docker --------------
 Run the Docker for the Kafka UI
-Kafka UI Container: http://localhost:8080/
+- Kafka UI Container: http://localhost:8080/
 
-Cluster ID = **<check the kafka log>**  # was TL9IbAzwR0OH9h1ENpQnMg
-from now on will use node **<check the kafka log>**:9092
+- Cluster ID = **<check the kafka log>**  # was TL9IbAzwR0OH9h1ENpQnMg
+- from now on will use node **<check the kafka log>**:9092
 
 --------------PLC - Taskbar --------------
-make sure the plc is running
+- make sure the plc is running
 
 --------------Kafka producer and consumer - VScode --------------
-Run the producer PLCtoKafka python app
-Run the consumer App.py app 
-open trending at http://localhost:5000/
+- Run the producer PLCtoKafka python app
+- Run the consumer App.py app 
+- open trending at http://localhost:5000/
  
  
