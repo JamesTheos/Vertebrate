@@ -27,9 +27,14 @@ kafka_producer = Producer(kafka_conf)
 
 # Dictionary mapping OPC UA node IDs to Kafka topics
 node_topic_mapping = {
- #   "ns=4;i=85": "ISPE",
-    "ns=4;s=|var|CODESYS Control Win V3 x64.Application.SFC.Step3.t": "Test3",
-    "ns=4;s=|var|CODESYS Control Win V3 x64.Application.SFC.Step2.t": "Test2"
+    "ns=4;s=|var|CODESYS Control Win V3 x64.Application.Main.Scene1": "ISPE",
+    "ns=4;s=|var|CODESYS Control Win V3 x64.Application.Main.Scene2": "ISPE",
+    "ns=4;s=|var|CODESYS Control Win V3 x64.Application.CM001_Mat_Temp.CM001_MTemp": "ISPE",
+    "ns=4;s=|var|CODESYS Control Win V3 x64.Application.CM002_Speed.CM002_Speed": "ISPE",
+    "ns=4;s=|var|CODESYS Control Win V3 x64.Application.CM003_Pressure.CM003_Pressure": "ISPE",
+    "ns=4;s=|var|CODESYS Control Win V3 x64.Application.CM004_Amb_Temp.CM004_AmbTemp": "ISPE",
+ 
+
 }
 # Dictionary to store previous values
 previous_values = {}
