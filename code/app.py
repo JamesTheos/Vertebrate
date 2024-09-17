@@ -7,7 +7,7 @@ app = Flask(__name__)
 
 # Kafka consumer configuration
 kafka_conf = {
-    'bootstrap.servers': '192.168.108.88:9092',
+    'bootstrap.servers': '172.24.43.86:9092',
     'group.id': 'flask-consumer-group',
     'auto.offset.reset': 'earliest'
 }
@@ -16,7 +16,7 @@ consumer.subscribe(['Test2', 'Test3'])  # Replace with your Kafka topics
 
 # Kafka producer configuration
 producer_conf = {
-    'bootstrap.servers': '192.168.108.88:9092'
+    'bootstrap.servers': '172.24.43.86:9092'
 }
 producer = Producer(producer_conf)
 

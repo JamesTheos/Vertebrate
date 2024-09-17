@@ -9,9 +9,9 @@ import time
 opcua_url = "opc.tcp://localhost:4840"
 
 # Kafka server details
-kafka_bootstrap_servers = "192.168.108.88:9092"
+kafka_bootstrap_servers = "172.24.43.86:9092"
 kafka_topic = "ISPE"  # Replace with your Kafka topic name
-kafka_cluster_id = "TL9IbAzwR0OH9h1ENpQnMg"
+kafka_cluster_id = "TrYljdbXyQDSKW0su40H0kA"
 
 # Connect to OPC UA server
 opcua_client = Client(opcua_url)

@@ -4,42 +4,86 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}ISPE Rome Demo{% endblock %}</title>
-    <style>  
-        body {
-            font-family: Arial, sans-serif;
-            color: teal;  
-            font-family: Arial, sans-serif;
-        } 
-       .toolbar {
-            display: flex;
-            background-color: teal;
-            padding: 10px;
-            box-sizing: border-box;
+    <style>
+        :root {
+            --background-color: #f0f2f5;
+            --text-color: #333333;
+            --toolbar-background: #ffffff;
+            --button-background: #007bff;
+            --button-text-color: #ffffff;
+            --button-hover-background: #0056b3;
+            --card-background: #ffffff;
+            --card-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
-        .toolbar a {
+
+        [data-theme="dark"] {
+            --background-color: #121212;
+            --text-color: #e0e0e0;
+            --toolbar-background: #1f1f1f;
+            --button-background: #1a73e8;
+            --button-text-color: #ffffff;
+            --button-hover-background: #135ab6;
+            --card-background: #1f1f1f;
+            --card-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--toolbar-background);
+            padding: 10px 20px;
+            box-shadow: var(--card-shadow);
+            transition: background-color 0.3s;
+        }
+
+        .toolbar a, .theme-toggle {
             margin: 0 10px;
-            padding: 10px;
-            background-color: rgba(8, 185, 176, 0.377);
-            color: whitesmoke;
+            padding: 10px 20px;
+            background-color: var(--button-background);
+            color: var(--button-text-color);
             text-align: center;
             text-decoration: none;
             border-radius: 5px;
-            flex-grow: 1;
-            text-align: center;
+            transition: background-color 0.3s, color 0.3s;
+            cursor: pointer;
         }
-        .line {
-            fill: none;
-            stroke: rgb(180, 70, 70);
-            stroke-width: 2px;
+
+        .toolbar a:hover, .theme-toggle:hover {
+            background-color: var(--button-hover-background);
         }
-        .line1 {
-            stroke: rgb(180, 70, 70);
+
+        .content {
+            padding: 20px;
         }
-        .line2 {
-            stroke: rgb(70, 180, 70);
+
+        .card {
+            background-color: var(--card-background);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 20px;
+            transition: background-color 0.3s, box-shadow 0.3s;
         }
+
+        h2 {
+            margin-top: 0;
+        }
+
         svg {
-            background-color: white;
+            width: 100%;
+            height: 500px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
         }
     </style>
 </head>
@@ -49,9 +93,22 @@
         <a href="/manufacturing-orders" class="nav-button">Manufacturing Orders</a>
         <a href="/order-management" class="nav-button">Order Management</a>
         <a href="/scada" class="nav-button">SCADA Layout</a>
+        <button class="theme-toggle" onclick="toggleTheme()">Toggle Theme</button>
     </div>
     <div class="content">
         {% block content %}{% endblock %}
     </div>
+    <script>
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute("data-theme");
+            const newTheme = currentTheme === "dark" ? "light" : "dark";
+            document.documentElement.setAttribute("data-theme", newTheme);
+            localStorage.setItem("theme", newTheme);
+        }
+
+        // Load the saved theme from localStorage
+        const savedTheme = localStorage.getItem("theme") || "light";
+        document.documentElement.setAttribute("data-theme", savedTheme);
+    </script>
 </body>
 </html>
