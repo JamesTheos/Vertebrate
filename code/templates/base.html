@@ -3,8 +3,175 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}ISPE Rome Demo{% endblock %}</title>
+    <!-- <title>{% block title %}ISPE Rome Demo{% endblock %}</title> -->
+
     <style>
+        :root {
+            --background-color: rgb(255, 255, 255);
+            --text-color: #333333;
+            --header-background: rgb(249, 248, 255);
+            --sidebar-background: rgb(249, 248, 255);
+            --button-background: rgb(249, 248, 255);
+            --button-hover-color: rgb(75, 116, 252);
+            --button-text-color: #333333;
+            --border-color: rgb(211, 211, 211);
+            --card-background: #f0f2f5;
+            --card-shadow: 0 4prgb(3, 3, 3)gba(0, 0, 0, 0.1);
+        } 
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-color);
+            margin-left: 210px;
+            margin-top: 60px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+
+        /* Header */
+        .header {
+            position: fixed;
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            background-color: var(--header-background);
+            color: var(--text-color);
+            height: 60px;
+            left: 200px;
+            right: 0px;
+            top: 0px;
+            transition: background-color 0.3s;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .left-section {
+            display: flex;
+            align-items: center;
+            padding-left: 20px;
+            padding-right: 20px;
+            min-width: 100px;
+            font-weight: bold;
+            
+        }
+
+        .middle-section {
+            display: flex;
+            flex: 1;
+            align-items: center;
+        }
+
+        .right-section {
+            display: flex;
+            align-items: center;
+            padding-left: 20px;
+            padding-right: 20px;
+            min-width: 100px;
+        }
+
+        /* Content */
+        .content {
+            padding: 20px;
+        }
+        
+        /* Sidebar */
+        .sidebar{
+            position: fixed;
+            width: 200px;
+            left: 0px;
+            bottom: 0px;
+            top: 0px;
+            background-color: var(--sidebar-background);
+            border-right: 1px solid var(--border-color);
+            color: var(--text-color);
+            transition: background-color 0.3s;
+        }
+
+        .sidebar-group {
+            
+        }
+
+        .sidebar-group-item{
+            height: 30px;
+            display: grid;
+            grid-template-columns: 30px 1fr;
+            align-items: center;
+            cursor: pointer;
+            margin-top: 10px;
+            margin-bottom: 10px;
+            padding-left: 15px;
+            border-top-right-radius: 15px;
+            border-bottom-right-radius: 15px;
+            transition: background-color 0.3s;
+        }
+        .sidebar-group-item:hover{
+            background-color: var(--button-hover-color);
+        }
+
+        .nav-button{
+            text-decoration: none;
+            color: var(--text-color);
+        }
+
+        .rome-title{
+            height: 60px;
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div class="left-section">
+            {% block header_title %}Welcome to the ISPE Rome Demo{% endblock %}
+        </div>      
+        <div class="middle-section">
+        
+        </div>
+        <div class="right-section" id="datetime">
+
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <div class="rome-title">ISPE - Rome Demo</div>
+
+        <div class="sidebar-group">
+            <div class="sidebar-group-item">
+                <div></div>
+                <a href="/" class="nav-button">Home</a>
+            </div>
+        </div>
+
+        <div class="sidebar-group">
+            <div class="sidebar-group-item">
+                <div></div>
+                <a href="/trending" class="nav-button">Trending</a>
+            </div>
+        </div>
+
+    
+    </div>
+
+    <div class="content">
+        {% block content %}{% endblock %}
+    </div>
+
+    <script>
+    function updateDateTime() {
+        const now = new Date();
+        document.getElementById('datetime').textContent = 
+        now.toLocaleDateString('en-US') + ', ' + now.toLocaleTimeString('en-US');}
+        setInterval(updateDateTime, 1000);
+        updateDateTime(); 
+    </script>
+
+
+    <!-- <style>
         :root {
             --background-color: #f0f2f5;
             --text-color: #333333;
@@ -109,6 +276,6 @@
         // Load the saved theme from localStorage
         const savedTheme = localStorage.getItem("theme") || "light";
         document.documentElement.setAttribute("data-theme", savedTheme);
-    </script>
+    </script> -->
 </body>
 </html>
