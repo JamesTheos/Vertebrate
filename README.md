@@ -15,6 +15,10 @@ Industrial Data Centric Tech Stack
  - download the Kafka UI container from Github (https://github.com/provectus/kafka-ui)
  - Install Python from MS store
  - Download Kafka Scala 2.13   to run the zookeeper and broker (https://kafka.apache.org/downloads) - currently apps running from the terminal
+ -   for Kafka: the folders must be like this:
+      * for Kafka zookeper properties: dataDir=C:/10_Projects/Kafka/zookeeper
+      * for KAFKA BROKER properties: log.dirs=C:/10_Projects/Kafka/kafka-logs
+       
  - install/update Java JavaSetup8u421
  - OPTIONAL for Frontend: install UAexpert OPC viewer to be able to see and manupliate PLC data for testing
 
@@ -34,7 +38,7 @@ C:\10_Projects\Kafka\kafka
 Run the Docker for the Kafka UI
 - Kafka UI Container: http://localhost:8080/
 
-- Cluster ID = **<check the kafka log>**  # was TL9IbAzwR0OH9h1ENpQnMg
+- Cluster ID = **<check the kafka log>**  # was rYljdbXyQDSKW0su40H0kA
 - from now on will use node **<check the kafka log>**:9092
 
 --------------PLC - Taskbar --------------
