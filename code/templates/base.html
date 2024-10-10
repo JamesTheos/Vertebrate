@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- <title>{% block title %}ISPE Rome Demo{% endblock %}</title> -->
+    <title>{% block title %}ISPE Rome Demo{% endblock %}</title>
 
     <style>
         :root {
             --background-color: rgb(255, 255, 255);
-            --text-color: #333333;
-            --header-background: rgb(249, 248, 255);
-            --sidebar-background: rgb(249, 248, 255);
+            --text-color: #424242;
+            --header-background: rgb(240, 240, 240);
+            --sidebar-background: rgb(240, 240, 240);
             --button-background: rgb(249, 248, 255);
-            --button-hover-color: rgb(75, 116, 252);
-            --button-text-color: #333333;
+            --button-hover-color: rgb(89, 128, 255);
+            --button-text-color: #424242;
             --border-color: rgb(211, 211, 211);
             --card-background: #f0f2f5;
             --card-shadow: 0 4prgb(3, 3, 3)gba(0, 0, 0, 0.1);
@@ -22,7 +22,7 @@
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             color: var(--text-color);
-            margin-left: 210px;
+            margin-left: 250px;
             margin-top: 60px;
             transition: background-color 0.3s, color 0.3s;
         }
@@ -37,11 +37,21 @@
             background-color: var(--header-background);
             color: var(--text-color);
             height: 60px;
-            left: 200px;
+            left: 0px;
             right: 0px;
             top: 0px;
             transition: background-color 0.3s;
-            border-bottom: 1px solid var(--border-color);
+            
+        }
+
+        .rome-title{
+            display: flex;
+            width: 230px;;
+            justify-content: left;
+            align-items: center;
+            padding-left: 20px;
+            font-weight: bold;
+            min-width: 230px;
         }
 
         .left-section {
@@ -51,13 +61,15 @@
             padding-right: 20px;
             min-width: 100px;
             font-weight: bold;
-            
+            font-size: 20px;
+            border-bottom: 1px solid var(--border-color);
         }
 
         .middle-section {
             display: flex;
             flex: 1;
             align-items: center;
+            border-bottom: 1px solid var(--border-color);
         }
 
         .right-section {
@@ -66,6 +78,7 @@
             padding-left: 20px;
             padding-right: 20px;
             min-width: 100px;
+            border-bottom: 1px solid var(--border-color);
         }
 
         /* Content */
@@ -76,49 +89,74 @@
         /* Sidebar */
         .sidebar{
             position: fixed;
-            width: 200px;
+            width: 250px;
             left: 0px;
             bottom: 0px;
-            top: 0px;
+            top: 60px;
             background-color: var(--sidebar-background);
             border-right: 1px solid var(--border-color);
             color: var(--text-color);
             transition: background-color 0.3s;
+            overflow-y: auto;
+            padding-bottom: 20px;
+        }
+
+        .sb-topic {
+            height: 30px;
+            padding-left: 20px;
+            font-weight: bold;
+            text-align: left;
+            display: flex;
+            align-items: center;
         }
 
         .sidebar-group {
+            padding-right: 15px;
             
         }
 
-        .sidebar-group-item{
+        .sidebar-group-item, .sidebar-group-item-design-space{
             height: 30px;
             display: grid;
             grid-template-columns: 30px 1fr;
             align-items: center;
             cursor: pointer;
-            margin-top: 10px;
-            margin-bottom: 10px;
-            padding-left: 15px;
+            padding-left: 20px;
             border-top-right-radius: 15px;
             border-bottom-right-radius: 15px;
             transition: background-color 0.3s;
         }
-        .sidebar-group-item:hover{
+        .sidebar-group-item:hover, .sidebar-group-item-design-space:hover{
             background-color: var(--button-hover-color);
         }
 
-        .nav-button{
+        .sidebar-group-item-design-space{
+            height: 51px;
+        }
+        
+        .nav-button {
             text-decoration: none;
             color: var(--text-color);
+            display: flex;
+            align-items: center;
         }
 
-        .rome-title{
-            height: 60px;
-            display: flex; 
-            align-items: center; 
-            justify-content: center;
-            border-bottom: 1px solid var(--border-color);
+        .home-menu{
+            display: flex;
+            align-items: center;
         }
+
+        .home-button{
+            height: 20px;
+            width: 20px;	
+            margin-left: auto;
+            margin-right: auto;
+            margin-bottom:end 1px;
+        }
+
+
+
+       
 
 
     </style>
@@ -126,8 +164,9 @@
 
 <body>
     <div class="header">
+        <div class="rome-title">ISPE - Rome Demo</div>
         <div class="left-section">
-            {% block header_title %}Welcome to the ISPE Rome Demo{% endblock %}
+            {% block header_title %}Home{% endblock %}
         </div>      
         <div class="middle-section">
         
@@ -138,15 +177,89 @@
     </div>
 
     <div class="sidebar">
-        <div class="rome-title">ISPE - Rome Demo</div>
-
+        <div class="sb-topic" style="margin-top: 10px">Welcome</div>
         <div class="sidebar-group">
             <div class="sidebar-group-item">
-                <div></div>
+                <div class="home-menu">
+                    <img class="home-button" src="{{url_for('static', filename='home.svg') }}" >
+                </div>
                 <a href="/" class="nav-button">Home</a>
             </div>
         </div>
 
+
+        <div class="sb-topic">Manufacturing Orders</div>
+        <div class="sidebar-group">
+            <div class="sidebar-group-item">
+                <div></div>
+                <a href="/order-overview" class="nav-button">Order Overview</a>
+            </div>
+        </div>
+        <div class="sidebar-group">
+            <div class="sidebar-group-item">
+                <div></div>
+                <a href="/order-management" class="nav-button">Order Management</a>
+            </div>
+        </div>
+
+        <div class="sb-topic">Workflows</div>
+        <div class="sidebar-group">
+            <div class="sidebar-group-item">
+                <div></div>
+                <a href="/overview" class="nav-button">Overview</a>
+            </div>
+        </div>
+        <div class="sidebar-group">
+            <div class="sidebar-group-item">
+                <div></div>
+                <a href="/batch" class="nav-button">Batch</a>
+            </div>
+        </div>
+        <div class="sidebar-group">
+            <div class="sidebar-group-item">
+                <div></div>
+                <a href="/process-instructions" class="nav-button">Process Instructions</a>
+            </div>
+        </div>
+        <div class="sidebar-group">
+            <div class="sidebar-group-item">
+                <div></div>
+                <a href="/sampling" class="nav-button">Sampling</a>
+            </div>
+        </div>
+
+
+
+        <div class="sb-topic">Scada</div>
+        <div class="sidebar-group">
+            <div class="sidebar-group-item">
+                <div></div>
+                <a href="/scada" class="nav-button">P&ID</a>
+            </div>
+        </div>
+        <div class="sidebar-group">
+            <div class="sidebar-group-item">
+                <div></div>
+                <a href="/3d-view" class="nav-button">3D-View</a>
+            </div>
+        </div>
+
+        <div class="sb-topic">QBD</div>
+        <div class="sidebar-group">
+            <div class="sidebar-group-item-design-space">
+                <div></div>
+                <a href="/design-space-definition" class="nav-button">Design Space<br> Definition</a>
+            </div>
+        </div>
+        <div class="sidebar-group">
+            <div class="sidebar-group-item-design-space">
+                <div></div>
+                <a href="/design-space-representation" class="nav-button">Design Space Representation</a>
+            </div>
+        </div>
+
+
+        <div class="sb-topic">Analytics</div>
         <div class="sidebar-group">
             <div class="sidebar-group-item">
                 <div></div>
@@ -169,113 +282,6 @@
         setInterval(updateDateTime, 1000);
         updateDateTime(); 
     </script>
-
-
-    <!-- <style>
-        :root {
-            --background-color: #f0f2f5;
-            --text-color: #333333;
-            --toolbar-background: #ffffff;
-            --button-background: #007bff;
-            --button-text-color: #ffffff;
-            --button-hover-background: #0056b3;
-            --card-background: #ffffff;
-            --card-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        [data-theme="dark"] {
-            --background-color: #121212;
-            --text-color: #e0e0e0;
-            --toolbar-background: #1f1f1f;
-            --button-background: #1a73e8;
-            --button-text-color: #ffffff;
-            --button-hover-background: #135ab6;
-            --card-background: #1f1f1f;
-            --card-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--background-color);
-            color: var(--text-color);
-            margin: 0;
-            transition: background-color 0.3s, color 0.3s;
-        }
-
-        .toolbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background-color: var(--toolbar-background);
-            padding: 10px 20px;
-            box-shadow: var(--card-shadow);
-            transition: background-color 0.3s;
-        }
-
-        .toolbar a, .theme-toggle {
-            margin: 0 10px;
-            padding: 10px 20px;
-            background-color: var(--button-background);
-            color: var(--button-text-color);
-            text-align: center;
-            text-decoration: none;
-            border-radius: 5px;
-            transition: background-color 0.3s, color 0.3s;
-            cursor: pointer;
-        }
-
-        .toolbar a:hover, .theme-toggle:hover {
-            background-color: var(--button-hover-background);
-        }
-
-        .content {
-            padding: 20px;
-        }
-
-        .card {
-            background-color: var(--card-background);
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: var(--card-shadow);
-            margin-bottom: 20px;
-            transition: background-color 0.3s, box-shadow 0.3s;
-        }
-
-        h2 {
-            margin-top: 0;
-        }
-
-        svg {
-            width: 100%;
-            height: 500px;
-            background-color: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            box-shadow: var(--card-shadow);
-        }
-    </style>
-</head>
-<body>
-    <div class="toolbar">
-        <a href="/trending" class="nav-button">Trending</a>
-        <a href="/manufacturing-orders" class="nav-button">Manufacturing Orders</a>
-        <a href="/order-management" class="nav-button">Order Management</a>
-        <a href="/scada" class="nav-button">SCADA Layout</a>
-        <button class="theme-toggle" onclick="toggleTheme()">Toggle Theme</button>
-    </div>
-    <div class="content">
-        {% block content %}{% endblock %}
-    </div>
-    <script>
-        function toggleTheme() {
-            const currentTheme = document.documentElement.getAttribute("data-theme");
-            const newTheme = currentTheme === "dark" ? "light" : "dark";
-            document.documentElement.setAttribute("data-theme", newTheme);
-            localStorage.setItem("theme", newTheme);
-        }
-
-        // Load the saved theme from localStorage
-        const savedTheme = localStorage.getItem("theme") || "light";
-        document.documentElement.setAttribute("data-theme", savedTheme);
-    </script> -->
 </body>
 </html>
+
