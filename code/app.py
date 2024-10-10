@@ -72,6 +72,41 @@ def order_management():
 def scada():
     return render_template('scada.html')
 
+@app.route('/3d-view')
+def view3d():
+    return render_template('3d-view.html')
+
+@app.route('/batch')
+def batch():
+    return render_template('batch.html')
+
+@app.route('/design-space-definition')
+def designspacedefinition():
+    return render_template('design-space-definition.html')
+
+@app.route('/design-space-representation')
+def designspacerepresentation():
+    return render_template('design-space-representation.html')
+
+@app.route('/order-overview')
+def orderoverview():
+    return render_template('order-overview.html')
+
+@app.route('/overview')
+def overview():
+    return render_template('overview.html')
+
+@app.route('/sampling')
+def sampling():
+    return render_template('sampling.html')
+
+@app.route('/process-instructions')
+def processinstructions():
+    return render_template('process-instructions.html')
+
+
+
+
 @app.route('/data/<topic>')
 def get_data(topic):
     data = data_store.get(topic, [])
