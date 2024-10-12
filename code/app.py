@@ -3,26 +3,37 @@ from confluent_kafka import Consumer, Producer, KafkaException
 import threading
 import json
 
+# Create Flask application with custom static folder
 app = Flask(__name__)
 
 # Kafka consumer configuration
 kafka_conf = {
-    'bootstrap.servers': '172.24.43.86:9092',
+    'bootstrap.servers': '172.18.192.25:9092',
     'group.id': 'flask-consumer-group',
     'auto.offset.reset': 'earliest'
 }
 consumer = Consumer(kafka_conf)
-consumer.subscribe(['Test2', 'Test3'])  # Replace with your Kafka topics
+consumer.subscribe(['ISPEScene1', 'ISPEScene2','ISPEMTemp','ISPESpeed','ISPEPressure','ISPEAmbTemp','ISPEStartPhase1'])  # Replace with your Kafka topics
 
 # Kafka producer configuration
 producer_conf = {
-    'bootstrap.servers': '172.24.43.86:9092'
+    'bootstrap.servers': '172.18.192.25:9092'
 }
 producer = Producer(producer_conf)
 
+def send_to_kafka(topic, value):
+    producer.produce(topic, json.dumps(value).encode('utf-8'))
+    producer.flush()
+
 data_store = {
-    'Test2': [],
-    'Test3': [],
+    'ISPEScene1': [],
+    'ISPEScene2': [],
+    'ISPEMTemp': [],
+    'ISPESpeed': [],
+    'ISPEPressure': [],
+    'ISPEAmbTemp': [],
+    'ISPEStartPhase1': [],
+
     'manufacturing_orders': []
 }
 
@@ -95,6 +106,26 @@ def orderoverview():
 @app.route('/overview')
 def overview():
     return render_template('overview.html')
+
+@app.route('/workflow/start', methods=['POST'])
+def workflow_start():
+    send_to_kafka('ISPEStartPhase1', {'value': 'true'})
+    return jsonify({'success': True})
+
+@app.route('/workflow/scene1', methods=['POST'])
+def workflow_scene1():
+    send_to_kafka('ISPEScene1', {'value': 'true'})
+    return jsonify({'success': True})
+
+@app.route('/workflow/scene2', methods=['POST'])
+def workflow_scene2():
+    send_to_kafka('ISPEScene2', {'value': 'true'})
+    return jsonify({'success': True})
+
+@app.route('/workflow/end', methods=['POST'])
+def workflow_end():
+    send_to_kafka('ISPEStartPhase1', {'value': 'false'})
+    return jsonify({'success': True})
 
 @app.route('/sampling')
 def sampling():

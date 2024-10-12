@@ -24,8 +24,8 @@
         }
 
         async function updateScadaValues() {
-            const data1 = await fetchData('Test2');
-            const data2 = await fetchData('Test3');
+            const data1 = await fetchData('ISPEScene1');
+            const data2 = await fetchData('ISPEScene2');
 
             const latestValue1 = data1.length > 0 ? data1[data1.length - 1].value : 'N/A';
             const latestValue2 = data2.length > 0 ? data2[data2.length - 1].value : 'N/A';

@@ -18,7 +18,7 @@
             --card-background: #f0f2f5;
             --card-shadow: 0 4prgb(3, 3, 3)gba(0, 0, 0, 0.1);
         } 
-
+       
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             color: var(--text-color);
@@ -153,9 +153,27 @@
             margin-right: auto;
             margin-bottom:end 1px;
         }
+        .main-content {
+        width: 70%;
+        float: left;
+    }
 
+    .workflow-sidebar {
+        width: 25%;
+        float: right;
+        background-color: #f9f9f9;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
 
+    .workflow-sidebar h3 {
+        margin-top: 0;
+    }
 
+    .workflow-sidebar div {
+        margin-bottom: 10px;
+    }
        
 
 
@@ -181,24 +199,23 @@
         <div class="sidebar-group">
             <div class="sidebar-group-item">
                 <div class="home-menu">
-                    <img class="home-button" src="{{url_for('static', filename='home.svg') }}" >
+                    <img class="home-button" src="{{ url_for('static', filename='images/home.svg') }}" alt="Home">
                 </div>
                 <a href="/" class="nav-button">Home</a>
             </div>
         </div>
 
-
         <div class="sb-topic">Manufacturing Orders</div>
         <div class="sidebar-group">
             <div class="sidebar-group-item">
                 <div></div>
-                <a href="/order-overview" class="nav-button">Order Overview</a>
+                <a href="/order-management" class="nav-button">Orders Overview</a>
             </div>
         </div>
         <div class="sidebar-group">
             <div class="sidebar-group-item">
                 <div></div>
-                <a href="/order-management" class="nav-button">Order Management</a>
+                <a href="/manufacturing-orders" class="nav-button">Order Management</a>
             </div>
         </div>
 

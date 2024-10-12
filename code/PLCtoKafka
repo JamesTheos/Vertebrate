@@ -9,9 +9,9 @@ import time
 opcua_url = "opc.tcp://localhost:4840"
 
 # Kafka server details
-kafka_bootstrap_servers = "172.24.43.86:9092"
+kafka_bootstrap_servers = "172.18.192.25:9092"
 kafka_topic = "ISPE"  # Replace with your Kafka topic name
-kafka_cluster_id = "rYljdbXyQDSKW0su40H0kA"
+kafka_cluster_id = "SCRy-9XoRpWIsPQWoBU0-w"
 
 # Connect to OPC UA server
 opcua_client = Client(opcua_url)
@@ -27,13 +27,13 @@ kafka_producer = Producer(kafka_conf)
 
 # Dictionary mapping OPC UA node IDs to Kafka topics
 node_topic_mapping = {
-    "ns=4;s=|var|CODESYS Control Win V3 x64.Application.Main.Scene1": "ISPE",
-    "ns=4;s=|var|CODESYS Control Win V3 x64.Application.Main.Scene2": "ISPE",
-    "ns=4;s=|var|CODESYS Control Win V3 x64.Application.CM001_Mat_Temp.CM001_MTemp": "ISPE",
-    "ns=4;s=|var|CODESYS Control Win V3 x64.Application.CM002_Speed.CM002_Speed": "ISPE",
-    "ns=4;s=|var|CODESYS Control Win V3 x64.Application.CM003_Pressure.CM003_Pressure": "ISPE",
-    "ns=4;s=|var|CODESYS Control Win V3 x64.Application.CM004_Amb_Temp.CM004_AmbTemp": "ISPE",
- 
+    "ns=4;s=|var|CODESYS Control Win V3 x64.Application.Main.Scene1": "ISPEScene1",
+    "ns=4;s=|var|CODESYS Control Win V3 x64.Application.Main.Scene2": "ISPEScene2",
+    "ns=4;s=|var|CODESYS Control Win V3 x64.Application.CM001_Mat_Temp.CM001_MTemp": "ISPEMTemp",
+    "ns=4;s=|var|CODESYS Control Win V3 x64.Application.CM002_Speed.CM002_Speed": "ISPESpeed",
+    "ns=4;s=|var|CODESYS Control Win V3 x64.Application.CM003_Pressure.CM003_Pressure": "ISPEPressure",
+    "ns=4;s=|var|CODESYS Control Win V3 x64.Application.CM004_Amb_Temp.CM004_AmbTemp": "ISPEAmbTemp",
+    "ns=4;s=|var|CODESYS Control Win V3 x64.Application.Main.StartPhase1": "ISPEStartPhase1",
 
 }
 # Dictionary to store previous values

@@ -1,8 +1,21 @@
 {% extends "base.html" %}
 
-{% block title %}Workflows - Overview{% endblock %}
-{% block header_title %}Workflows - Overview{% endblock %}
+{% block title %}Workflow Overview{% endblock %}
 
 {% block content %}
-<p>This is the sampling page.</p>
+<div class="main-content">
+    <div class="card">
+        <h2>Workflow Overview</h2>
+        <div id="workflow-container">
+            <!-- Workflow steps will be dynamically inserted here -->
+        </div>
+    </div>
+</div>
+<div class="workflow-sidebar">
+    <h3>Current Workflow Step</h3>
+    <div id="workflow-overview">
+        <!-- Current workflow step will be displayed here -->
+    </div>
+</div>
+<script src="{{ url_for('static', filename='js/workflow.js') }}"></script>
 {% endblock %}
