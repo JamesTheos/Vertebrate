@@ -3,18 +3,15 @@
 {% block title %}Workflow Overview{% endblock %}
 
 {% block content %}
-<div class="main-content">
-    <div class="card">
-        <h2>Workflow Overview</h2>
-        <div id="workflow-container">
-            <!-- Workflow steps will be dynamically inserted here -->
-        </div>
+<div class="workflow-container">
+    <div class="workflow-overview" id="workflow-overview">
+        <!-- Workflow steps will be dynamically inserted here -->
     </div>
-</div>
-<div class="workflow-sidebar">
-    <h3>Current Workflow Step</h3>
-    <div id="workflow-overview">
-        <!-- Current workflow step will be displayed here -->
+    <div class="workflow-sidebar">
+        <h3>Current Workflow Step</h3>
+        <div id="current-step">
+            <!-- Current workflow step will be displayed here -->
+        </div>
     </div>
 </div>
 <script src="{{ url_for('static', filename='js/workflow.js') }}"></script>

@@ -143,9 +143,6 @@ def sampling():
 def processinstructions():
     return render_template('process-instructions.html')
 
-
-
-
 @app.route('/data/<topic>')
 def get_data(topic):
     data = data_store.get(topic, [])
