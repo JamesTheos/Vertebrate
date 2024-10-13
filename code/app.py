@@ -2,6 +2,7 @@ from flask import Flask, render_template, jsonify, request
 from confluent_kafka import Consumer, Producer, KafkaException
 import threading
 import json
+from datetime import datetime
 
 # Create Flask application with custom static folder
 app = Flask(__name__)
@@ -22,7 +23,7 @@ producer_conf = {
 producer = Producer(producer_conf)
 
 def send_to_kafka(topic, value):
-    producer.produce(topic, json.dumps(value).encode('utf-8'))
+    producer.produce(topic, key="FromUX", value= json.dumps(value).encode('utf-8'))
     producer.flush()
 
 data_store = {
@@ -33,7 +34,6 @@ data_store = {
     'ISPEPressure': [],
     'ISPEAmbTemp': [],
     'ISPEStartPhase1': [],
-
     'manufacturing_orders': []
 }
 
@@ -109,22 +109,30 @@ def overview():
 
 @app.route('/workflow/start', methods=['POST'])
 def workflow_start():
-    send_to_kafka('ISPEStartPhase1', {'value': 'true'})
+    timestamp = datetime.utcnow().isoformat()
+    send_to_kafka('ISPEStartPhase1', {'value': True, 'timestamp': timestamp})
     return jsonify({'success': True})
 
 @app.route('/workflow/scene1', methods=['POST'])
 def workflow_scene1():
-    send_to_kafka('ISPEScene1', {'value': 'true'})
+    timestamp = datetime.utcnow().isoformat()
+    send_to_kafka('ISPEScene1', {'value': True, 'timestamp': timestamp})
+    send_to_kafka('ISPEScene2', {'value': False, 'timestamp': timestamp})
     return jsonify({'success': True})
 
 @app.route('/workflow/scene2', methods=['POST'])
 def workflow_scene2():
-    send_to_kafka('ISPEScene2', {'value': 'true'})
+    timestamp = datetime.utcnow().isoformat()
+    send_to_kafka('ISPEScene1', {'value': False, 'timestamp': timestamp})
+    send_to_kafka('ISPEScene2', {'value': True, 'timestamp': timestamp})
     return jsonify({'success': True})
 
 @app.route('/workflow/end', methods=['POST'])
 def workflow_end():
-    send_to_kafka('ISPEStartPhase1', {'value': 'false'})
+    timestamp = datetime.utcnow().isoformat()
+    send_to_kafka('ISPEScene1', {'value': False, 'timestamp': timestamp})
+    send_to_kafka('ISPEScene2', {'value': False, 'timestamp': timestamp})
+    send_to_kafka('ISPEStartPhase1', {'value': False, 'timestamp': timestamp})
     return jsonify({'success': True})
 
 @app.route('/sampling')
