@@ -4,6 +4,8 @@ from confluent_kafka import Producer, KafkaException
 import json
 import time
 from datetime import datetime
+import os
+
 # OPC UA server details
 opcua_url = "opc.tcp://localhost:4840"
 
@@ -23,6 +25,17 @@ kafka_conf = {
 }
 producer = Producer(kafka_conf)
 
+# Load the configuration for the ISA95 model
+config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+with open(config_path) as config_file:
+        config = json.load(config_file)
+    
+enterprise = config['enterprise']
+site = config['site']
+area = config['area']
+process_cell = config['process_cell']
+unit= config['unit']
+
 # Dictionary mapping OPC UA node IDs to Kafka topics
 node_topic_mapping = {
     #"ns=4;s=|var|CODESYS Control Win V3 x64.Application.Main.Scene1": "ISPEScene1",
@@ -36,7 +49,6 @@ node_topic_mapping = {
 # Dictionary to store previous values
 previous_values = {}
 
-
 # Handler for subscription events
 class SubHandler(object):
     def datachange_notification(self, node, val, data):
@@ -47,6 +59,11 @@ class SubHandler(object):
             producertimestamp = datetime.utcnow().isoformat()
             health_status = data.monitored_item.Value.StatusCode.name
             data_dict = {
+                "Enterprise": enterprise,
+                "Site": site,
+                "Area": area,
+                "Process Cell": process_cell,
+                'Unit': unit,
                 "value": val,
                 "timestamp": timestamp.isoformat(),
                 "Producertimestamp": producertimestamp,
@@ -74,36 +91,3 @@ except KeyboardInterrupt:
 finally:
     subscription.delete()
     opcua_client.disconnect()
-
-# def read_opcua_data():
-#     data = {}
-#     for node_id in node_topic_mapping.keys():
-#         node = opcua_client.get_node(node_id)
-#         data_value = node.get_value()  # Read the DataValue object
-#         value = data_value
-#         timestamp = data_value.SourceTimestamp  # Retrieve the SourceTimestamp
-#                 
-#         producertimestamp = datetime.utcnow().isoformat()  # Updated to use date and time format
-#         health_status = node.get_status()  # Retrieve the status code of the node
-#         data[node_id] = {"value": value, "timestamp": timestamp.isoformat(), "Producertimestamp": producertimestamp,"health_status": health_status}
-#     return data
-
-# def send_to_kafka(data):
-#     for node_id, data_dict in data.items():
-#         topic = node_topic_mapping[node_id]
-#         value = data_dict["value"]
-#         if value != previous_values.get(node_id):
-#             producer.produce(topic, key="FromPLC", value=json.dumps(data_dict))
-#             previous_values[node_id] = value
-#     producer.flush()
-
-# try:
-#     while True:
-#         data = read_opcua_data()
-#         send_to_kafka(data)
-#         time.sleep(1)  # Adjust the sleep time as needed
-# except KeyboardInterrupt:
-#     pass
-# finally:
-#         opcua_client.disconnect()
-#         producer.flush()

@@ -3,6 +3,18 @@ from confluent_kafka import Consumer, Producer, KafkaException
 import threading
 import json
 from datetime import datetime
+import os
+
+# Load the configuration for the ISA95 model
+config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+with open(config_path) as config_file:
+        config = json.load(config_file)
+    
+enterprise = config['enterprise']
+site = config['site']
+area = config['area']
+process_cell = config['process_cell']
+unit= config['unit'] 
 
 # Create Flask application with custom static folder
 app = Flask(__name__)
@@ -14,7 +26,7 @@ kafka_conf = {
     'auto.offset.reset': 'earliest'
 }
 consumer = Consumer(kafka_conf)
-consumer.subscribe(['ISPEScene1', 'ISPEScene2','ISPEMTemp','ISPESpeed','ISPEPressure','ISPEAmbTemp','ISPEStartPhase1'])  # Replace with your Kafka topics
+consumer.subscribe(['ISPEScene1', 'ISPEScene2','ISPEMTemp','ISPESpeed','ISPEPressure','ISPEAmbTemp','ISPEStartPhase1'])  # Kafka topics
 
 # Kafka producer configuration
 producer_conf = {
@@ -23,8 +35,9 @@ producer_conf = {
 producer = Producer(producer_conf)
 
 def send_to_kafka(topic, value):
-    producer.produce(topic, key="FromUX", value= json.dumps(value).encode('utf-8'))
+    producer.produce(topic, key="FromUX", value=json.dumps(value).encode('utf-8'))
     producer.flush()
+
 
 data_store = {
     'ISPEScene1': [],
@@ -160,12 +173,18 @@ def submit_order():
         return jsonify({'error': 'Missing data'}), 400
 
     message = {
+        'Enterprise': enterprise,
+        'Site': site,
+        'Area': area,
+        'Process Cell': process_cell,
+        'Unit': unit,
         'orderNumber': order_number,
         'product': product,
-        'lotNumber': lot_number
+        'lotNumber': lot_number,
+        'timestamp': datetime.now().isoformat()
     }
 
-    producer.produce('manufacturing_orders', json.dumps(message).encode('utf-8'))
+    producer.produce('manufacturing_orders', key="FromOrderManagement", value=json.dumps(message).encode('utf-8'))
     producer.flush()
 
     # Store the order in the data_store for order management
