@@ -95,6 +95,10 @@ def order_management():
 @app.route('/scada')
 def scada():
     return render_template('scada.html')
+        
+@app.route('/equipment-overview')
+def equipmentoverview():
+    return render_template('equipment-overview.html')
 
 @app.route('/3d-view')
 def view3d():
