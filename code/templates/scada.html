@@ -4,6 +4,26 @@
 {% block header_title %}Scada - P&ID{% endblock %}
 
 {% block content %}
+
+<style>
+    .background-pid {
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+        text-align: center;
+        z-index: -1;
+    }
+
+    .background-pid img {
+        width: 70%; 
+    }
+</style>
+ 
+ <div class="background-pid">
+    <img src="{{url_for('static', filename='images/backdrops/p&idn4.png')}}" class="background-pid img">
+ </div>
+ 
+
 <div class="scada-container">
     <div id="latest-value1" class="scada-value">Latest Value for Scene 1: N/A</div>
     <div id="latest-value2" class="scada-value">Latest Value for Scene 2: N/A</div>

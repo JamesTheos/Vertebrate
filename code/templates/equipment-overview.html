@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Scada - Equipment Overview{% endblock %}
+{% block header_title %}Scada - Equipment Overview{% endblock %}
+
+{% block content %}
+
+<style>
+    .background-scada {
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+        text-align: center;
+        z-index: -1;
+    }
+
+    .background-scada img {
+        width: 70%; 
+    }
+
+    .eo-button {
+        height: 40px;
+        display: grid;
+        grid-template-columns: minmax(270px, 1fr) minmax(270px, 1fr);
+        align-items: center;
+        justify-items: center; 
+    }
+
+    .eo-button-style {
+        height: 38px;
+        font-size: 16pt;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        text-decoration: none;
+        width: 250px;
+        color: var(--text-color);
+        border-radius: 15px;
+        border-width: 1px;
+        border-color: var(--button-border-color);
+        border-style: solid;
+        justify-content: center;
+        display: flex; 
+        align-items: center; 
+    }
+    .eo-button-style:hover{
+        background-color: var(--button-hover-color);
+    }
+
+</style>
+ 
+ <div class="background-scada">
+    <img src="{{url_for('static', filename='images/backdrops/vial-filling-machine-02.webp')}}" class="background-scada img">
+ </div>
+ 
+ 
+
+
+ <div class="eo-button">
+    <a href="/scada" class="eo-button-style">P&ID</a>
+    <a href="/3d-view" class="eo-button-style">3D- View</a>
+ </div>
+
+
+ 
+
+{% endblock %}

@@ -4,5 +4,22 @@
 {% block header_title %}Scada - 3D-View{% endblock %}
 
 {% block content %}
-<p>This is the 3d-View page.</p>
+
+<style>
+   .fullscreen-div {
+    height: 100vh; /* Höhe auf 100% des Viewports minus 60px */
+    width: calc(100vw - 250px); /* Breite auf 100% des Viewports minus 250px */
+    background-image: url("{{url_for('static', filename='images/backdrops/Pharmaceutical-Vial-Filler.jpg')}}"); /* Pfad zu deinem Bild */
+    background-size: contain; /* Das Bild wird skaliert, um in die div zu passen */
+    background-attachment: fixed; /* Bild bleibt fixiert */
+    background-repeat: no-repeat;
+    background-position: 250px 0px; /* Bild um 250px nach rechts und 60px nach unten verschieben */
+}
+    
+</style>
+
+<div class="fullscreen-div"></div>
+
+
 {% endblock %}
+
