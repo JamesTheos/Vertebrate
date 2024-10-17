@@ -17,16 +17,81 @@
     .background-pid img {
         width: 70%; 
     }
+
+    
+    .scada-grid{
+        width: 181px;
+    }
+
+    .scada-group{
+        display: grid;
+        grid-template-columns: 125px 50px;
+        background-color: white;
+        border-radius: 5px;
+        padding-right: 2px;
+        padding-left: 2px;
+        align-items: center;
+        border-style: solid;
+        border-width: 1px;
+        border-color: var(--border-color);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .scada-value{
+        background-color: lightgrey;
+        border-radius: 5px;
+        margin-top: 2px;
+        margin-bottom: 2px;
+        text-align: center;
+    }
+
+    .overall-grid-scada{
+        padding-top: 20px;
+        padding-bottom: 20px;
+        padding-left: 80px;
+        padding-right: 80px;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+    }
+
 </style>
  
  <div class="background-pid">
+    <!-- https://volksvita.com/wp-content/uploads/2020/11/image009-2-1024x897.png -->
     <img src="{{url_for('static', filename='images/backdrops/p&idn4.png')}}" class="background-pid img">
+ </div>
+ <div class="overall-grid-scada">
+    <div class="scada-grid">
+        <div class="scada-group">
+            <div class="scada-value-name">ISPEAmpTemp:</div>
+            <div id="ISPEAmbTempvalue" class="scada-value">N/A</div>
+        </div>
+    </div>
+    <div class="scada-grid">
+        <div class="scada-group">
+            <div class="scada-value-name">ISPEMTemp:</div>
+            <div id="ISPEMTempvalue" class="scada-value">N/A</div>
+        </div>
+    </div>
+    <div class="scada-grid">
+        <div class="scada-group">
+            <div class="scada-value-name">ISPESpeed:</div>
+            <div id="ISPESpeedvalue" class="scada-value">N/A</div>
+        </div>
+    </div>
+    <div class="scada-grid">
+        <div class="scada-group">
+            <div class="scada-value-name">ISPEPressure:</div>
+            <div id="ISPEPressurevalue" class="scada-value">N/A</div>
+        </div>
+    </div>
  </div>
  
 
 <div class="scada-container">
-    <div id="latest-value1" class="scada-value">Latest Value for Scene 1: N/A</div>
-    <div id="latest-value2" class="scada-value">Latest Value for Scene 2: N/A</div>
+    <div id="latest-value1" class="scada-value-2">Latest Value for Scene 1: N/A</div>
+    <div id="latest-value2" class="scada-value-2">Latest Value for Scene 2: N/A</div>
 </div>
     <script>
         async function fetchData(topic) {

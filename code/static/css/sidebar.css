@@ -53,12 +53,12 @@
     align-items: center;
 }
 
-.home-menu{
+.icon-menu{
     display: flex;
     align-items: center;
 }
 
-.home-button{
+.icon-button{
     height: 20px;
     width: 20px;	
     margin-left: auto;

@@ -30,6 +30,7 @@
             margin-left: 250px;
             margin-top: 60px;
             transition: background-color 0.3s, color 0.3s;
+            overflow: hidden;
         }
 
         
@@ -87,8 +88,8 @@
         <div class="sb-topic" style="margin-top: 10px">Welcome</div>
         <div class="sidebar-group">
             <div class="sidebar-group-item">
-                <div class="home-menu">
-                    <img class="home-button" src="{{ url_for('static', filename='images/icons/home.svg') }}">
+                <div class="icon-menu">
+                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/home_24.svg') }}">
                 </div>
                 <a href="/" class="nav-button">Home</a>
             </div>
@@ -97,13 +98,17 @@
         <div class="sb-topic">Manufacturing Orders</div>
         <div class="sidebar-group">
             <div class="sidebar-group-item">
-                <div></div>
+                <div class="icon-menu">
+                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/orderoverview.svg') }}">
+                </div>
                 <a href="/order-management" class="nav-button">Orders Overview</a>
             </div>
         </div>
         <div class="sidebar-group">
             <div class="sidebar-group-item">
-                <div></div>
+                <div class="icon-menu">
+                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/ordermanagement.svg') }}">
+                </div>
                 <a href="/manufacturing-orders" class="nav-button">Order Management</a>
             </div>
         </div>
@@ -111,7 +116,9 @@
         <div class="sb-topic">Workflows</div>
         <div class="sidebar-group">
             <div class="sidebar-group-item">
-                <div></div>
+                <div class="icon-menu">
+                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/overview.svg') }}">
+                </div>
                 <a href="/overview" class="nav-button">Overview</a>
             </div>
         </div>
@@ -123,13 +130,17 @@
         </div>
         <div class="sidebar-group">
             <div class="sidebar-group-item">
-                <div></div>
+                <div class="icon-menu">
+                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/processinstructions.svg') }}">
+                </div>
                 <a href="/process-instructions" class="nav-button">Process Instructions</a>
             </div>
         </div>
         <div class="sidebar-group">
             <div class="sidebar-group-item">
-                <div></div>
+                <div class="icon-menu">
+                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/sampling.svg') }}">
+                </div>
                 <a href="/sampling" class="nav-button">Sampling</a>
             </div>
         </div>
@@ -139,19 +150,25 @@
         <div class="sb-topic">Scada</div>
         <div class="sidebar-group">
             <div class="sidebar-group-item">
-                <div></div>
+                <div class="icon-menu">
+                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/equipmentoverview.svg') }}">
+                </div>
                 <a href="/equipment-overview" class="nav-button">Equipment Overview</a>
             </div>
         </div>
         <div class="sidebar-group">
             <div class="sidebar-group-item">
-                <div></div>
+                <div class="icon-menu">
+                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/pid.svg') }}">
+                </div>
                 <a href="/scada" class="nav-button">P&ID</a>
             </div>
         </div>
         <div class="sidebar-group">
             <div class="sidebar-group-item">
-                <div></div>
+                <div class="icon-menu">
+                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/3d.svg') }}">
+                </div>
                 <a href="/3d-view" class="nav-button">3D-View</a>
             </div>
         </div>
@@ -159,7 +176,9 @@
         <div class="sb-topic">QBD</div>
         <div class="sidebar-group">
             <div class="sidebar-group-item-design-space">
-                <div></div>
+                <div class="icon-menu">
+                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/dsd.svg') }}">
+                </div>
                 <a href="/design-space-definition" class="nav-button">Design Space<br> Definition</a>
             </div>
         </div>
@@ -174,7 +193,9 @@
         <div class="sb-topic">Analytics</div>
         <div class="sidebar-group">
             <div class="sidebar-group-item">
-                <div></div>
+                <div class="icon-menu">
+                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/trending.svg') }}">
+                </div>
                 <a href="/trending" class="nav-button">Trending</a>
             </div>
         </div>

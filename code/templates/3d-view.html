@@ -7,18 +7,114 @@
 
 <style>
    .fullscreen-div {
-    height: 100vh; /* Höhe auf 100% des Viewports minus 60px */
-    width: calc(100vw - 250px); /* Breite auf 100% des Viewports minus 250px */
-    background-image: url("{{url_for('static', filename='images/backdrops/Pharmaceutical-Vial-Filler.jpg')}}"); /* Pfad zu deinem Bild */
-    background-size: contain; /* Das Bild wird skaliert, um in die div zu passen */
-    background-attachment: fixed; /* Bild bleibt fixiert */
+    height: calc(100vh - 60px); 
+    width: calc(100vw - 250px); 
+    /* https://www.icapsulepack.com/wp-content/uploads/2021/01/Pharmaceutical-Vial-Filler-.jpg */
+    background-image: url("{{url_for('static', filename='images/backdrops/Pharmaceutical-Vial-Filler.jpg')}}"); 
+    background-size: contain; 
+    background-attachment: fixed; 
     background-repeat: no-repeat;
-    background-position: 250px 0px; /* Bild um 250px nach rechts und 60px nach unten verschieben */
-}
+    background-position: 250px, 60px; 
+    }
+
+    .scada-grid, .scada-grid-1{
+        width: 181px;
+        padding-left: 40px;
+        padding-top: 5px;
+    }
+
+    .scada-grid-1{
+        padding-top: 40px;
+    }
+
+    .scada-group{
+        display: grid;
+        grid-template-columns: 125px 50px;
+        background-color: white;
+        border-radius: 5px;
+        padding-right: 2px;
+        padding-left: 2px;
+        align-items: center;
+        border-style: solid;
+        border-width: 1px;
+        border-color: var(--border-color);
+    }
     
+
+    .scada-value{
+        background-color: lightgrey;
+        border-radius: 5px;
+        margin-top: 2px;
+        margin-bottom: 2px;
+        text-align: center;
+    }
 </style>
 
-<div class="fullscreen-div"></div>
+<div class="fullscreen-div">
+    <div class="scada-grid-1">
+        <div class="scada-group">
+            <div class="scada-value-name">ISPEAmpTemp:</div>
+            <div id="ISPEAmbTempvalue" class="scada-value">N/A</div>
+        </div>
+    </div>
+    <div class="scada-grid">
+        <div class="scada-group">
+            <div class="scada-value-name">ISPEMTemp:</div>
+            <div id="ISPEMTempvalue" class="scada-value">N/A</div>
+        </div>
+    </div>
+    <div class="scada-grid">
+        <div class="scada-group">
+            <div class="scada-value-name">ISPESpeed:</div>
+            <div id="ISPESpeedvalue" class="scada-value">N/A</div>
+        </div>
+    </div>
+    <div class="scada-grid">
+        <div class="scada-group">
+            <div class="scada-value-name">ISPEPressure:</div>
+            <div id="ISPEPressurevalue" class="scada-value">N/A</div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    async function fetchData(topic) {
+        try {
+            const response = await fetch(`/data/${topic}`);
+            if (!response.ok) {
+                throw new Error(`Network response was not ok: ${response.statusText}`);
+            }
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error(`Error fetching data for ${topic}:`, error);
+            return [];
+        }
+    }
+
+        async function updateScadaValues() {
+            const data1 = await fetchData('ISPEAmbTemp');
+            const data2 = await fetchData('ISPESpeed');
+            const data3 = await fetchData('ISPEPressure');
+            const data4 = await fetchData('ISPEMTemp');
+
+            const latestValue1 = data1.length > 0 ? data1[data1.length - 1].value : 'N/A';
+            const latestValue2 = data2.length > 0 ? data1[data1.length - 1].value : 'N/A';
+            const latestValue3 = data3.length > 0 ? data1[data1.length - 1].value : 'N/A';
+            const latestValue4 = data4.length > 0 ? data1[data1.length - 1].value : 'N/A';
+            document.getElementById('ISPEAmbTempvalue').textContent = `${latestValue1}`;
+            document.getElementById('ISPESpeedvalue').textContent = `${latestValue2}`;
+            document.getElementById('ISPEPressurevalue').textContent = `${latestValue3}`;
+            document.getElementById('ISPEMTempvalue').textContent = `${latestValue4}`;
+        }
+
+        // Initial load
+        updateScadaValues();
+
+        // Refresh every 5 seconds
+        setInterval(updateScadaValues, 5000);
+    </script>
 
 
 {% endblock %}
