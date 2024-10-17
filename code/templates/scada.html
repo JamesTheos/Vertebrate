@@ -111,18 +111,32 @@
         async function updateScadaValues() {
             const data1 = await fetchData('ISPEScene1');
             const data2 = await fetchData('ISPEScene2');
+            const data3 = await fetchData('ISPEAmbTemp');
+            const data4 = await fetchData('ISPESpeed');
+            const data5 = await fetchData('ISPEPressure');
+            const data6 = await fetchData('ISPEMTemp');
 
             const latestValue1 = data1.length > 0 ? data1[data1.length - 1].value : 'N/A';
             const latestValue2 = data2.length > 0 ? data2[data2.length - 1].value : 'N/A';
+            const latestValue3 = data3.length > 0 ? data3[data3.length - 1].value : 'N/A';
+            const latestValue4 = data4.length > 0 ? data4[data4.length - 1].value : 'N/A';
+            const latestValue5 = data5.length > 0 ? data5[data5.length - 1].value : 'N/A';
+            const latestValue6 = data6.length > 0 ? data6[data6.length - 1].value : 'N/A';
+            
 
             document.getElementById('latest-value1').textContent = `Latest Value for Scene 1: ${latestValue1}`;
             document.getElementById('latest-value2').textContent = `Latest Value for Scene 2: ${latestValue2}`;
+            document.getElementById('ISPEAmbTempvalue').textContent = `${latestValue3}`;
+            document.getElementById('ISPESpeedvalue').textContent = `${latestValue4}`;
+            document.getElementById('ISPEPressurevalue').textContent = `${latestValue5}`;
+            document.getElementById('ISPEMTempvalue').textContent = `${latestValue6}`;
+        
         }
 
         // Initial load
         updateScadaValues();
 
         // Refresh every 10 seconds
-        setInterval(updateScadaValues, 3000);
+        setInterval(updateScadaValues, 1000);
     </script>
 {% endblock %}

@@ -17,14 +17,34 @@
     background-position: 250px, 60px; 
     }
 
-    .scada-grid, .scada-grid-1{
-        width: 181px;
-        padding-left: 40px;
-        padding-top: 5px;
+    
+    .scada-grid-ambtemp{
+        position: relative;
+        width: 201px;
+        left: 150px;
+        top: 90px;
     }
 
-    .scada-grid-1{
-        padding-top: 40px;
+    .scada-grid-temp{
+        position: relative;
+        width: 201px;
+        left: 50px;
+        top: 440px;
+    }
+
+    .scada-grid-speed{
+        position: relative;
+        width: 201px;
+        left: 1150px;
+        top: 490px;
+        
+    }
+
+    .scada-grid-pressure{
+        position: relative;
+        width: 201px;
+        left: 750px;
+        top: 340px;
     }
 
     .scada-group{
@@ -32,8 +52,8 @@
         grid-template-columns: 125px 50px;
         background-color: white;
         border-radius: 5px;
-        padding-right: 2px;
-        padding-left: 2px;
+        padding-right: 12px;
+        padding-left: 12px;
         align-items: center;
         border-style: solid;
         border-width: 1px;
@@ -43,33 +63,33 @@
 
     .scada-value{
         background-color: lightgrey;
-        border-radius: 5px;
-        margin-top: 2px;
-        margin-bottom: 2px;
+        border-radius: 6px;
+        margin-top: 4px;
+        margin-bottom: 4px;
         text-align: center;
     }
 </style>
 
 <div class="fullscreen-div">
-    <div class="scada-grid-1">
+    <div class="scada-grid-ambtemp">
         <div class="scada-group">
             <div class="scada-value-name">ISPEAmpTemp:</div>
             <div id="ISPEAmbTempvalue" class="scada-value">N/A</div>
         </div>
     </div>
-    <div class="scada-grid">
+    <div class="scada-grid-temp">
         <div class="scada-group">
             <div class="scada-value-name">ISPEMTemp:</div>
             <div id="ISPEMTempvalue" class="scada-value">N/A</div>
         </div>
     </div>
-    <div class="scada-grid">
+    <div class="scada-grid-speed">
         <div class="scada-group">
             <div class="scada-value-name">ISPESpeed:</div>
             <div id="ISPESpeedvalue" class="scada-value">N/A</div>
         </div>
     </div>
-    <div class="scada-grid">
+    <div class="scada-grid-pressure">
         <div class="scada-group">
             <div class="scada-value-name">ISPEPressure:</div>
             <div id="ISPEPressurevalue" class="scada-value">N/A</div>

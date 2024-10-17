@@ -24,6 +24,7 @@
         grid-template-columns: minmax(270px, 1fr) minmax(270px, 1fr);
         align-items: center;
         justify-items: center; 
+        padding-top:20px;
     }
 
     .eo-button-style {
@@ -48,20 +49,15 @@
 
 </style>
  
- <div class="background-scada">
-    <!-- https://www.syntegon.com/hs-fs/hubfs/Content/1-Solutions/1-Pharma/2-Process-pages/04-Vial-filling-process/vial-filling-machine-02.jpg?width=870&height=540&name=vial-filling-machine-02.jpg -->
-    <img src="{{url_for('static', filename='images/backdrops/vial-filling-machine-02.webp')}}" class="background-scada img">
- </div>
- 
- 
 
-
- <div class="eo-button">
+<div class="eo-button">
     <a href="/scada" class="eo-button-style">P&ID</a>
     <a href="/3d-view" class="eo-button-style">3D- View</a>
  </div>
 
-
- 
-
+ <div class="background-scada">
+    <!-- https://www.syntegon.com/hs-fs/hubfs/Content/1-Solutions/1-Pharma/2-Process-pages/04-Vial-filling-process/vial-filling-machine-02.jpg?width=870&height=540&name=vial-filling-machine-02.jpg -->
+    <img src="{{url_for('static', filename='images/backdrops/vial-filling-machine-02.webp')}}" class="background-scada img">
+ </div>
+   
 {% endblock %}
