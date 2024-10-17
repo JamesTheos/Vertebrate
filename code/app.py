@@ -21,7 +21,7 @@ app = Flask(__name__)
 
 # Kafka consumer configuration
 kafka_conf = {
-    'bootstrap.servers': '172.18.192.25:9092',
+    'bootstrap.servers': '172.21.26.60:9092',
     'group.id': 'flask-consumer-group',
     'auto.offset.reset': 'earliest'
 }
@@ -30,7 +30,7 @@ consumer.subscribe(['ISPEScene1', 'ISPEScene2','ISPEMTemp','ISPESpeed','ISPEPres
 
 # Kafka producer configuration
 producer_conf = {
-    'bootstrap.servers': '172.18.192.25:9092'
+    'bootstrap.servers': '172.21.26.60:9092'
 }
 producer = Producer(producer_conf)
 

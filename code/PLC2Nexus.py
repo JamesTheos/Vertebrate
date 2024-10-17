@@ -10,7 +10,7 @@ import os
 opcua_url = "opc.tcp://localhost:4840"
 
 # Kafka server details
-kafka_bootstrap_servers = "172.18.192.25:9092"
+kafka_bootstrap_servers = "172.21.26.60:9092"
 #kafka_topic = "ISPE"  # Replace with your Kafka topic name
 kafka_cluster_id = "SCRy-9XoRpWIsPQWoBU0-w"
 

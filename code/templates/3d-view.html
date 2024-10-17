@@ -100,9 +100,9 @@
             const data4 = await fetchData('ISPEMTemp');
 
             const latestValue1 = data1.length > 0 ? data1[data1.length - 1].value : 'N/A';
-            const latestValue2 = data2.length > 0 ? data1[data1.length - 1].value : 'N/A';
-            const latestValue3 = data3.length > 0 ? data1[data1.length - 1].value : 'N/A';
-            const latestValue4 = data4.length > 0 ? data1[data1.length - 1].value : 'N/A';
+            const latestValue2 = data2.length > 0 ? data2[data2.length - 1].value : 'N/A';
+            const latestValue3 = data3.length > 0 ? data3[data3.length - 1].value : 'N/A';
+            const latestValue4 = data4.length > 0 ? data4[data4.length - 1].value : 'N/A';
             document.getElementById('ISPEAmbTempvalue').textContent = `${latestValue1}`;
             document.getElementById('ISPESpeedvalue').textContent = `${latestValue2}`;
             document.getElementById('ISPEPressurevalue').textContent = `${latestValue3}`;
@@ -113,7 +113,7 @@
         updateScadaValues();
 
         // Refresh every 5 seconds
-        setInterval(updateScadaValues, 5000);
+        setInterval(updateScadaValues, 500);
     </script>
 
 

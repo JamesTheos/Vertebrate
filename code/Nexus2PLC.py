@@ -5,7 +5,7 @@ from datetime import datetime
 
 # Kafka consumer configuration
 kafka_conf = {
-    'bootstrap.servers': '172.18.192.25:9092',
+    'bootstrap.servers': '172.21.26.60:9092',
     'group.id': 'plc-consumer-group',
     'auto.offset.reset': 'earliest'
 }
