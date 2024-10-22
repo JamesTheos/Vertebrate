@@ -17,25 +17,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'Action Completed') {
-                        // Update the order status in the list
-                        const orderItem = event.target.parentElement;
-                        const orderData = JSON.parse(orderItem.textContent);
-                        orderData.status = action === 'release' ? 'Released' : 'Aborted';
-                        orderItem.textContent = JSON.stringify(orderData);
-                        // Re-add the buttons
-                        const releaseBtn = document.createElement('button');
-                        releaseBtn.classList.add('release-btn');
-                        releaseBtn.setAttribute('data-id', orderId);
-                        releaseBtn.textContent = 'Release';
-                        const abortBtn = document.createElement('button');
-                        abortBtn.classList.add('abort-btn');
-                        abortBtn.setAttribute('data-id', orderId);
-                        abortBtn.textContent = 'Abort';
-                        orderItem.appendChild(releaseBtn);
-                        orderItem.appendChild(abortBtn);
+                        if (action === 'release') {
+                            window.location.href = '/overview';
+                        } else {
+                            // Update the order status in the list
+                            const orderRow = event.target.closest('tr');
+                            orderRow.querySelector('td:nth-child(4)').textContent = 'Aborted';
+                        }
+                    } else {
+                        alert(data.error || 'An error occurred');
                     }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred');
                 });
             }
         });
     }
+    
 });

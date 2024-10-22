@@ -14,7 +14,7 @@
         :root {
             --background-color: rgb(255, 255, 255);
             --text-color: black;
-            --header-background: rgb(168, 168, 168);
+            --header-background: rgb(89, 128, 255);
             --sidebar-background: rgb(240, 240, 240);
             --button-background: rgb(249, 248, 255);
             --button-hover-color: rgb(89, 128, 255);
@@ -124,7 +124,9 @@
         </div>
         <div class="sidebar-group">
             <div class="sidebar-group-item">
-                <div></div>
+                <div class="icon-menu">
+                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/batch.svg') }}">
+                </div>
                 <a href="/batch" class="nav-button">Batch</a>
             </div>
         </div>
@@ -184,7 +186,9 @@
         </div>
         <div class="sidebar-group">
             <div class="sidebar-group-item-design-space">
-                <div></div>
+                <div class="icon-menu">
+                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/dsr.svg') }}">
+                </div>
                 <a href="/design-space-representation" class="nav-button">Design Space Representation</a>
             </div>
         </div>

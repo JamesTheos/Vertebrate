@@ -16,7 +16,8 @@ area = config['area']
 process_cell = config['process_cell']
 unit= config['unit'] 
 
-Kafkaserver = '172.20.50.243:9092'
+Kafkaserver = 'DESKTOP-LU0K7N2.fritz.box:9092'
+# clusterid = 'dngj27-uSnO9mSPTui2PyA'
 # Create Flask application with custom static folder
 app = Flask(__name__)
 
@@ -100,15 +101,26 @@ def manufacturing_orders():
 def order_management():
     if request.method == 'POST':
         action = request.json.get('action')
+        print(f"Requested Action: {action}")
         order_id = request.json.get('order_id')
+        print(f"Requested Order_ID: {order_id}")
+        if not action or not order_id:
+            return jsonify({'error': 'Missing action or order_id'}), 400
+        order_found = False
         for order in data_store['manufacturing_orders']:
-            if order['id'] == order_id:
+            if order['orderNumber'] == order_id:
+                order_found = True
                 if action == 'release':
                     order['status'] = 'Released'
                 elif action == 'abort':
                     order['status'] = 'Aborted'
-                producer.send('order_management', order)
+                else:
+                    return jsonify({'error': 'Invalid action'}), 400
+                producer.produce('manufacturing_orders', key="FromOrderManagement", value=json.dumps(order).encode('utf-8'))
+                producer.flush()
                 break
+        if not order_found:
+            return jsonify({'error': 'Order not found'}), 404
         return jsonify({'status': 'Action Completed'}), 200
     return render_template('order-management.html', orders=data_store['manufacturing_orders'])
 
@@ -144,6 +156,7 @@ def orderoverview():
 def overview():
     released_orders = [order for order in data_store['manufacturing_orders'] if order['status'] == 'Released']
     return render_template('overview.html', orders=released_orders)
+
 
 
 @app.route('/workflow/start', methods=['POST'])
@@ -211,7 +224,7 @@ def submit_order():
         'status': 'Created'
     }
 
-    producer.produce('manufacturing_orders', key="FromOrderManagement", value=json.dumps(message).encode('utf-8'))
+    producer.produce('manufacturing_orders', key="FromOrderCreation", value=json.dumps(message).encode('utf-8'))
     producer.flush()
 
     # Store the order in the data_store for order management

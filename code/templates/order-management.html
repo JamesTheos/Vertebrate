@@ -17,43 +17,90 @@
         <tbody id="order-list-body">
             {% for order in orders %}
                 <tr>
-                    <td>{{ order.order_number }}</td>
+                    <td>{{ order.orderNumber }}</td>
                     <td>{{ order.product }}</td>
-                    <td>{{ order.lot_number }}</td>
+                    <td>{{ order.lotNumber }}</td>
                     <td>
-                        <button class="release-btn" data-id="{{ order.id }}">Release</button>
-                        <button class="abort-btn" data-id="{{ order.id }}">Abort</button>
+                        <button class="release-btn" data-id="{{ order.orderNumber }}">Release</button>
+                        <button class="abort-btn" data-id="{{ order.orderNumber }}">Abort</button>
                     </td>
                 </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
-<script src="{{ url_for('static', filename='js/Orderworkflow.js') }}"></script>
-<!--
+
 <script>
-    async function loadOrders() {
-        const response = await fetch('/orders');
-        const orders = await response.json();
-        const orderListBody = document.getElementById('order-list-body');
-        orderListBody.innerHTML = '';  // Clear existing orders
+    document.addEventListener('DOMContentLoaded', function() {
+        const ordersList = document.getElementById('order-list-body');
 
-        orders.forEach(order => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${order.orderNumber}</td>
-                <td>${order.product}</td>
-                <td>${order.lotNumber}</td>
-            `;
-            orderListBody.appendChild(row);
-        });
-    }
-    
-    // Initial load
-    loadOrders();
+        // Function to save the status of an order to local storage
+        function saveOrderStatus(orderId, status) {
+            localStorage.setItem(`order-${orderId}-status`, status);
+        }
 
-    // Refresh every 10 seconds
-    setInterval(loadOrders, 5000);
+        // Function to load the status of an order from local storage
+        function loadOrderStatus(orderId) {
+            return localStorage.getItem(`order-${orderId}-status`);
+        }
+
+        // Update the UI based on the saved status in local storage
+        function updateUIFromLocalStorage() {
+            const rows = ordersList.querySelectorAll('tr');
+            rows.forEach(row => {
+                const orderId = row.querySelector('.release-btn, .abort-btn').getAttribute('data-id');
+                const status = loadOrderStatus(orderId);
+                if (status) {
+                    row.querySelector('td:nth-child(4)').textContent = status;
+                }
+            });
+        }
+
+        if (ordersList) {
+            // Update the UI based on the saved status in local storage when the page loads
+            updateUIFromLocalStorage();
+
+            ordersList.addEventListener('click', function(event) {
+                if (event.target.classList.contains('release-btn') || event.target.classList.contains('abort-btn')) {
+                    const action = event.target.classList.contains('release-btn') ? 'release' : 'abort';
+                    const orderId = event.target.getAttribute('data-id');
+
+                    fetch('/order-management', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ action, order_id: orderId })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'Action Completed') {
+                            const orderRow = event.target.closest('tr');
+                            const newStatus = action === 'release' ? 'Released' : 'Aborted';
+                            orderRow.querySelector('td:nth-child(4)').textContent = newStatus;
+                            saveOrderStatus(orderId, newStatus);
+
+                            if (action === 'release') {
+                                window.location.href = '/overview';
+                            } 
+                            // else {
+                            //     // Update the order status in the list
+                            //     const orderRow = event.target.closest('tr');
+                            //     orderRow.querySelector('td:nth-child(4)').textContent = 'Aborted';
+                            // }
+                        } else {
+                            alert(data.error || 'An error occurred');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred');
+                    });
+                }
+            });
+        }
+    });
 </script>
--->
+
+
 {% endblock %}
