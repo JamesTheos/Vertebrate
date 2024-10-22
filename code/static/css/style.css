@@ -40,3 +40,20 @@
     border: 2px solid #ccc;
     border-radius: 10px;
 }
+
+.release-btn, .abort-btn {
+    margin-left: 10px;
+    padding: 5px 10px;
+    cursor: pointer;
+}
+
+#ordersList, #releasedOrdersList {
+    list-style-type: none;
+    padding: 0;
+}
+
+#ordersList li, #releasedOrdersList li {
+    margin: 5px 0;
+    padding: 10px;
+    border: 1px solid #ccc;
+}

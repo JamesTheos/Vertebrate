@@ -11,35 +11,49 @@
                 <th>Order Number</th>
                 <th>Product</th>
                 <th>Lot Number</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody id="order-list-body">
-            <!-- Orders will be dynamically inserted here -->
+            {% for order in orders %}
+                <tr>
+                    <td>{{ order.order_number }}</td>
+                    <td>{{ order.product }}</td>
+                    <td>{{ order.lot_number }}</td>
+                    <td>
+                        <button class="release-btn" data-id="{{ order.id }}">Release</button>
+                        <button class="abort-btn" data-id="{{ order.id }}">Abort</button>
+                    </td>
+                </tr>
+            {% endfor %}
         </tbody>
     </table>
 </div>
-    <script>
-        async function loadOrders() {
-            const response = await fetch('/orders');
-            const orders = await response.json();
-            const orderListBody = document.getElementById('order-list-body');
-            orderListBody.innerHTML = '';  // Clear existing orders
+<script src="{{ url_for('static', filename='js/Orderworkflow.js') }}"></script>
+<!--
+<script>
+    async function loadOrders() {
+        const response = await fetch('/orders');
+        const orders = await response.json();
+        const orderListBody = document.getElementById('order-list-body');
+        orderListBody.innerHTML = '';  // Clear existing orders
 
-            orders.forEach(order => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${order.orderNumber}</td>
-                    <td>${order.product}</td>
-                    <td>${order.lotNumber}</td>
-                `;
-                orderListBody.appendChild(row);
-            });
-        }
+        orders.forEach(order => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${order.orderNumber}</td>
+                <td>${order.product}</td>
+                <td>${order.lotNumber}</td>
+            `;
+            orderListBody.appendChild(row);
+        });
+    }
+    
+    // Initial load
+    loadOrders();
 
-        // Initial load
-        loadOrders();
-
-        // Refresh every 10 seconds
-        setInterval(loadOrders, 5000);
-    </script>
+    // Refresh every 10 seconds
+    setInterval(loadOrders, 5000);
+</script>
+-->
 {% endblock %}

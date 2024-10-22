@@ -1,8 +1,19 @@
 {% extends "base.html" %}
 
-{% block title %}Workflows - Process Instructions{% endblock %}
-{% block header_title %}Workflows - Process Instructions{% endblock %}
+{% block title %}Workflow - Overview{% endblock %}
+{% block header_title %}Workflow - Overview{% endblock %}
 
 {% block content %}
-<p>This is the process instructions page.</p>
+<div class="workflow-container">
+    <div class="workflow-overview" id="workflow-overview">
+        <!-- Workflow steps will be dynamically inserted here -->
+    </div>
+    <div class="workflow-sidebar">
+        <h3>Current Workflow Step</h3>
+        <div id="current-step">
+            <!-- Current workflow step will be displayed here -->
+        </div>
+    </div>
+</div>
+<script src="{{ url_for('static', filename='js/workflow.js') }}"></script>
 {% endblock %}

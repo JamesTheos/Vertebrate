@@ -16,12 +16,13 @@ area = config['area']
 process_cell = config['process_cell']
 unit= config['unit'] 
 
+Kafkaserver = '172.20.50.243:9092'
 # Create Flask application with custom static folder
 app = Flask(__name__)
 
 # Kafka consumer configuration
 kafka_conf = {
-    'bootstrap.servers': '172.21.26.60:9092',
+    'bootstrap.servers': Kafkaserver,
     'group.id': 'flask-consumer-group',
     'auto.offset.reset': 'earliest'
 }
@@ -30,7 +31,7 @@ consumer.subscribe(['ISPEScene1', 'ISPEScene2','ISPEMTemp','ISPESpeed','ISPEPres
 
 # Kafka producer configuration
 producer_conf = {
-    'bootstrap.servers': '172.21.26.60:9092'
+    'bootstrap.servers': Kafkaserver
 }
 producer = Producer(producer_conf)
 
@@ -47,7 +48,8 @@ data_store = {
     'ISPEPressure': [],
     'ISPEAmbTemp': [],
     'ISPEStartPhase1': [],
-    'manufacturing_orders': []
+    'manufacturing_orders': [],
+    'order-management': []
 }
 
 def consume_messages():
@@ -84,13 +86,31 @@ def index():
 def trending():
     return render_template('trending.html')
 
-@app.route('/manufacturing-orders')
+@app.route('/manufacturing-orders', methods=['GET', 'POST'])
 def manufacturing_orders():
-    return render_template('manufacturing-orders.html')
+    if request.method == 'POST':
+        order_data = request.json
+        order_data['status'] = 'Created'
+        producer.send('manufacturing_orders', order_data)
+        data_store['manufacturing_orders'].append(order_data)
+        return jsonify({'status': 'Order Created'}), 201
+    return render_template('manufacturing-orders.html', orders=data_store['manufacturing_orders'])
 
-@app.route('/order-management')
+@app.route('/order-management', methods=['GET', 'POST'])
 def order_management():
-    return render_template('order-management.html')
+    if request.method == 'POST':
+        action = request.json.get('action')
+        order_id = request.json.get('order_id')
+        for order in data_store['manufacturing_orders']:
+            if order['id'] == order_id:
+                if action == 'release':
+                    order['status'] = 'Released'
+                elif action == 'abort':
+                    order['status'] = 'Aborted'
+                producer.send('order_management', order)
+                break
+        return jsonify({'status': 'Action Completed'}), 200
+    return render_template('order-management.html', orders=data_store['manufacturing_orders'])
 
 @app.route('/scada')
 def scada():
@@ -122,7 +142,9 @@ def orderoverview():
 
 @app.route('/overview')
 def overview():
-    return render_template('overview.html')
+    released_orders = [order for order in data_store['manufacturing_orders'] if order['status'] == 'Released']
+    return render_template('overview.html', orders=released_orders)
+
 
 @app.route('/workflow/start', methods=['POST'])
 def workflow_start():
@@ -185,7 +207,8 @@ def submit_order():
         'orderNumber': order_number,
         'product': product,
         'lotNumber': lot_number,
-        'timestamp': datetime.now().isoformat()
+        'timestamp': datetime.now().isoformat(),
+        'status': 'Created'
     }
 
     producer.produce('manufacturing_orders', key="FromOrderManagement", value=json.dumps(message).encode('utf-8'))

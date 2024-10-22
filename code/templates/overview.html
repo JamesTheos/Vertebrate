@@ -1,19 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Workflow - Overview{% endblock %}
-{% block header_title %}Workflow - Overview{% endblock %}
+{% block title %}Workflows - Process Instructions{% endblock %}
+{% block header_title %}Workflows - Process Instructions{% endblock %}
 
 {% block content %}
-<div class="workflow-container">
-    <div class="workflow-overview" id="workflow-overview">
-        <!-- Workflow steps will be dynamically inserted here -->
-    </div>
-    <div class="workflow-sidebar">
-        <h3>Current Workflow Step</h3>
-        <div id="current-step">
-            <!-- Current workflow step will be displayed here -->
-        </div>
-    </div>
-</div>
-<script src="{{ url_for('static', filename='js/workflow.js') }}"></script>
+<h1>Released Orders</h1>
+<ul id="releasedOrdersList">
+    {% for order in orders %}
+        <li>{{ order }}</li>
+    {% endfor %}
+</ul>
 {% endblock %}
