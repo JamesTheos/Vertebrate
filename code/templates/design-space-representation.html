@@ -1,9 +1,141 @@
 {% extends "base.html" %}
 
 {% block title %}QBD - Design Space Representation{% endblock %}
-
 {% block header_title %}QBD - Design Space Representation{% endblock %}
 
 {% block content %}
-<p>This is the Desing Space Respresentation page.</p>
+<h2>Design Space Representation</h2>
+
+<!-- Dropdown to select different sets -->
+<label for="set-select">Select Set:</label>
+<select id="set-select" onchange="loadSet(this.value)">
+    <option value="">Select a set</option>
+</select>
+<br><br>
+
+<!-- Canvas for the chart -->
+<div style="width: 900px; height: 900px;">
+    <canvas id="chart"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    let chart;
+    let latestDatasetIndex = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        fetch('/get-sets')
+            .then(response => response.json())
+            .then(data => {
+                const select = document.getElementById('set-select');
+                data.forEach(set => {
+                    const option = document.createElement('option');
+                    option.value = set.id;
+                    option.textContent = set.name;
+                    select.appendChild(option);
+                });
+            });
+
+        // Start polling for the latest values
+        setInterval(fetchLatestValues, 1000); // Poll every 5 seconds
+    });
+
+    function loadSet(setId) {
+        if (!setId) {
+            return;
+        }
+
+        fetch(`/get-set/${setId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'error') {
+                    alert(data.message);
+                    return;
+                }
+
+                const ctx = document.getElementById('chart').getContext('2d');
+                const dataset = data.values.map(value => ({
+                    x: value.ispespeed,
+                    y: value.ispetemp
+                }));
+
+                if (chart) {
+                    chart.destroy();
+                }
+
+                chart = new Chart(ctx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: [{
+                            label: 'Design Space',
+                            data: dataset,
+                            backgroundColor: 'rgba(75, 192, 192, 0.6)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        scales: {
+                            x: {
+                                type: 'linear',
+                                position: 'bottom',
+                                min: 0,
+                                max: 40,
+                                title: {
+                                    display: true,
+                                    text: 'ISPESpeed'
+                                }
+                            },
+                            y: {
+                                min: 0,
+                                max: 40,
+                                title: {
+                                    display: true,
+                                    text: 'ISPETemp'
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Add a dataset for the latest value
+                latestDatasetIndex = chart.data.datasets.length;
+                chart.data.datasets.push({
+                    label: 'Latest Value',
+                    data: [],
+                    backgroundColor: 'red'
+                });
+                chart.update();
+            });
+    }
+
+    function fetchLatestValues() {
+        fetch('/get-latest-values')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(latestData => {
+                if (latestData.status === 'error') {
+                    console.error(latestData.message);
+                    return;
+                }
+
+                const latestPoint = {
+                    x: latestData.ispespeed,
+                    y: latestData.ispetemp
+                };
+
+                if (chart && latestDatasetIndex !== null) {
+                    chart.data.datasets[latestDatasetIndex].data = [latestPoint];
+                    chart.update();
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching latest values:', error);
+            });
+    }
+</script>
 {% endblock %}

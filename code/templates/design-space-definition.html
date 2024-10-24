@@ -4,5 +4,130 @@
 {% block header_title %}QBD - Design Space Definition{% endblock %}
 
 {% block content %}
-<p>This is the Desing Space Definiton page.</p>
+<h2>Design Space Definition</h2>
+
+<!-- Dropdown to select different sets -->
+<label for="set-select">Select Set:</label>
+<select id="set-select" onchange="loadSet(this.value)">
+    <option value="">New Set</option>
+</select>
+<br><br>
+
+<!-- Table to input value pairs -->
+<table id="value-pairs-table">
+    <thead>
+        <tr>
+            <th>ISPESpeed</th>
+            <th>ISPETemp</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><input type="number" class="ispespeed" required></td>
+            <td><input type="number" class="ispetemp" required></td>
+            <td><button type="button" onclick="removeRow(this)">Remove</button></td>
+        </tr>
+    </tbody>
+</table>
+<br>
+<button type="button" onclick="addRow()">Add Row</button>
+<br><br>
+<button type="button" onclick="saveSet()">Save Set</button>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        fetch('/get-sets')
+            .then(response => response.json())
+            .then(data => {
+                const select = document.getElementById('set-select');
+                data.forEach(set => {
+                    const option = document.createElement('option');
+                    option.value = set.id;
+                    option.textContent = set.name;
+                    select.appendChild(option);
+                });
+            });
+    });
+
+    function addRow() {
+        const table = document.getElementById('value-pairs-table').getElementsByTagName('tbody')[0];
+        const newRow = table.insertRow();
+        newRow.innerHTML = `
+            <td><input type="number" class="ispespeed" required></td>
+            <td><input type="number" class="ispetemp" required></td>
+            <td><button type="button" onclick="removeRow(this)">Remove</button></td>
+        `;
+    }
+
+    function removeRow(button) {
+        const row = button.parentNode.parentNode;
+        row.parentNode.removeChild(row);
+    }
+
+    function saveSet() {
+        const rows = document.querySelectorAll('#value-pairs-table tbody tr');
+        const values = Array.from(rows).map(row => ({
+            ispespeed: row.querySelector('.ispespeed').value,
+            ispetemp: row.querySelector('.ispetemp').value
+        }));
+
+        const setName = prompt('Enter a name for this set:');
+        if (!setName) return;
+
+        const setId = document.getElementById('set-select').value || null;
+
+        fetch('/save-set', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ id: setId, name: setName, values })
+        }).then(response => {
+            if (response.ok) {
+                alert('Set saved successfully!');
+                location.reload();
+            } else {
+                alert('Failed to save set.');
+            }
+        });
+    }
+
+    function loadSet(setId) {
+        if (!setId) {
+            // Clear the table for a new set
+            document.querySelector('#value-pairs-table tbody').innerHTML = `
+                <tr>
+                    <td><input type="number" class="ispespeed" required></td>
+                    <td><input type="number" class="ispetemp" required></td>
+                    <td><button type="button" onclick="removeRow(this)">Remove</button></td>
+                </tr>
+            `;
+            return;
+        }
+
+        fetch(`/get-set/${setId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'error') {
+                    alert(data.message);
+                    return;
+                }
+                const tbody = document.querySelector('#value-pairs-table tbody');
+                tbody.innerHTML = ''; // Clear existing rows
+                data.values.forEach(value => {
+                    const newRow = tbody.insertRow();
+                    newRow.innerHTML = `
+                        <td><input type="number" class="ispespeed" value="${value.ispespeed}" required></td>
+                        <td><input type="number" class="ispetemp" value="${value.ispetemp}" required></td>
+                        <td><button type="button" onclick="removeRow(this)">Remove</button></td>
+                    `;
+                });
+            })
+            .catch(error => {
+                console.error('Error loading set:', error);
+                alert('Failed to load set.');
+            });
+    }
+</script>
 {% endblock %}

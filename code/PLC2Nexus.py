@@ -8,11 +8,11 @@ import os
 
 # OPC UA server details
 opcua_url = "opc.tcp://localhost:4840"
-
+Kafkaserver = '172.20.50.243:9092'
+kafka_cluster_id = "5YalKxusQQ-BDQ-rXKvvpA"
 # Kafka server details
-kafka_bootstrap_servers = "172.21.26.60:9092"
-#kafka_topic = "ISPE"  # Replace with your Kafka topic name
-kafka_cluster_id = "SCRy-9XoRpWIsPQWoBU0-w"
+kafka_bootstrap_servers = Kafkaserver
+
 
 # Connect to OPC UA server
 opcua_client = Client(opcua_url)
