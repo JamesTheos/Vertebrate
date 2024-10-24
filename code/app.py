@@ -17,7 +17,7 @@ process_cell = config['process_cell']
 unit= config['unit'] 
 
 Kafkaserver = 'DESKTOP-LU0K7N2.fritz.box:9092'
-# clusterid = 'dngj27-uSnO9mSPTui2PyA'
+# clusterid = 'XZ0liWYxTL-YbnQvGKTnfA'
 # Create Flask application with custom static folder
 app = Flask(__name__)
 
@@ -49,6 +49,7 @@ data_store = {
     'ISPEPressure': [],
     'ISPEAmbTemp': [],
     'ISPEStartPhase1': [],
+    'ISPESelectPhase1': [],
     'manufacturing_orders': [],
     'order-management': []
 }
@@ -157,12 +158,33 @@ def overview():
     released_orders = [order for order in data_store['manufacturing_orders'] if order['status'] == 'Released']
     return render_template('overview.html', orders=released_orders)
 
+@app.route('/api/released-orders', methods=['GET'])
+def get_released_orders():
+    released_orders = [order for order in data_store['manufacturing_orders'] if order['status'] == 'Released']
+    return jsonify({'orders': released_orders})
 
+@app.route('/workflow/select', methods=['POST'])
+def workflow_select():
+    order_id = request.json.get('data')
+    print(f"Requested Order_ID: {order_id}")
+    for order in data_store['manufacturing_orders']:
+        if order['orderNumber'] == order_id:
+            timestamp = datetime.utcnow().isoformat()
+            send_to_kafka('ISPESelectPhase1', {'value': True, 'timestamp': timestamp, **order})
+
+    return jsonify({'success': True})
 
 @app.route('/workflow/start', methods=['POST'])
 def workflow_start():
-    timestamp = datetime.utcnow().isoformat()
-    send_to_kafka('ISPEStartPhase1', {'value': True, 'timestamp': timestamp})
+    order_id = request.json.get('data')
+    print(f"Requested Start Order_ID: {order_id}")
+    for order in data_store['manufacturing_orders']:
+        print(f"Order: {order}")
+        if order['orderNumber'] == order_id:
+            order['status'] = 'Started'
+            order['timestamp'] = datetime.utcnow().isoformat()
+            send_to_kafka('ISPEStartPhase1', {'value': True, **order})
+            send_to_kafka('manufacturing_orders', {**order})
     return jsonify({'success': True})
 
 @app.route('/workflow/scene1', methods=['POST'])
@@ -187,6 +209,7 @@ def workflow_end():
     send_to_kafka('ISPEStartPhase1', {'value': False, 'timestamp': timestamp})
     return jsonify({'success': True})
 
+
 @app.route('/sampling')
 def sampling():
     return render_template('sampling.html')
@@ -204,6 +227,7 @@ def get_data(topic):
 @app.route('/submit-order', methods=['POST'])
 def submit_order():
     order_data = request.json
+    print(f"Requested Action: {order_data}")
     order_number = order_data.get('orderNumber')
     product = order_data.get('product')
     lot_number = order_data.get('lotNumber')

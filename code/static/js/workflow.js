@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     const steps = [
+        { id: 'step0', name: 'Select Released Order', endpoint: '/workflow/select' },
         { id: 'step1', name: 'Start Process', endpoint: '/workflow/start' },
         { id: 'step2', name: 'Select Scene', endpoints: { scene1: '/workflow/scene1', scene2: '/workflow/scene2' } },
         { id: 'step3', name: 'End Process', endpoint: '/workflow/end' },
@@ -18,7 +19,13 @@ document.addEventListener('DOMContentLoaded', function() {
             stepElement.innerHTML = `
                 <div class="step-content">
                     <h3>${step.name}</h3>
-                    ${index === 1 ? `
+                    ${index === 0 ? `
+                        <label for="released-orders">Select Released Order:</label>
+                        <select id="released-orders">
+                            <option value="">Select an order</option>
+                        </select>
+                        <button id="select-order-btn" disabled>Select Order</button>
+                    ` : index === 2 ? `
                         <button onclick="nextStep('scene1')" id="scene1-btn" disabled>Scene 1</button>
                         <button onclick="nextStep('scene2')" id="scene2-btn" disabled>Scene 2</button>
                     ` : index === steps.length - 1 ? `
@@ -63,20 +70,28 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 endpoint = step.endpoint;
             }
-            fetch(endpoint, { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        updateWorkflowStep(currentStep);
-                        currentStep++;
-                        localStorage.setItem('currentStep', currentStep);
+            
+                updateWorkflowStep(currentStep);
+                currentStep++;
+                localStorage.setItem('currentStep', currentStep);
                         if (currentStep < steps.length) {
                             updateWorkflowStep(currentStep);
                         }
-                    }
-                });
+                    // still needed?
+                
         }
     }
+
+    
+    const resetButton = document.createElement('button');
+    resetButton.id = 'reset-btn';
+    resetButton.textContent = 'Reset to Step 0';
+    resetButton.style.backgroundColor = 'red';
+    resetButton.addEventListener('click', function() {
+        resetWorkflow();
+    });
+
+    document.body.appendChild(resetButton);
 
     window.resetWorkflow = function() {
         currentStep = 0;
@@ -88,4 +103,81 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize the workflow steps and the first step
     renderWorkflowSteps();
     updateWorkflowStep(currentStep);
+
+    // Populate the released orders dropdown
+    fetch('/api/released-orders')
+        .then(response => response.json())
+        .then(data => {
+            const releasedOrdersDropdown = document.getElementById('released-orders');
+            data.orders.forEach(order => {
+                const option = document.createElement('option');
+                option.value = order.orderNumber;
+                option.textContent = order.orderNumber;
+                releasedOrdersDropdown.appendChild(option);
+            });
+        });
+
+    const releasedOrdersDropdown = document.getElementById('released-orders');
+    const selectOrderBtn = document.getElementById('select-order-btn');
+
+    releasedOrdersDropdown.addEventListener('change', function() {
+        selectOrderBtn.disabled = !releasedOrdersDropdown.value;
+    });
+
+    selectOrderBtn.addEventListener('click', function() {
+        const selectedOrder = releasedOrdersDropdown.value;
+        if (selectedOrder) {
+            // Save the selected order to local storage
+            localStorage.setItem('selectedOrder', selectedOrder);
+
+            fetch('/workflow/select', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({data: releasedOrdersDropdown.value })
+            })
+            .then(response => response.json())
+        
+
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred');
+            });
+            // Move to the next step
+            currentStep++;
+            localStorage.setItem('currentStep', currentStep);
+            updateWorkflowStep(currentStep);
+        }
+    });
+
+        // Event listener for the "Start" button
+    const startBtn = document.getElementById('step1-btn');
+    startBtn.addEventListener('click', function() {
+        const selorder = localStorage.getItem('selectedOrder');
+        if (selorder) {
+            fetch('/workflow/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ data:  selorder})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('Order started successfully');
+                } else { 
+                    console.error('Error:', data.message);
+                    alert('An error occurred');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred');
+            });
+        } else {
+            alert('No order selected');
+        }
+    });
 });
