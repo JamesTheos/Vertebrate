@@ -155,8 +155,8 @@ def orderoverview():
 
 @app.route('/overview')
 def overview():
-    released_orders = [order for order in data_store['manufacturing_orders'] if order['status'] == 'Released']
-    return render_template('overview.html', orders=released_orders)
+    relStaCom_orders = [order for order in data_store['manufacturing_orders'] if order['status'] in ['Released', 'Started', 'Completed']]
+    return render_template('overview.html', orders=relStaCom_orders)
 
 @app.route('/api/released-orders', methods=['GET'])
 def get_released_orders():
@@ -189,24 +189,39 @@ def workflow_start():
 
 @app.route('/workflow/scene1', methods=['POST'])
 def workflow_scene1():
-    timestamp = datetime.utcnow().isoformat()
-    send_to_kafka('ISPEScene1', {'value': True, 'timestamp': timestamp})
-    send_to_kafka('ISPEScene2', {'value': False, 'timestamp': timestamp})
+    order_id = request.json.get('data')
+    for order in data_store['manufacturing_orders']:
+        print(f"Scene 2 Order: {order}")
+        if order['orderNumber'] == order_id:
+            order['timestamp'] = datetime.utcnow().isoformat()
+            send_to_kafka('ISPEScene1', {'value': True, **order})
+            send_to_kafka('ISPEScene2', {'value': False, **order})
     return jsonify({'success': True})
 
 @app.route('/workflow/scene2', methods=['POST'])
 def workflow_scene2():
-    timestamp = datetime.utcnow().isoformat()
-    send_to_kafka('ISPEScene1', {'value': False, 'timestamp': timestamp})
-    send_to_kafka('ISPEScene2', {'value': True, 'timestamp': timestamp})
+    order_id = request.json.get('data')
+    for order in data_store['manufacturing_orders']:
+        print(f"Scene 2 Order: {order}")
+        if order['orderNumber'] == order_id:
+            order['timestamp'] = datetime.utcnow().isoformat()
+            send_to_kafka('ISPEScene1', {'value': False, **order})
+            send_to_kafka('ISPEScene2', {'value': True, **order})
     return jsonify({'success': True})
 
 @app.route('/workflow/end', methods=['POST'])
 def workflow_end():
-    timestamp = datetime.utcnow().isoformat()
-    send_to_kafka('ISPEScene1', {'value': False, 'timestamp': timestamp})
-    send_to_kafka('ISPEScene2', {'value': False, 'timestamp': timestamp})
-    send_to_kafka('ISPEStartPhase1', {'value': False, 'timestamp': timestamp})
+    order_id = request.json.get('data')
+    print(f"Requested Start Order_ID: {order_id}")
+    for order in data_store['manufacturing_orders']:
+        print(f"Completed Order: {order}")
+        if order['orderNumber'] == order_id:
+            order['status'] = 'Completed'
+            order['timestamp'] = datetime.utcnow().isoformat()
+            send_to_kafka('ISPEScene1', {'value': False, **order})
+            send_to_kafka('ISPEScene2', {'value': False, **order})
+            send_to_kafka('ISPEStartPhase1', {'value': False, **order})
+            send_to_kafka('manufacturing_orders', {**order})
     return jsonify({'success': True})
 
 

@@ -16,12 +16,12 @@
         </thead>
         <tbody>
             {% for order in orders %}
-                <tr>
-                    <td>{{ order.orderNumber }}</td>
-                    <td>{{ order.product }}</td>
-                    <td>{{ order.lotNumber }}</td>
-                    <td>{{ order.status }}</td>
-                </tr>
+                    <tr>
+                        <td>{{ order.orderNumber }}</td>
+                        <td>{{ order.product }}</td>
+                        <td>{{ order.lotNumber }}</td>
+                        <td>{{ order.status }}</td>
+                    </tr>
             {% endfor %}
         </tbody>
     </table>
