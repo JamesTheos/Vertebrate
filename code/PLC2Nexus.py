@@ -1,6 +1,6 @@
 from opcua import Client, ua
 from opcua.common.subscription import Subscription
-from confluent_kafka import Producer, KafkaException
+from confluent_kafka import Producer, Consumer, KafkaException
 import json
 import time
 from datetime import datetime
@@ -39,7 +39,7 @@ unit= config['unit']
 # Dictionary mapping OPC UA node IDs to Kafka topics
 node_topic_mapping = {
     #"ns=4;s=|var|CODESYS Control Win V3 x64.Application.Main.Scene1": "ISPEScene1",
-   # "ns=4;s=|var|CODESYS Control Win V3 x64.Application.Main.Scene2": "ISPEScene2",
+    #"ns=4;s=|var|CODESYS Control Win V3 x64.Application.Main.Scene2": "ISPEScene2",
     "ns=4;s=|var|CODESYS Control Win V3 x64.Application.CM001_Mat_Temp.CM001_MTemp": "ISPEMTemp",
     "ns=4;s=|var|CODESYS Control Win V3 x64.Application.CM002_Speed.CM002_Speed": "ISPESpeed",
     "ns=4;s=|var|CODESYS Control Win V3 x64.Application.CM003_Pressure.CM003_Pressure": "ISPEPressure",
@@ -48,6 +48,57 @@ node_topic_mapping = {
 }
 # Dictionary to store previous values
 previous_values = {}
+
+consumer = Consumer(kafka_conf)
+consumer.subscribe(['manufacturing_order'])
+
+global orderNumber, lotNumber, product
+
+
+def consume_messages():
+    try:
+        while True:
+            order = consumer.poll(timeout=1.0)
+            if  order is None:
+                continue
+            if order.error():
+                if order.error().code() == KafkaException._PARTITION_EOF:
+                    continue
+                else:
+                    print(order.error())
+                    break
+            if order['status'] is "Started":
+                orderNumber = order['orderNumber']
+                product = order['product']
+                lotNumber = order['lotNumber']
+            else:
+                orderNumber = None
+                lotNumber = None
+                product = None
+
+
+            # Parse the message
+            topic = order.topic()
+            message = json.loads(order.value().decode('utf-8'))
+            value = message['value']
+            timestamp = message['timestamp']
+
+            # Find the corresponding OPC UA node ID
+            node_id = None
+            for key, val in node_topic_mapping.items():
+                if val == topic:
+                    node_id = key
+                    break
+    except KeyboardInterrupt:
+        pass
+    finally:
+        opcua_client.disconnect()
+        consumer.close()
+    
+    
+
+    
+
 
 # Handler for subscription events
 class SubHandler(object):
@@ -67,13 +118,19 @@ class SubHandler(object):
                 "value": val,
                 "timestamp": timestamp.isoformat(),
                 "Producertimestamp": producertimestamp,
-                "health_status": health_status
+                "health_status": health_status,
+                "orderNumber": orderNumber,
+                "product": product,
+                "lotNumber" : lotNumber
             }
-            if val != previous_values.get(node_id):
-                producer.produce(topic, key="FromPLC", value=json.dumps(data_dict))
-                producer.flush()
-                previous_values[node_id] = val
-                print(f"Sent data to Kafka: {data_dict}")
+        if val != previous_values.get(node_id):
+            producer.produce(topic, key="FromPLC", value=json.dumps(data_dict))
+            producer.flush()
+            previous_values[node_id] = val
+            print(f"Sent data to Kafka: {data_dict}")
+                        
+
+        
 
 # Create a subscription
 subscription = opcua_client.create_subscription(500, SubHandler())
@@ -91,3 +148,7 @@ except KeyboardInterrupt:
 finally:
     subscription.delete()
     opcua_client.disconnect()
+
+
+if __name__ == '__main__':
+    consume_messages()

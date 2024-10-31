@@ -8,12 +8,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
     let currentStep = parseInt(localStorage.getItem('currentStep')) || 0;
+    let selectedOrder = localStorage.getItem('selectedOrder');
 
     // Initial Calls
     // Initialize the workflow steps and the first step
+    
+    
+    
     renderWorkflowSteps();
     updateWorkflowStep(currentStep);
     populateReleasedOrders();
+   
 
 
     function renderWorkflowSteps() {
@@ -28,8 +33,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     <h3>${step.name}</h3>
                     ${index === 0 ? `
                         <label for="released-orders">Select Released Order:</label>
-                        <select id="released-orders">
-                            <option value="">Select an order</option>
+                        <select id="released-orders" ${selectedOrder && currentStep >= 1 && currentStep <= 3 ? 'disabled' : ''}>
+                            ${selectedOrder ? `<option value="${selectedOrder}" selected>${selectedOrder}</option>` : '<option value="">Select an order</option>'}
                         </select>
                         <button id="select-order-btn" disabled>Select Order</button>
                     `: index === 1 ? `
@@ -45,66 +50,24 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             workflowOverview.appendChild(stepElement);
         });
-    }
-
-    function updateWorkflowStep(stepIndex) {
-        steps.forEach((step, index) => {
-            const stepElement = document.getElementById(step.id);
-            const buttons = stepElement.querySelectorAll('button');
-            if (index < stepIndex) {
-                stepElement.classList.add('completed');
-                stepElement.classList.remove('active');
-                buttons.forEach(button => button.disabled = true);
-            } else if (index === stepIndex) {
-                stepElement.classList.add('active');
-                stepElement.classList.remove('completed');
-                buttons.forEach(button => button.disabled = false);
-            } else {
-                stepElement.classList.remove('active', 'completed');
-                buttons.forEach(button => button.disabled = true);
-            }
-        });
-
-        const currentStepElement = document.getElementById('current-step');
-        currentStepElement.innerHTML = `<h3>${steps[stepIndex].name}</h3>`;
-    }
-
-    // Function to populate the released orders dropdown
-    function populateReleasedOrders() {
-        fetch('/api/released-orders')
-            .then(response => response.json())
-            .then(data => {
-                const releasedOrdersDropdown = document.getElementById('released-orders');
-                releasedOrdersDropdown.innerHTML = '<option value="">Select an order</option>'; // Clear existing options
-                data.orders.forEach(order => {
-                    const option = document.createElement('option');
-                    option.value = order.orderNumber;
-                    option.textContent = order.orderNumber;
-                    releasedOrdersDropdown.appendChild(option);
-                });
-
-                // Add event listener for the dropdown menu after it is populated
-                releasedOrdersDropdown.addEventListener('change', function() {
-                    const selectOrderBtn = document.getElementById('select-order-btn');
-                    selectOrderBtn.disabled = !releasedOrdersDropdown.value;
-                });
-        });
-    }
 
 
-
-    // Dropdown menu for released orders
     const releasedOrdersDropdown = document.getElementById('released-orders');
     const selectOrderBtn = document.getElementById('select-order-btn');
+    
+
+    
 
     // Event listener on select order Button and send the selected order
     selectOrderBtn.addEventListener('click', function() {
         // Disable the dropdown menu
         releasedOrdersDropdown.disabled = true;
         const selectedOrder = releasedOrdersDropdown.value;
+        console.log('Order outside');
         if (selectedOrder) {
             // Save the selected order to local storage
             localStorage.setItem('selectedOrder', selectedOrder);
+            console.log('Order inside');
 
             fetch('/workflow/select', {
                 method: 'POST',
@@ -245,14 +208,84 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Move to the next step
                 currentStep = 0;
                 localStorage.setItem('currentStep', currentStep);
+                localStorage.removeItem('selectedOrder');
                 renderWorkflowSteps();
                 updateWorkflowStep(currentStep);
+                
                 //Call function for released orders to update the dropdown menu
                 populateReleasedOrders();
+                
             } else {
                 alert('No order selected');
             }
         });
+
+
+
+
+
+
+    }
+
+    function updateWorkflowStep(stepIndex) {
+        steps.forEach((step, index) => {
+            const stepElement = document.getElementById(step.id);
+            const buttons = stepElement.querySelectorAll('button');
+            if (index < stepIndex) {
+                stepElement.classList.add('completed');
+                stepElement.classList.remove('active');
+                buttons.forEach(button => button.disabled = true);
+            } else if (index === stepIndex) {
+                stepElement.classList.add('active');
+                stepElement.classList.remove('completed');
+                buttons.forEach(button => button.disabled = false);
+            } else {
+                stepElement.classList.remove('active', 'completed');
+                buttons.forEach(button => button.disabled = true);
+            }
+        });
+
+        const currentStepElement = document.getElementById('current-step');
+        currentStepElement.innerHTML = `<h3>${steps[stepIndex].name}</h3>`;
+    }
+
+    // Function to populate the released orders dropdown
+    function populateReleasedOrders() {
+        fetch('/api/released-orders')
+            .then(response => response.json())
+            .then(data => {
+                const releasedOrdersDropdown = document.getElementById('released-orders');
+                releasedOrdersDropdown.innerHTML = `<option value="">Select an order</option>`;
+                if (selectedOrder) {
+                    const selectedOption = document.createElement('option');
+                    selectedOption.value = selectedOrder;
+                    selectedOption.textContent = selectedOrder;
+                    selectedOption.selected = true;
+                    releasedOrdersDropdown.appendChild(selectedOption);
+                }
+                else
+                {
+                    data.orders.forEach(order => {
+                        const option = document.createElement('option');
+                        option.value = order.orderNumber;
+                        option.textContent = order.orderNumber;
+        
+                        releasedOrdersDropdown.appendChild(option);
+                    });
+                }
+
+                // Add event listener for the dropdown menu after it is populated
+                releasedOrdersDropdown.addEventListener('change', function() {
+                    const selectOrderBtn = document.getElementById('select-order-btn');
+                    selectOrderBtn.disabled = !releasedOrdersDropdown.value;
+                });
+
+               
+        });
+    }
+
+
+
 
 
 });

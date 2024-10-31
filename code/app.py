@@ -102,9 +102,7 @@ def manufacturing_orders():
 def order_management():
     if request.method == 'POST':
         action = request.json.get('action')
-        print(f"Requested Action: {action}")
         order_id = request.json.get('order_id')
-        print(f"Requested Order_ID: {order_id}")
         if not action or not order_id:
             return jsonify({'error': 'Missing action or order_id'}), 400
         order_found = False
@@ -166,7 +164,6 @@ def get_released_orders():
 @app.route('/workflow/select', methods=['POST'])
 def workflow_select():
     order_id = request.json.get('data')
-    print(f"Requested Order_ID: {order_id}")
     for order in data_store['manufacturing_orders']:
         if order['orderNumber'] == order_id:
             timestamp = datetime.utcnow().isoformat()
