@@ -12,12 +12,12 @@
 
     <style>
         :root {
-            --background-color: rgb(255, 255, 255);
-            --text-color: black;
-            --header-background: rgb(89, 128, 255);
+            --background-color: rgb(255, 238, 212);
+            --text-color: rgb(59, 59, 59);
+            --header-background: rgb(252, 231, 199);
             --sidebar-background: rgb(240, 240, 240);
             --button-background: rgb(249, 248, 255);
-            --button-hover-color: rgb(89, 128, 255);
+            --button-hover-color: rgb(252, 231, 199);
             --button-text-color: #424242;
             --border-color: rgb(211, 211, 211);
             --card-background: #f0f2f5;
@@ -200,7 +200,14 @@
                 <div class="icon-menu">
                     <img class="icon-button" src="{{ url_for('static', filename='images/icons/trending.svg') }}">
                 </div>
-                <a href="/trending" class="nav-button">Trending</a>
+            <a href="/trending" class="nav-button"> Product Analysis</a>
+        </div>
+        <div class="sidebar-group">
+            <div class="sidebar-group-item">
+                <div class="icon-menu">
+                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/trending.svg') }}">
+                </div>
+                <a href="/trending" class="nav-button">Process QbD Analysis</a>
             </div>
         </div>
 

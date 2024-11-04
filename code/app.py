@@ -16,7 +16,7 @@ area = config['area']
 process_cell = config['process_cell']
 unit= config['unit'] 
 
-Kafkaserver = 'DESKTOP-LU0K7N2.fritz.box:9092'
+Kafkaserver = '172.20.50.243:9092'
 # clusterid = 'XZ0liWYxTL-YbnQvGKTnfA'
 # Create Flask application with custom static folder
 app = Flask(__name__)

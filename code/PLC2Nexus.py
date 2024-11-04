@@ -8,10 +8,10 @@ import os
 
 # OPC UA server details
 opcua_url = "opc.tcp://localhost:4840"
+
+# Kafka server details
 Kafkaserver = '172.20.50.243:9092'
 kafka_cluster_id = "5YalKxusQQ-BDQ-rXKvvpA"
-# Kafka server details
-kafka_bootstrap_servers = Kafkaserver
 
 
 # Connect to OPC UA server
@@ -20,7 +20,7 @@ opcua_client.connect()
 
 # Kafka producer configuration
 kafka_conf = {
-    'bootstrap.servers': kafka_bootstrap_servers,
+    'bootstrap.servers': Kafkaserver,
     'client.id': kafka_cluster_id
 }
 producer = Producer(kafka_conf)

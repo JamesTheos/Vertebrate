@@ -3,9 +3,12 @@ import json
 from opcua import Client
 from datetime import datetime
 
+# Kafka server details
+Kafkaserver = '172.20.50.243:9092'
+
 # Kafka consumer configuration
 kafka_conf = {
-    'bootstrap.servers': '172.21.26.60:9092',
+    'bootstrap.servers': Kafkaserver,
     'group.id': 'plc-consumer-group',
     'auto.offset.reset': 'earliest'
 }
