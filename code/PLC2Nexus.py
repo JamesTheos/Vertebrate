@@ -50,7 +50,7 @@ node_topic_mapping = {
 previous_values = {}
 
 consumer = Consumer(kafka_conf)
-consumer.subscribe(['manufacturing_order'])
+consumer.subscribe(['manufacturing_orders'])
 
 global orderNumber, lotNumber, product
 
@@ -67,7 +67,7 @@ def consume_messages():
                 else:
                     print(order.error())
                     break
-            if order['status'] is "Started":
+            if order['status'] == "Started":
                 orderNumber = order['orderNumber']
                 product = order['product']
                 lotNumber = order['lotNumber']
