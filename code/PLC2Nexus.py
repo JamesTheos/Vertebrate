@@ -51,6 +51,11 @@ node_topic_mapping = {
 # Dictionary to store previous values
 previous_values = {}
 
+# Initialize global variables
+orderNumber = None
+lotNumber = None
+product = None
+
 consumer = Consumer(kafka_conf)
 consumer.subscribe(['manufacturing_orders'])
 
@@ -79,23 +84,9 @@ def consume_messages():
                 lotNumber = None
                 product = None
 
-
-            # Parse the message
-            topic = order.topic()
-            message = json.loads(order.value().decode('utf-8'))
-            value = message['value']
-            timestamp = message['timestamp']
-
-            # Find the corresponding OPC UA node ID
-            node_id = None
-            for key, val in node_topic_mapping.items():
-                if val == topic:
-                    node_id = key
-                    break
     except KeyboardInterrupt:
         pass
     finally:
-        opcua_client.disconnect()
         consumer.close()
     
     
@@ -144,8 +135,7 @@ for node_id in node_topic_mapping.keys():
     subscription.subscribe_data_change(node)
 
 try:
-    while True:
-        pass  # Keep the script running to receive updates
+    consume_messages()
 except KeyboardInterrupt:
     pass
 finally:
@@ -153,5 +143,3 @@ finally:
     opcua_client.disconnect()
 
 
-if __name__ == '__main__':
-    consume_messages()
