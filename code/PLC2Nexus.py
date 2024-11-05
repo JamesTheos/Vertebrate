@@ -21,7 +21,9 @@ opcua_client.connect()
 # Kafka producer configuration
 kafka_conf = {
     'bootstrap.servers': Kafkaserver,
-    'client.id': kafka_cluster_id
+    'client.id': kafka_cluster_id,
+    'group.id': 'plc-consumer-group',
+    'auto.offset.reset': 'earliest'
 }
 producer = Producer(kafka_conf)
 
@@ -52,10 +54,11 @@ previous_values = {}
 consumer = Consumer(kafka_conf)
 consumer.subscribe(['manufacturing_orders'])
 
-global orderNumber, lotNumber, product
+
 
 
 def consume_messages():
+    global orderNumber, lotNumber, product
     try:
         while True:
             order = consumer.poll(timeout=1.0)
