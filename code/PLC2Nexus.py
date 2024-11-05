@@ -124,7 +124,8 @@ class SubHandler(object):
                 "health_status": health_status,
                 "orderNumber": orderNumber,
                 "product": product,
-                "lotNumber" : lotNumber
+                "lotNumber" : lotNumber,
+                "QbD": topic
             }
         if val != previous_values.get(node_id):
             producer.produce(topic, key="FromPLC", value=json.dumps(data_dict))
