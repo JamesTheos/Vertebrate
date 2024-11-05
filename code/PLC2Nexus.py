@@ -18,6 +18,8 @@ kafka_cluster_id = "uIDp24WkRK-9On3jN6ufyw"
 opcua_client = Client(opcua_url)
 opcua_client.connect()
 
+
+
 # Kafka producer configuration
 kafka_conf = {
     'bootstrap.servers': Kafkaserver,
