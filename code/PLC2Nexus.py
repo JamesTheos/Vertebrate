@@ -77,10 +77,17 @@ def consume_messages():
                 else:
                     print(order.error())
                     break
-            if order['status'] == "Started":
-                orderNumber = order['orderNumber']
-                product = order['product']
-                lotNumber = order['lotNumber']
+            order_value = order.value()
+            if order_value:
+                order_data = json.loads(order_value.decode('utf-8'))
+                if order_data['status'] == "Started":
+                    orderNumber = order_data['orderNumber']
+                    product = order_data['product']
+                    lotNumber = order_data['lotNumber']
+                else:
+                    orderNumber = None
+                    lotNumber = None
+                    product = None
             else:
                 orderNumber = None
                 lotNumber = None
