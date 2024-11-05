@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}Manufacturing Orders - Order Management{% endblock %}
-{% block header_title %}Manufacturing Orders - Order Management{% endblock %}
+{% block title %}Manufacturing Orders - Order Overview{% endblock %}
+{% block header_title %}Manufacturing Orders - Order Overview{% endblock %}
 
 {% block content %}
 <div class="order-list">
@@ -34,31 +34,32 @@
     document.addEventListener('DOMContentLoaded', function() {
         const ordersList = document.getElementById('order-list-body');
 
-        // Function to save the status of an order to local storage
-        function saveOrderStatus(orderId, status) {
-            localStorage.setItem(`order-${orderId}-status`, status);
-        }
-
-        // Function to load the status of an order from local storage
-        function loadOrderStatus(orderId) {
-            return localStorage.getItem(`order-${orderId}-status`);
-        }
-
         // Update the UI based on the saved status in local storage
-        function updateUIFromLocalStorage() {
+        function updateUIFromStorage() {
             const rows = ordersList.querySelectorAll('tr');
             rows.forEach(row => {
                 const orderId = row.querySelector('.release-btn, .abort-btn').getAttribute('data-id');
-                const status = loadOrderStatus(orderId);
-                if (status) {
-                    row.querySelector('td:nth-child(4)').textContent = status;
-                }
+                
+                fetch('/api/order-status')
+                    .then(response => response.json())
+                    .then(data => {
+                        data.ordersOverview.forEach(order => {
+                            if(order.orderNumber === orderId){
+                                if(order.status === 'Released' || order.status === 'Started' || order.status === 'Completed'){
+                                    row.querySelector('td:nth-child(4)').textContent = 'Released';
+                                }
+                                else if(order.status === 'Aborted'){
+                                    row.querySelector('td:nth-child(4)').textContent = 'Aborted';
+                                }
+                            }
+                        });
+                    });
             });
         }
 
         if (ordersList) {
             // Update the UI based on the saved status in local storage when the page loads
-            updateUIFromLocalStorage();
+            updateUIFromStorage();
 
             ordersList.addEventListener('click', function(event) {
                 if (event.target.classList.contains('release-btn') || event.target.classList.contains('abort-btn')) {
@@ -78,16 +79,11 @@
                             const orderRow = event.target.closest('tr');
                             const newStatus = action === 'release' ? 'Released' : 'Aborted';
                             orderRow.querySelector('td:nth-child(4)').textContent = newStatus;
-                            saveOrderStatus(orderId, newStatus);
 
                             if (action === 'release') {
                                 window.location.href = '/overview';
                             } 
-                            // else {
-                            //     // Update the order status in the list
-                            //     const orderRow = event.target.closest('tr');
-                            //     orderRow.querySelector('td:nth-child(4)').textContent = 'Aborted';
-                            // }
+                            
                         } else {
                             alert(data.error || 'An error occurred');
                         }
