@@ -161,6 +161,10 @@ def get_released_orders():
     released_orders = [order for order in data_store['manufacturing_orders'] if order['status'] == 'Released']
     return jsonify({'orders': released_orders})
 
+@app.route('/api/order-status', methods=['GET'])
+def get_orderOverview():
+    return jsonify({'ordersOverview': data_store['manufacturing_orders']})
+
 @app.route('/workflow/select', methods=['POST'])
 def workflow_select():
     order_id = request.json.get('data')
