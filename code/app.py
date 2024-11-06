@@ -84,9 +84,13 @@ def consume_messages():
 def index():
     return render_template('index.html')
 
-@app.route('/trending')
-def trending():
-    return render_template('trending.html')
+@app.route('/product_analytics')  # Define route for the product analytics page
+def product_analytics():
+    return render_template('product_analytics.html')  # Render the product_analytics.html template
+
+#@app.route('/trending')
+#def trending():
+#    return render_template('trending.html')
 
 @app.route('/manufacturing-orders', methods=['GET', 'POST'])
 def manufacturing_orders():

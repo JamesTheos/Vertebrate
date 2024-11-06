@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Product Analytics{% endblock %}
+{% block header_title %}Product Analytics{% endblock %}
+
+{% block content %}
+<h2>Product Analytics</h2>
+<label for="product-select">Select Product:</label>
+<select id="product-select" onchange="loadProductTrend(this.value)">
+    <option value="">Select a product</option>
+</select>
+<br><br>
+<canvas id="trend-chart" width="400" height="200"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    let chart;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        fetch('/get-products')
+            .then(response => response.json())
+            .then(data => {
+                const select = document.getElementById('product-select');
+                data.forEach(product => {
+                    const option = document.createElement('option');
+                    option.value = product;
+                    option.textContent = product;
+                    select.appendChild(option);
+                });
+            });
+    });
+
+    function loadProductTrend(product) {
+        if (!product) {
+            return;
+        }
+
+        fetch(`/get-product-trend/${product}`)
+            .then(response => response.json())
+            .then(data => {
+                const ctx = document.getElementById('trend-chart').getContext('2d');
+                const newestOrderData = data.newestOrder.map(point => ({ x: point.time, y: point.value }));
+                const averageData = data.average.map(point => ({ x: point.time, y: point.value }));
+
+                if (chart) {
+                    chart.destroy();
+                }
+
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        datasets: [
+                            {
+                                label: 'Newest Order',
+                                data: newestOrderData,
+                                borderColor: 'blue',
+                                fill: false
+                            },
+                            {
+                                label: 'Average',
+                                data: averageData,
+                                borderColor: 'green',
+                                fill: false
+                            }
+                        ]
+                    },
+                    options: {
+                        scales: {
+                            x: {
+                                type: 'linear',
+                                position: 'bottom',
+                                title: {
+                                    display: true,
+                                    text: 'Time'
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'ISPEMTemp'
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+    }
+</script>
+{% endblock %}

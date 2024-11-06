@@ -39,17 +39,17 @@ speed_consumer = KafkaConsumer(
 # In-memory storage for sets
 sets_storage = {}
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+# @app.route('/')
+# def index():
+#     return render_template('index.html')
 
-@app.route('/design-space-definition')
-def design_space_definition():
-    return render_template('design-space-definition.html')
+# @app.route('/design-space-definition')
+# def design_space_definition():
+#     return render_template('design-space-definition.html')
 
-@app.route('/design-space-representation')
-def design_space_representation():
-    return render_template('design-space-representation.html')
+# @app.route('/design-space-representation')
+# def design_space_representation():
+#     return render_template('design-space-representation.html')
 
 @app.route('/save-set', methods=['POST'])
 def save_set():
