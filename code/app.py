@@ -1,9 +1,11 @@
 from flask import Flask, render_template, jsonify, request
 from confluent_kafka import Consumer, Producer, KafkaException
+from product_analytics_app import product_analytics_app
 import threading
 import json
 from datetime import datetime
 import os
+
 
 # Load the configuration for the ISA95 model
 config_path = os.path.join(os.path.dirname(__file__), 'config.json')
@@ -16,10 +18,11 @@ area = config['area']
 process_cell = config['process_cell']
 unit= config['unit'] 
 
-Kafkaserver = '172.20.50.243:9092'
+Kafkaserver = 'DESKTOP-LU0K7N2.fritz.box:9092'
 # clusterid = 'XZ0liWYxTL-YbnQvGKTnfA'
 # Create Flask application with custom static folder
 app = Flask(__name__)
+app.register_blueprint(product_analytics_app)
 
 # Kafka consumer configuration
 kafka_conf = {

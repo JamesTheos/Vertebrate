@@ -13,15 +13,19 @@
 <canvas id="trend-chart" width="400" height="200"></canvas>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Load Moment.js -->
+<script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/min/moment.min.js"></script>
+<!-- Load Moment.js adapter for Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.0"></script>
 <script>
     let chart;
-
     document.addEventListener('DOMContentLoaded', function() {
         fetch('/get-products')
             .then(response => response.json())
             .then(data => {
                 const select = document.getElementById('product-select');
-                data.forEach(product => {
+                select.innerHTML = `<option value="">Select a product</option>`;
+                data.products.forEach(product => {
                     const option = document.createElement('option');
                     option.value = product;
                     option.textContent = product;
@@ -67,7 +71,7 @@
                     options: {
                         scales: {
                             x: {
-                                type: 'linear',
+                                type: 'time',
                                 position: 'bottom',
                                 title: {
                                     display: true,
@@ -83,6 +87,9 @@
                         }
                     }
                 });
+            })
+            .catch(error => {
+                console.error(`Error fetching product trend: ${error}`);
             });
     }
 </script>
