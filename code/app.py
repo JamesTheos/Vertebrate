@@ -284,6 +284,8 @@ def get_orders():
     orders = data_store.get('manufacturing_orders', [])
     return jsonify(orders)
 
+
+
 if __name__ == '__main__':
     threading.Thread(target=consume_messages, daemon=True).start()
     app.run(debug=True)

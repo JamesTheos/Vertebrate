@@ -11,7 +11,7 @@ opcua_url = "opc.tcp://localhost:4840"
 
 # Kafka server details
 Kafkaserver = '172.20.50.243:9092'
-kafka_cluster_id = "uIDp24WkRK-9On3jN6ufyw"
+kafka_cluster_id = "XZ0liWYxTL-YbnQvGKTnfA"
 
 
 # Connect to OPC UA server
@@ -122,9 +122,9 @@ class SubHandler(object):
                 "timestamp": timestamp.isoformat(),
                 "Producertimestamp": producertimestamp,
                 "health_status": health_status,
-                "orderNumber": orderNumber,
-                "product": product,
-                "lotNumber" : lotNumber,
+                "orderNumber": orderNumber, #not in 2nd message
+                "product": product,  #not in 2nd message
+                "lotNumber" : lotNumber,  #not in 2nd message
                 "QbD": topic
             }
         if val != previous_values.get(node_id):
