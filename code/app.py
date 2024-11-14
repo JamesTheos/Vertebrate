@@ -5,7 +5,9 @@ import threading
 import json
 from datetime import datetime
 import os
-
+from LLM_Consumer import get_kafka_data
+from neo4j import get_neo4j_data
+from LLM_OpenAI import query_llm
 
 # Load the configuration for the ISA95 model
 config_path = os.path.join(os.path.dirname(__file__), 'config.json')
@@ -82,6 +84,26 @@ def consume_messages():
         #print("Current data store message to follow", flush=True)  # Debugging log
        # print(f"Current data store: {data_store}", flush=True)  # Debugging log
        # print("Current data store message above me", flush=True)  # Debugging log
+
+@app.route('/ask', methods=['POST'])
+def ask():
+    user_input = request.json['question']  # Get the user's question from the request
+    
+    # Fetch data from Kafka
+    kafka_data = get_kafka_data()
+    
+    # Fetch data from Neo4j
+    neo4j_query = "MATCH (n) RETURN n LIMIT 5"  # Example query to fetch data from Neo4j
+    neo4j_data = get_neo4j_data(neo4j_query)
+    
+    # Prepare prompt for LLM
+    prompt = f"User asked: {user_input}\nKafka data: {kafka_data}\nNeo4j data: {neo4j_data}\nAnswer:"
+    
+    # Get response from LLM
+    response = query_llm(prompt)
+    
+    return jsonify({'response': response})  # Return the LLM's response as JSON
+
 
 @app.route('/')
 def index():
