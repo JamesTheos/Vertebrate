@@ -18,6 +18,7 @@
 
 <script>
     let chart;
+    let selectedProduct = '';
     document.addEventListener('DOMContentLoaded', function() {
         fetch('/get-products')
             .then(response => response.json())
@@ -31,12 +32,21 @@
                     select.appendChild(option);
                 });
             });
+        // Auto-reload the trend chart every 60 seconds
+        setInterval(() => {
+            if (selectedProduct) {
+                loadProductTrend(selectedProduct);
+            }
+        }, 1000);
+            
     });
 
     function loadProductTrend(product) {
         if (!product) {
             return;
         }
+
+        selectedProduct = product;
 
         fetch(`/get-product-trend/${product}`)
             .then(response => response.json())
@@ -68,6 +78,7 @@
                         ]
                     },
                     options: {
+                        animation: false,
                         scales: {
                             x: {
                                 type: 'linear',
