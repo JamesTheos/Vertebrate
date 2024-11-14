@@ -219,6 +219,14 @@
         {% block content %}{% endblock %}
     </div>
 
+    <div id="chatbot-container">
+        <h2>Chat with our bot</h2>
+        <div id="chatbot">
+            <input type="text" id="chatbot-input" placeholder="Ask a question...">
+            <button onclick="askChatbot()">Send</button>
+            <div id="chatbot-response"></div>
+        </div>
+    </div>
     <script>
     function updateDateTime() {
         const now = new Date();
@@ -227,6 +235,7 @@
         setInterval(updateDateTime, 1000);
         updateDateTime(); 
     </script>
+    <script src="{{ url_for('static', filename='chatbot.js') }}" defer></script>
 </body>
 </html>
 
