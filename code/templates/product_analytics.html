@@ -13,10 +13,9 @@
 <canvas id="trend-chart" width="400" height="200"></canvas>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<!-- Load Moment.js -->
-<script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/min/moment.min.js"></script>
-<!-- Load Moment.js adapter for Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.0"></script>
+
+
+
 <script>
     let chart;
     document.addEventListener('DOMContentLoaded', function() {
@@ -43,8 +42,8 @@
             .then(response => response.json())
             .then(data => {
                 const ctx = document.getElementById('trend-chart').getContext('2d');
-                const newestOrderData = data.newestOrder.map(point => ({ x: point.time, y: point.value }));
-                // const averageData = data.average.map(point => ({ x: point.time, y: point.value }));
+                const newestOrderData = data.newestOrder.map(point => ({ x: point.time, y: point.value}));
+                const averageData = data.average.map(point => ({ x: point.time, y: point.value }));
 
                 if (chart) {
                     chart.destroy();
@@ -71,12 +70,18 @@
                     options: {
                         scales: {
                             x: {
-                                type: 'time',
+                                type: 'linear',
                                 position: 'bottom',
                                 title: {
                                     display: true,
-                                    text: 'Time'
-                                }
+                                    text: 'Time [Minutes]',
+                                },
+                                ticks: {
+                                        stepSize: 1, 
+                                        callback: function(value) {
+                                            return Number.isInteger(value) ? value : null;
+                                        }
+                                    }
                             },
                             y: {
                                 title: {

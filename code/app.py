@@ -288,4 +288,4 @@ def get_orders():
 
 if __name__ == '__main__':
     threading.Thread(target=consume_messages, daemon=True).start()
-    app.run(debug=True)
+    app.run(debug=True, use_reloader=False)
