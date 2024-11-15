@@ -11,7 +11,7 @@ opcua_url = "opc.tcp://localhost:4840"
 
 # Kafka server details
 Kafkaserver = '172.20.50.243:9092'
-kafka_cluster_id = "XZ0liWYxTL-YbnQvGKTnfA"
+kafka_cluster_id = "uIDp24WkRK-9On3jN6ufyw"
 
 
 # Connect to OPC UA server

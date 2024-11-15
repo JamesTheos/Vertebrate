@@ -5,6 +5,7 @@ from datetime import datetime
 
 # Kafka server details
 Kafkaserver = '172.20.50.243:9092'
+#Kafkaserver = '172.20.50.243:9092'
 
 # Kafka consumer configuration
 kafka_conf = {

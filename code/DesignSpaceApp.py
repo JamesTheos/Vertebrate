@@ -8,6 +8,7 @@ import threading
 
 app = Flask(__name__)
 Kafkaserver = '172.20.50.243:9092'
+#Kafkaserver = '172.20.50.243:9092'
 
 # Configure logging to only show critical errors
 logging.basicConfig(level=logging.CRITICAL)
