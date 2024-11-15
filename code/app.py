@@ -6,7 +6,7 @@ import json
 from datetime import datetime
 import os
 from LLM_Consumer import get_kafka_data
-from neo4j import get_neo4j_data
+from Neo4j import get_neo4j_data
 from LLM_OpenAI import query_llm
 
 # Load the configuration for the ISA95 model
