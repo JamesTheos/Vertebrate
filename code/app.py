@@ -1,11 +1,14 @@
 from flask import Flask, render_template, jsonify, request
 from confluent_kafka import Consumer, Producer, KafkaException
-from product_analytics_app import product_analytics_app
 from LLM_Consumer import get_kafka_data
 from Neo4j import get_neo4j_data
 from LLM_OpenAI import query_llm
 from datetime import datetime
+# Import the blueprints from the other modules
+from product_analytics_app import product_analytics_app
 from DesignSpaceApp import design_space_app  # Import the blueprint from the DesignSpaceApp module
+from process_qbd_analysis import process_qbd_analysis  # Import the process QbD analysis blueprint
+
 import threading
 import json
 import os
@@ -29,7 +32,8 @@ app = Flask(__name__)
 # Register the blueprints
 app.register_blueprint(product_analytics_app)
 app.register_blueprint(design_space_app)
-#app.register_blueprint(design_space_app, url_prefix='/design-space')  # Register the blueprint with a URL prefix
+app.register_blueprint(process_qbd_analysis, url_prefix='/process-qbd')
+
 
 # Kafka consumer configuration
 kafka_cons_conf = {
@@ -101,9 +105,9 @@ def index():
 @app.route('/product_analytics')  # Define route for the product analytics page
 def product_analytics():
     return render_template('product_analytics.html')  # Render the product_analytics.html template
-#@app.route('/trending')
-#def trending():
-#    return render_template('trending.html')
+@app.route('/process-qbd-analysis')
+def trending():
+   return render_template('process-qbd-analysis.html')
 
 #######################################################################################
 #Orders route

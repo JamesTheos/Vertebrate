@@ -12,27 +12,29 @@
 
     <style>
         :root {
-            --background-color: rgb(255, 238, 212);
+            --background-color: rgb(252, 242, 199);
             --text-color: rgb(59, 59, 59);
-            --header-background: rgb(252, 231, 199);
-            --sidebar-background: rgb(240, 240, 240);
+            --header-background: rgb(245, 245, 245); /* header background */
+            --sidebar-background: rgb(245, 245, 245); /* sidebar background */
             --button-background: rgb(249, 248, 255);
-            --button-hover-color: rgb(252, 231, 199);
+            /*--button-hover-color:rgb(224, 224, 224) ;*/
             --button-text-color: #424242;
-            --border-color: rgb(211, 211, 211);
+            --border-color: rgb(245, 245, 245);/* SAME color as background */
             --card-background: #f0f2f5;
             --card-shadow: 0 4prgb(3, 3, 3)gba(0, 0, 0, 0.1);
         } 
-       
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI','sans-serif','Tahoma',  'Geneva', Verdana;
             color: var(--text-color);
-            margin-left: 250px;
+            margin-left: 260px;
             margin-top: 60px;
             transition: background-color 0.3s, color 0.3s;
             overflow: hidden;
         }
-
+        .button-active {
+             background-color: rgb(245, 245, 245);
+             color: rgb(84, 86, 255);
+        }
         
        
         /* Content */
@@ -101,7 +103,7 @@
                 <div class="icon-menu">
                     <img class="icon-button" src="{{ url_for('static', filename='images/icons/orderoverview.svg') }}">
                 </div>
-                <a href="/order-management" class="nav-button">Orders Overview</a>
+                <a href="/manufacturing-orders" class="nav-button">Order Management</a>
             </div>
         </div>
         <div class="sidebar-group">
@@ -109,9 +111,10 @@
                 <div class="icon-menu">
                     <img class="icon-button" src="{{ url_for('static', filename='images/icons/ordermanagement.svg') }}">
                 </div>
-                <a href="/manufacturing-orders" class="nav-button">Order Management</a>
+                <a href="/order-management" class="nav-button">Orders Overview</a>
             </div>
         </div>
+
 
         <div class="sb-topic">Workflows</div>
         <div class="sidebar-group">
@@ -149,7 +152,7 @@
 
 
 
-        <div class="sb-topic">Scada</div>
+        <div class="sb-topic">SCADA</div>
         <div class="sidebar-group">
             <div class="sidebar-group-item">
                 <div class="icon-menu">
@@ -208,7 +211,7 @@
                 <div class="icon-menu">
                     <img class="icon-button" src="{{ url_for('static', filename='images/icons/trending.svg') }}">
                 </div>
-                <a href="/trending" class="nav-button">Process QbD Analysis</a>
+                <a href="/process-qbd-analysis" class="nav-button">Process QbD Analysis</a>
             </div>
         </div>
 
@@ -230,10 +233,33 @@
     <script>
     function updateDateTime() {
         const now = new Date();
-        document.getElementById('datetime').textContent = 
-        now.toLocaleDateString('en-US') + ', ' + now.toLocaleTimeString('en-US');}
-        setInterval(updateDateTime, 1000);
-        updateDateTime(); 
+        const options = { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+        document.getElementById('datetime').textContent = now.toLocaleDateString('en-US', options).replace(',', '');
+    }
+    setInterval(updateDateTime, 1000);
+    updateDateTime(); 
+
+// JavaScript to handle button selection and maintain state
+        document.addEventListener('DOMContentLoaded', function() {
+            const buttons = document.querySelectorAll('.nav-button');
+            const activeButton = localStorage.getItem('activeButton');
+
+            if (activeButton) {
+                const activeElement = document.querySelector(`.nav-button[href="${activeButton}"]`);
+                if (activeElement) {
+                    activeElement.classList.add('button-active');
+                }
+            }
+
+            buttons.forEach(button => {
+                button.addEventListener('click', function(event) {
+                    buttons.forEach(btn => btn.classList.remove('button-active'));
+                    this.classList.add('button-active');
+                    localStorage.setItem('activeButton', this.getAttribute('href'));
+                });
+            });
+        });
+
     </script>
     <script src="{{ url_for('static', filename='js/chatbot.js') }}" defer></script>
 </body>
