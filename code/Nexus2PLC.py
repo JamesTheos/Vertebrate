@@ -2,10 +2,15 @@ from confluent_kafka import Consumer, KafkaException
 import json
 from opcua import Client
 from datetime import datetime
+import os
 
-# Kafka server details
-Kafkaserver = '172.20.50.243:9092'
-#Kafkaserver = '172.20.50.243:9092'
+# Load the configuration for the ISA95 model
+config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+with open(config_path) as config_file:
+        config = json.load(config_file)
+    
+Kafkaserver= config['Kafkaserver']
+clusterid= config['clusterid']
 
 # Kafka consumer configuration
 kafka_conf = {

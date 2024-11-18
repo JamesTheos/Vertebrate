@@ -1,9 +1,18 @@
 from kafka import KafkaConsumer
 import json
+import os
+
+# Load the configuration for the ISA95 model
+config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+with open(config_path) as config_file:
+        config = json.load(config_file)
+    
+Kafkaserver= config['Kafkaserver']
+clusterid= config['clusterid']
 
 # Initialize Kafka consumer
 consumer = KafkaConsumer(
-    bootstrap_servers=['localhost:9092'],  # Kafka server address
+    bootstrap_servers=Kafkaserver,  # Kafka server address
     auto_offset_reset='earliest',  # Start reading at the earliest message
     enable_auto_commit=True,  # Automatically commit message offsets
     group_id='LLM_Consumer_group',  # Consumer group ID

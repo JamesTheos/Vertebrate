@@ -6,39 +6,36 @@ import time
 from datetime import datetime
 import os
 
+# Load the configuration for the ISA95 model
+config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+with open(config_path) as config_file:
+        config = json.load(config_file)
+    
+Kafkaserver= config['Kafkaserver']
+clusterid= config['clusterid']
+enterprise = config['enterprise']
+site = config['site']
+area = config['area']
+process_cell = config['process_cell']
+unit= config['unit']
+
 # OPC UA server details
 opcua_url = "opc.tcp://localhost:4840"
-
-# Kafka server details
-Kafkaserver = '172.20.50.243:9092'
-kafka_cluster_id = "uIDp24WkRK-9On3jN6ufyw"
-
 
 # Connect to OPC UA server
 opcua_client = Client(opcua_url)
 opcua_client.connect()
 
 
-
 # Kafka producer configuration
 kafka_conf = {
     'bootstrap.servers': Kafkaserver,
-    'client.id': kafka_cluster_id,
+    'client.id': clusterid,
     'group.id': 'plc-consumer-group',
     'auto.offset.reset': 'earliest'
 }
 producer = Producer(kafka_conf)
 
-# Load the configuration for the ISA95 model
-config_path = os.path.join(os.path.dirname(__file__), 'config.json')
-with open(config_path) as config_file:
-        config = json.load(config_file)
-    
-enterprise = config['enterprise']
-site = config['site']
-area = config['area']
-process_cell = config['process_cell']
-unit= config['unit']
 
 # Dictionary mapping OPC UA node IDs to Kafka topics
 node_topic_mapping = {

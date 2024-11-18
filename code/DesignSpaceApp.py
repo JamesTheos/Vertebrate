@@ -1,14 +1,24 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Blueprint, Flask, request, jsonify, render_template
 from kafka import KafkaProducer, KafkaConsumer, TopicPartition
 import json
 import logging
 import uuid
 import threading
+import os
 
+# Load the configuration for the ISA95 model
+config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+with open(config_path) as config_file:
+        config = json.load(config_file)
+    
+Kafkaserver= config['Kafkaserver']
+clusterid= config['clusterid']
 
-app = Flask(__name__)
-Kafkaserver = '172.20.50.243:9092'
-#Kafkaserver = '172.20.50.243:9092'
+# Initialize storage for sets
+sets_storage = {}
+
+# Create a blueprint
+design_space_app = Blueprint('design_space_app', __name__)
 
 # Configure logging to only show critical errors
 logging.basicConfig(level=logging.CRITICAL)
@@ -37,23 +47,17 @@ speed_consumer = KafkaConsumer(
     value_deserializer=lambda m: json.loads(m.decode('utf-8'))
 )
 
-# In-memory storage for sets
-sets_storage = {}
+@design_space_app.route('/design-space-definition')
+def design_space_definition():
+    return render_template('design-space-definition.html')
 
-# @app.route('/')
-# def index():
-#     return render_template('index.html')
+@design_space_app.route('/design-space-representation')
+def design_space_representation():
+    return render_template('design-space-representation.html')
 
-# @app.route('/design-space-definition')
-# def design_space_definition():
-#     return render_template('design-space-definition.html')
-
-# @app.route('/design-space-representation')
-# def design_space_representation():
-#     return render_template('design-space-representation.html')
-
-@app.route('/save-set', methods=['POST'])
+@design_space_app.route('/save-set', methods=['POST'])
 def save_set():
+    print(f"Test1", flush=True)  # Debugging log
     try:
         data = request.json
         if not data.get('id'):
@@ -66,7 +70,7 @@ def save_set():
         logging.error(f"Error saving set: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/get-sets', methods=['GET'])
+@design_space_app.route('/get-sets', methods=['GET'])
 def get_sets():
     try:
         sets = list(sets_storage.values())
@@ -75,7 +79,7 @@ def get_sets():
         logging.error(f"Error fetching sets: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/get-set/<set_id>', methods=['GET'])
+@design_space_app.route('/get-set/<set_id>', methods=['GET'])
 def get_set(set_id):
     try:
         set_data = sets_storage.get(set_id)
@@ -85,10 +89,10 @@ def get_set(set_id):
     except Exception as e:
         logging.error(f"Error fetching set: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
+       
 
-@app.route('/get-latest-values', methods=['GET'])
 ##############################################################################################
-@app.route('/get-latest-values', methods=['GET'])
+@design_space_app.route('/get-latest-values', methods=['GET'])
 def get_latest_values():
     try:
         print("Assigning partitions and getting end offsets")
@@ -155,7 +159,7 @@ def load_existing_sets():
             for message in msgs:
                 sets_storage[message.value['id']] = message.value
 
-if __name__ == '__main__':
-    # Start a thread to load existing sets from Kafka
-    threading.Thread(target=load_existing_sets, daemon=True).start()
-    app.run(debug=True)
+# if __name__ == '__main__':
+#     # Start a thread to load existing sets from Kafka
+#     threading.Thread(target=load_existing_sets, daemon=True).start()
+#     design_space_app.run(debug=True,port=5001)

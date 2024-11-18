@@ -3,6 +3,7 @@
     "site": "Rome",
     "area": "Manufacturing_Area_A",
     "process_cell": "Filling_Line_1",
-    "unit": "Filling_MachineA"
-
+    "unit": "Filling_MachineA",
+    "Kafkaserver": "172.18.209.175:9092",
+    "clusterid" : "uIDp24WkRK-9On3jN6ufyw"
 }

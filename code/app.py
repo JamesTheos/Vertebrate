@@ -1,48 +1,50 @@
 from flask import Flask, render_template, jsonify, request
 from confluent_kafka import Consumer, Producer, KafkaException
 from product_analytics_app import product_analytics_app
-import threading
-import json
-from datetime import datetime
-import os
 from LLM_Consumer import get_kafka_data
 from Neo4j import get_neo4j_data
 from LLM_OpenAI import query_llm
+from datetime import datetime
+from DesignSpaceApp import design_space_app  # Import the blueprint from the DesignSpaceApp module
+import threading
+import json
+import os
 
 # Load the configuration for the ISA95 model
 config_path = os.path.join(os.path.dirname(__file__), 'config.json')
 with open(config_path) as config_file:
         config = json.load(config_file)
     
+Kafkaserver= config['Kafkaserver']
+clusterid= config['clusterid']
 enterprise = config['enterprise']
 site = config['site']
 area = config['area']
 process_cell = config['process_cell']
 unit= config['unit'] 
 
-
-Kafkaserver = '172.20.50.243:9092'
-#Kafkaserver = 'DESKTOP-LU0K7N2.fritz.box:9092'
-clusterid = 'uIDp24WkRK-9On3jN6ufyw'
-#clusterid = 'uIDp24WkRK-9On3jN6ufyw'
 # Create Flask application with custom static folder
 app = Flask(__name__)
+
+# Register the blueprints
 app.register_blueprint(product_analytics_app)
+app.register_blueprint(design_space_app)
+#app.register_blueprint(design_space_app, url_prefix='/design-space')  # Register the blueprint with a URL prefix
 
 # Kafka consumer configuration
-kafka_conf = {
+kafka_cons_conf = {
     'bootstrap.servers': Kafkaserver,
     'group.id': 'flask-consumer-group',
     'auto.offset.reset': 'earliest'
 }
-consumer = Consumer(kafka_conf)
+consumer = Consumer(kafka_cons_conf)
 consumer.subscribe(['ISPEScene1', 'ISPEScene2','ISPEMTemp','ISPESpeed','ISPEPressure','ISPEAmbTemp','ISPEStartPhase1'])  # Kafka topics
 
 # Kafka producer configuration
-producer_conf = {
+kafka_prod_conf = {
     'bootstrap.servers': Kafkaserver
 }
-producer = Producer(producer_conf)
+producer = Producer(kafka_prod_conf)
 
 def send_to_kafka(topic, value):
     producer.produce(topic, key="FromUX", value=json.dumps(value).encode('utf-8'))
@@ -88,38 +90,23 @@ def consume_messages():
        # print(f"Current data store: {data_store}", flush=True)  # Debugging log
        # print("Current data store message above me", flush=True)  # Debugging log
 
-@app.route('/ask', methods=['POST'])
-def ask():
-    user_input = request.json['question']  # Get the user's question from the request
-    
-    # Fetch data from Kafka
-    kafka_data = get_kafka_data()
-    
-    # Fetch data from Neo4j
-    neo4j_query = "MATCH (n) RETURN n LIMIT 5"  # Example query to fetch data from Neo4j
-    neo4j_data = get_neo4j_data(neo4j_query)
-    
-    # Prepare prompt for LLM
-    prompt = f"User asked: {user_input}\nKafka data: {kafka_data}\nNeo4j data: {neo4j_data}\nAnswer:"
-    
-    # Get response from LLM
-    response = query_llm(prompt)
-    
-    return jsonify({'response': response})  # Return the LLM's response as JSON
-
-
+#######################################################################################
+#main route
 @app.route('/')
 def index():
     return render_template('index.html')
 
+#######################################################################################
+#analytics route
 @app.route('/product_analytics')  # Define route for the product analytics page
 def product_analytics():
     return render_template('product_analytics.html')  # Render the product_analytics.html template
-
 #@app.route('/trending')
 #def trending():
 #    return render_template('trending.html')
 
+#######################################################################################
+#Orders route
 @app.route('/manufacturing-orders', methods=['GET', 'POST'])
 def manufacturing_orders():
     if request.method == 'POST':
@@ -137,6 +124,7 @@ def order_management():
         order_id = request.json.get('order_id')
         if not action or not order_id:
             return jsonify({'error': 'Missing action or order_id'}), 400
+        
         order_found = False
         for order in data_store['manufacturing_orders']:
             if order['orderNumber'] == order_id:
@@ -155,22 +143,63 @@ def order_management():
         return jsonify({'status': 'Action Completed'}), 200
     return render_template('order-management.html', orders=data_store['manufacturing_orders'])
 
+@app.route('/data/<topic>')
+def get_data(topic):
+    data = data_store.get(topic, [])
+    print(f"Serving data for {topic}: {data}", flush=True)  # Debugging log
+    return jsonify(data)
+
+@app.route('/submit-order', methods=['POST'])
+def submit_order():
+    order_data = request.json
+    print(f"Requested Action: {order_data}")
+    order_number = order_data.get('orderNumber')
+    product = order_data.get('product')
+    lot_number = order_data.get('lotNumber')
+
+    if not order_number or not product or not lot_number:
+        return jsonify({'error': 'Missing data'}), 400
+
+    message = {
+        'Enterprise': enterprise,
+        'Site': site,
+        'Area': area,
+        'Process Cell': process_cell,
+        'Unit': unit,
+        'orderNumber': order_number,
+        'product': product,
+        'lotNumber': lot_number,
+        'timestamp': datetime.now().isoformat(),
+        'status': 'Created'
+    }
+
+    producer.produce('manufacturing_orders', key="FromOrderCreation", value=json.dumps(message).encode('utf-8'))
+    producer.flush()
+
+    # Store the order in the data_store for order management
+    data_store['manufacturing_orders'].append(message)
+
+    return jsonify({'status': 'Order submitted successfully'})
+
+@app.route('/orders')
+def get_orders():
+    orders = data_store.get('manufacturing_orders', [])
+    return jsonify(orders)
+
+#######################################################################################
+#Scada route
 @app.route('/scada')
 def scada():
     return render_template('scada.html')
-        
 @app.route('/equipment-overview')
 def equipmentoverview():
     return render_template('equipment-overview.html')
-
 @app.route('/3d-view')
 def view3d():
     return render_template('3d-view.html')
 
-@app.route('/batch')
-def batch():
-    return render_template('batch.html')
-
+#######################################################################################
+#design-space route
 @app.route('/design-space-definition')
 def designspacedefinition():
     return render_template('design-space-definition.html')
@@ -179,11 +208,15 @@ def designspacedefinition():
 def designspacerepresentation():
     return render_template('design-space-representation.html')
 
-@app.route('/order-overview')
-def orderoverview():
-    return render_template('order-overview.html')
-
-@app.route('/overview')
+############################################################################################################
+#Workflows route
+@app.route('/batch')
+def batch():
+    return render_template('batch.html')
+# @app.route('/order-overview')
+# def orderoverview():
+#     return render_template('order-overview.html')
+@app.route('/overview') # Define route for the overview page under workflows
 def overview():
     relStaCom_orders = [order for order in data_store['manufacturing_orders'] if order['status'] in ['Released', 'Started', 'Completed']]
     return render_template('overview.html', orders=relStaCom_orders)
@@ -204,7 +237,6 @@ def workflow_select():
         if order['orderNumber'] == order_id:
             timestamp = datetime.utcnow().isoformat()
             send_to_kafka('ISPESelectPhase1', {'value': True, 'timestamp': timestamp, **order})
-
     return jsonify({'success': True})
 
 @app.route('/workflow/start', methods=['POST'])
@@ -266,51 +298,28 @@ def sampling():
 def processinstructions():
     return render_template('process-instructions.html')
 
-@app.route('/data/<topic>')
-def get_data(topic):
-    data = data_store.get(topic, [])
-    print(f"Serving data for {topic}: {data}", flush=True)  # Debugging log
-    return jsonify(data)
-
-@app.route('/submit-order', methods=['POST'])
-def submit_order():
-    order_data = request.json
-    print(f"Requested Action: {order_data}")
-    order_number = order_data.get('orderNumber')
-    product = order_data.get('product')
-    lot_number = order_data.get('lotNumber')
-
-    if not order_number or not product or not lot_number:
-        return jsonify({'error': 'Missing data'}), 400
-
-    message = {
-        'Enterprise': enterprise,
-        'Site': site,
-        'Area': area,
-        'Process Cell': process_cell,
-        'Unit': unit,
-        'orderNumber': order_number,
-        'product': product,
-        'lotNumber': lot_number,
-        'timestamp': datetime.now().isoformat(),
-        'status': 'Created'
-    }
-
-    producer.produce('manufacturing_orders', key="FromOrderCreation", value=json.dumps(message).encode('utf-8'))
-    producer.flush()
-
-    # Store the order in the data_store for order management
-    data_store['manufacturing_orders'].append(message)
-
-    return jsonify({'status': 'Order submitted successfully'})
-
-@app.route('/orders')
-def get_orders():
-    orders = data_store.get('manufacturing_orders', [])
-    return jsonify(orders)
-
-
+############################################################################################################
+# Chatbot route
+@app.route('/ask', methods=['POST'])
+def ask():
+    user_input = request.json['question']  # Get the user's question from the request
+    
+    # Fetch data from Kafka
+    kafka_data = get_kafka_data()
+    
+    # Fetch data from Neo4j
+    neo4j_query = "MATCH (n) RETURN n LIMIT 5"  # Example query to fetch data from Neo4j
+    neo4j_data = get_neo4j_data(neo4j_query)
+    
+    # Prepare prompt for LLM
+    prompt = f"User asked: {user_input}\nKafka data: {kafka_data}\nNeo4j data: {neo4j_data}\nAnswer:"
+    
+    # Get response from LLM
+    response = query_llm(prompt)
+    
+    return jsonify({'response': response})  # Return the LLM's response as JSON
+############################################################################################################
 
 if __name__ == '__main__':
     threading.Thread(target=consume_messages, daemon=True).start()
-    app.run(debug=True, use_reloader=False)
+    app.run(debug=True, use_reloader=False,port=5001)

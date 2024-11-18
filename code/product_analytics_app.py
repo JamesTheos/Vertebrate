@@ -4,11 +4,19 @@ import json  # Import JSON module for data serialization
 import logging  # Import logging module for logging
 import threading  # Import threading module for running background tasks
 from datetime import datetime  # Import datetime module for date and time handling
+import os
+
+# Load the configuration for the ISA95 model
+config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+with open(config_path) as config_file:
+        config = json.load(config_file)
+    
+Kafkaserver= config['Kafkaserver']
+clusterid= config['clusterid']
 
 orders_lock = threading.Lock()
 
 product_analytics_app = Blueprint('product_analytics_app',__name__)  # Initialize Flask application
-Kafkaserver = 'DESKTOP-LU0K7N2.fritz.box:9092'  # Kafka server address
 
 kafka_conf_products = {
     'bootstrap.servers': Kafkaserver,
