@@ -32,7 +32,7 @@ app = Flask(__name__)
 # Register the blueprints
 app.register_blueprint(product_analytics_app)
 app.register_blueprint(design_space_app)
-app.register_blueprint(process_qbd_analysis, url_prefix='/process-qbd')
+app.register_blueprint(process_qbd_analysis)
 
 
 # Kafka consumer configuration

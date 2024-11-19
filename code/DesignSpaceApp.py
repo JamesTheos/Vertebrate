@@ -33,17 +33,20 @@ producer = KafkaProducer(
 consumer = KafkaConsumer(
     'design-space-topic',
     bootstrap_servers=Kafkaserver,
+    auto_offset_reset='earliest',  # Read from the beginning of the topic
     value_deserializer=lambda m: json.loads(m.decode('utf-8'))
 )
 
 # Kafka consumers for ISPEMTemp and ISPESpeed topics
 temp_consumer = KafkaConsumer(
     bootstrap_servers=Kafkaserver,
+    auto_offset_reset='earliest',  # Read from the beginning of the topic
     value_deserializer=lambda m: json.loads(m.decode('utf-8'))
 )
 
 speed_consumer = KafkaConsumer(
     bootstrap_servers=Kafkaserver,
+    auto_offset_reset='earliest',  # Read from the beginning of the topic
     value_deserializer=lambda m: json.loads(m.decode('utf-8'))
 )
 
@@ -102,16 +105,20 @@ def get_latest_values():
         
         temp_consumer.assign([temp_partition])
         speed_consumer.assign([speed_partition])
-        
-        # Get end offsets
-        temp_end_offset = temp_consumer.end_offsets([temp_partition])[temp_partition]
-        speed_end_offset = speed_consumer.end_offsets([speed_partition])[speed_partition]
-        
-        print(f"End offsets - ISPEMTemp: {temp_end_offset}, ISPESpeed: {speed_end_offset}")
-        
-        # Seek to the latest message
-        temp_consumer.seek(temp_partition, temp_end_offset - 1)
-        speed_consumer.seek(speed_partition, speed_end_offset - 1)
+
+
+        #New Seek to the beginning of the topic to read historical data
+        temp_consumer.seek_to_beginning(temp_partition)
+        speed_consumer.seek_to_beginning(speed_partition)
+ 
+        # # Get end offsets
+        # temp_end_offset = temp_consumer.end_offsets([temp_partition])[temp_partition]
+        # speed_end_offset = speed_consumer.end_offsets([speed_partition])[speed_partition]
+        # print(f"End offsets - ISPEMTemp: {temp_end_offset}, ISPESpeed: {speed_end_offset}")
+            
+        # # Seek to the latest message
+        # temp_consumer.seek(temp_partition, temp_end_offset - 1)
+        # speed_consumer.seek(speed_partition, speed_end_offset - 1)
         
         print("Polling for the latest messages")
         # Poll for the latest messages
