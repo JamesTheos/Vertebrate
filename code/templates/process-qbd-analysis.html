@@ -4,38 +4,50 @@
 
 {% block content %}
     <h1>Process QbD Analysis</h1>
-    <canvas id="tempChart" width="400" height="200"></canvas> <!-- Canvas element for the chart -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Include Chart.js library -->
+    <canvas id="tempChart" width="400" height="200"></canvas>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() { // Ensure the script runs after the DOM is fully loaded
-            const ctx = document.getElementById('tempChart').getContext('2d'); // Get the context of the canvas element 
-            const averageTemp = "{{ average_temp }}"; // Get the average temperature from the server-side template variable 
-            const spreadTemp = "{{ spread_temp }}"; // Get the spread temperature from the server-side template variable 
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('tempChart').getContext('2d');
+            const times = "{{ times | tojson }}";
+            const normalizedTemps = "{{ normalized_temps | tojson }}";
             
-            const data = { // Define the data for the chart 
-                labels: ['Average Temperature', 'Spread'], // Labels for the x-axis 
+            const data = {
+                labels: times,
                 datasets: [{
-                    label: 'Temperature Analysis', // Label for the dataset 
-                    data: [averageTemp, spreadTemp], // Data points for the chart 
-                    backgroundColor: ['rgba(75, 192, 192, 0.2)'], // Background color for the bars 
-                    borderColor: ['rgba(75, 192, 192, 1)'], // Border color for the bars 
-                    borderWidth: 1 // Border width for the bars 
+                    label: 'Normalized Temperature',
+                    data: normalizedTemps,
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
                 }]
             };
 
-            const config = { // Define the configuration for the chart 
-                type: 'bar', // Type of chart (bar chart) 
-                data: data, // Data for the chart 
+            const config = {
+                type: 'line',
+                data: data,
                 options: {
                     scales: {
-                        y: { // Configuration for the y-axis 
-                            beginAtZero: true // Ensure the y-axis begins at zero 
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            title: {
+                                display: true,
+                                text: 'Time from Start (seconds)'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Normalized Temperature'
+                            }
                         }
                     }
                 }
             };
 
-            const tempChart = new Chart(ctx, config); // Create a new Chart instance with the specified context and configuration 
+            const tempChart = new Chart(ctx, config);
         });
     </script>
 {% endblock %}
