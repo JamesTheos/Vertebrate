@@ -9,11 +9,11 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const ctx = document.getElementById('tempChart').getContext('2d');
-            const times = "{{ times | tojson }}";
-            const normalizedTemps = "{{ normalized_temps | tojson }}";
+            const timeData = {{ times | tojson | safe }};  // Ensure times are properly converted to JSON
+            const normalizedTemps = {{ normalized_temps | tojson | safe }};  // Ensure normalized_temps are properly converted to JSON
             
             const data = {
-                labels: times,
+                labels: timeData,
                 datasets: [{
                     label: 'Normalized Temperature',
                     data: normalizedTemps,
