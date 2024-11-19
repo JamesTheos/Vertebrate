@@ -165,8 +165,3 @@ def load_existing_sets():
         for tp, msgs in raw_msgs.items():
             for message in msgs:
                 sets_storage[message.value['id']] = message.value
-
-# if __name__ == '__main__':
-#     # Start a thread to load existing sets from Kafka
-#     threading.Thread(target=load_existing_sets, daemon=True).start()
-#     design_space_app.run(debug=True,port=5001)
