@@ -73,6 +73,11 @@
             
            
             }
+                    
+            // Load the trend initially
+            loadTrend();
+            // Start polling for the latest values
+            setInterval(loadTrend, 1000); // Poll every 5 seconds
         });
     </script>
 {% endblock %}
