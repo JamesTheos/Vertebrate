@@ -1,83 +1,73 @@
 {% extends "base.html" %}
-
 {% block title %}Process QbD Analysis{% endblock %}
+{% block header_title %}Process QbD Analysis{% endblock %}
 
 {% block content %}
-    <h1>Process QbD Analysis</h1>
     <canvas id="tempChart" width="400" height="200"></canvas>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        let tempChart;
         document.addEventListener('DOMContentLoaded', function() {
+            let chartInstance = null;
 
-            
             function loadTrend() {
                 fetch('/api/process-qbd-analysis')
-                .then(response => response.json())
-                .then(responseData => {
-                        const ctx = document.getElementById('tempChart').getContext('2d');
-                        const orders = responseData.normalized_temps;  // Ensure normalized_temps are properly converted to JSON
-                        
-                        if (tempChart) {
-                            tempChart.destroy();
-                        }   
-                        
-                        const datasets = orders.map((order, index) => {
-                            const colors = ['rgba(75, 192, 192, 0.2)', 'rgba(255, 99, 132, 0.2)', 'rgba(54, 162, 235, 0.2)', 'rgba(255, 206, 86, 0.2)'];
-                            const borderColors = ['rgba(75, 192, 192, 1)', 'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 'rgba(255, 206, 86, 1)'];
+                    .then(response => response.json())
+                    .then(data => {
+                        const orders = data.normalized_temps || {};
+                        const orderNumbers = Object.keys(orders);
+                        if (orderNumbers.length === 0) {
+                            throw new TypeError('No orders found');
+                        }
+
+                        const datasets = orderNumbers.map((orderNumber, index) => {
+                            const orderData = orders[orderNumber];
+                            const colors = ['rgba(75, 192, 192, 1)', 'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 'rgba(255, 206, 86, 1)', 'rgba(153, 102, 255, 1)'];
+                            const color = colors[index % colors.length];
                             return {
-                                label: `Order ${index + 1}`,
-                                data: order.map(point => ({ x: point.time, y: point.value })),
-                                backgroundColor: colors[index % colors.length],
-                                borderColor: borderColors[index % borderColors.length],
-                                borderWidth: 1,
-                                pointRadius: 3,
-                                fill: false,
-                                showLine: true  // Change to true to show lines connecting points
+                                label: `${orderNumber}`,
+                                data: orderData.map(point => ({ x: point[0], y: point[1] })), // Zeit in Minuten als x-Wert
+                                backgroundColor: color,
+                                borderColor: color,
+                                showLine: false
                             };
                         });
 
-                        const data = {
-                            datasets: datasets
-                        };
-
-                        const config = {
-                            type: 'line',  // Change to 'line' to plot all trends in the same chart
-                            data: data,
-                            options: {
-                                scales: {
-                                    x: {
-                                        type: 'linear',
-                                        position: 'bottom',
-                                        title: {
-                                            display: true,
-                                            text: 'Time from Start (seconds)'
-                                        }
-                                    },
-                                    y: {
-                                        beginAtZero: true,
-                                        title: {
-                                            display: true,
-                                            text: 'Normalized Temperature'
+                        if (chartInstance) {
+                            chartInstance.data.datasets = datasets;
+                            chartInstance.update();
+                        } else {
+                            chartInstance = new Chart(document.getElementById('tempChart').getContext('2d'), {
+                                type: 'scatter',
+                                data: {
+                                    datasets: datasets
+                                },
+                                options: {
+                                    animation: false,
+                                    scales: {
+                                        x: {
+                                            type: 'linear',
+                                            position: 'bottom',
+                                            title: {
+                                                display: true,
+                                                text: 'Time (minutes)'
+                                            }
+                                        },
+                                        y: {
+                                            title: {
+                                                display: true,
+                                                text: 'Value'
+                                            }
                                         }
                                     }
                                 }
-                            }
-                        };
-
-                        tempChart = new Chart(ctx, config);
+                            });
+                        }
                     })
-                    .catch(error => {
-                        console.error(`Error fetching QbD analysis data: ${error}`);
-                    });
-            
-           
+                    .catch(error => console.error('Error fetching QbD analysis data:', error));
             }
-                    
-            // Load the trend initially
+
             loadTrend();
-            // Start polling for the latest values
-            setInterval(loadTrend, 1000); // Poll every 5 seconds
+            setInterval(loadTrend, 1000);
         });
     </script>
 {% endblock %}
