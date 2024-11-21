@@ -51,7 +51,6 @@ def reset_offsets(consumer):
 completed_orders = []
 temp_values = {} #with datetime types
 temp_values_normalized = {} #normalized values
-current_running_orders = []
 
 
 @process_qbd_analysis.route('/process-qbd-analysis')
@@ -67,22 +66,28 @@ def process_qbd_analysis_api():
     try:
         normalizeUpperLimit = 30
         normalizeLowerLimit = 15
-        normalizeFactor = normalizeUpperLimit - normalizeLowerLimit
         with mutex_temp_values:
             for order_number, temps in temp_values.items():
                     if temps:
-                        if order_number not in temp_values_normalized:
-                            timestamps, values = zip(*temps)
-                            min_timestamp = min(datetime.fromisoformat(ts) for ts in timestamps)
-                            max_timestamp = max(datetime.fromisoformat(ts) for ts in timestamps)
-                            times_in_minutes = [(datetime.fromisoformat(ts) - min_timestamp).total_seconds() / 60 for ts in timestamps]
-                            normalized_values = [value / normalizeFactor for value in values]
+                        timestamps, values = zip(*temps)
+                        min_timestamp = min(datetime.fromisoformat(ts) for ts in timestamps)
+                        max_timestamp = max(datetime.fromisoformat(ts) for ts in timestamps)
+                        times_in_minutes = [(datetime.fromisoformat(ts) - min_timestamp).total_seconds() / 60 for ts in timestamps]
+                        if order_number not in temp_values:
                             temp_values_normalized[order_number] = []
-                            temp_values_normalized[order_number] = list(zip(times_in_minutes, normalized_values))
-                            print("Normalized Values:",temp_values_normalized)
-                            logging.info(f"Order {order_number}: Min Timestamp: {min_timestamp}, Max Timestamp: {max_timestamp}")
-                        
+                        temp_values_normalized[order_number] = list(zip(times_in_minutes, values))
+                        logging.info(f"Order {order_number}: Min Timestamp: {min_timestamp}, Max Timestamp: {max_timestamp}")
                 #normalize the temperature values
+
+            normalizeFactor = normalizeUpperLimit - normalizeLowerLimit
+            for order_number, temps in temp_values_normalized.items():
+                if temps:
+                    timestamps, values = zip(*temps)
+                    normalized_values = [value / normalizeFactor for value in values]
+                    temp_values_normalized[order_number] = list(zip(timestamps, normalized_values))
+                    print("Normalized Values:",temp_values_normalized)
+                    logging.info(f"Order {order_number}: Normalized Values: {normalized_values}")
+
             return jsonify({'normalized_temps': temp_values_normalized})
     except Exception as e:
         logging.error(f"Error processing QbD Analysis API: {e}")
@@ -115,14 +120,9 @@ def temp_consumer_qbd():
                         temp_values[message_temp['orderNumber']] = []
                     temp_values[message_temp['orderNumber']].append((message_temp['timestamp'], message_temp['value']))
                     print("Temp_values after:",temp_values)
-
-                #add newest data
-                if message_temp['orderNumber'] in current_running_orders and message_temp['value'] is not None:
-                    if message_temp['NewestOrder'] not in temp_values:
-                        temp_values['NewestOrder'] = []
-                    temp_values['NewestOrder'].append((message_temp['timestamp'], message_temp['value']))
-
-                    #Add the temp values for each running order to the array list incl. timestamp
+                #processing of the timestamp --> converting into minutes for easier visualisation
+                
+                
     except Exception as e:
              pass
     finally:
@@ -151,13 +151,7 @@ def orders_consumers_qbd():
                 if msg_orders['status'] == 'Completed' and msg_orders['orderNumber'] not in completed_orders:
                     completed_orders.append(msg_orders['orderNumber']) # Add the order number to the list
                     print("Completed_orders in Thread orders_consumers_qbd",completed_orders)
-                    current_running_orders.remove(msg_orders['orderNumber'])
-                    temp_values['NewestOrder'] = []
                     reset_offsets(Process_temp_consumer)
-                if msg_orders['status'] == 'Started':
-                    current_running_orders.append(msg_orders['orderNumber'])
-                    print("Current Running Orders in Thread orders_consumers_qbd",current_running_orders)
-                     
     except Exception as e:
             pass
     finally:
