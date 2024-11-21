@@ -2,12 +2,12 @@ from flask import Flask, render_template, jsonify, request
 from confluent_kafka import Consumer, Producer, KafkaException
 from LLM_Consumer import get_kafka_data
 from Neo4j import get_neo4j_data
-from LLM_OpenAI import query_llm
 from datetime import datetime
 # Import the blueprints from the other modules
 from product_analytics_app import product_analytics_app
 from DesignSpaceApp import design_space_app  # Import the blueprint from the DesignSpaceApp module
 from process_qbd_analysis import process_qbd_analysis  # Import the process QbD analysis blueprint
+# from Chatbot import Chatbot, query_llama  # Import the chatbot blueprint
 
 import threading
 import json
@@ -33,7 +33,7 @@ app = Flask(__name__)
 app.register_blueprint(product_analytics_app)
 app.register_blueprint(design_space_app)
 app.register_blueprint(process_qbd_analysis)
-
+#app.register_blueprint(Chatbot)
 
 # Kafka consumer configuration
 kafka_cons_conf = {
@@ -302,26 +302,26 @@ def sampling():
 def processinstructions():
     return render_template('process-instructions.html')
 
-############################################################################################################
-# Chatbot route
-@app.route('/ask', methods=['POST'])
-def ask():
-    user_input = request.json['question']  # Get the user's question from the request
+# ############################################################################################################
+# # Chatbot route
+# @app.route('/ask', methods=['POST'])
+# def ask():
+#     user_input = request.json['question']  # Get the user's question from the request
     
-    # Fetch data from Kafka
-    kafka_data = get_kafka_data()
+#     # Fetch data from Kafka
+#     kafka_data = get_kafka_data()
     
-    # Fetch data from Neo4j
-    neo4j_query = "MATCH (n) RETURN n LIMIT 5"  # Example query to fetch data from Neo4j
-    neo4j_data = get_neo4j_data(neo4j_query)
+#     # Fetch data from Neo4j
+#     neo4j_query = "MATCH (n) RETURN n LIMIT 5"  # Example query to fetch data from Neo4j
+#     neo4j_data = get_neo4j_data(neo4j_query)
     
-    # Prepare prompt for LLM
-    prompt = f"User asked: {user_input}\nKafka data: {kafka_data}\nNeo4j data: {neo4j_data}\nAnswer:"
+#     # Prepare prompt for LLM
+#     prompt = f"User asked: {user_input}\nKafka data: {kafka_data}\nNeo4j data: {neo4j_data}\nAnswer:"
     
-    # Get response from LLM
-    response = query_llm(prompt)
+#     # Get response from LLM
+#     response = query_llama(prompt)
     
-    return jsonify({'response': response})  # Return the LLM's response as JSON
+#     return jsonify({'response': response})  # Return the LLM's response as JSON
 ############################################################################################################
 
 if __name__ == '__main__':

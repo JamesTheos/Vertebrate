@@ -3,7 +3,7 @@ from kafka import KafkaProducer, KafkaConsumer, TopicPartition
 import json
 import logging
 import uuid
-import threading
+#import threading
 import os
 
 # Load the configuration for the ISA95 model
@@ -14,8 +14,6 @@ with open(config_path) as config_file:
 Kafkaserver= config['Kafkaserver']
 clusterid= config['clusterid']
 
-# Initialize storage for sets
-sets_storage = {}
 
 # Create a blueprint
 design_space_app = Blueprint('design_space_app', __name__)
@@ -36,6 +34,25 @@ consumer = KafkaConsumer(
     auto_offset_reset='earliest',  # Read from the beginning of the topic
     value_deserializer=lambda m: json.loads(m.decode('utf-8'))
 )
+
+# Initialize storage for sets
+sets_storage = {}
+
+# Load existing sets from Kafka topic
+def load_existing_sets():
+    while not consumer.assignment():
+        consumer.poll(timeout_ms=1000)
+    partitions = consumer.assignment()
+    consumer.seek_to_beginning(*partitions)
+    while True:
+        raw_msgs = consumer.poll(timeout_ms=1000)
+        if not raw_msgs:
+            break
+        for tp, msgs in raw_msgs.items():
+            for message in msgs:
+                sets_storage[message.value['id']] = message.value
+# Load existing sets from Kafka topic
+load_existing_sets()
 
 # Kafka consumers for ISPEMTemp and ISPESpeed topics
 temp_consumer = KafkaConsumer(
@@ -60,7 +77,6 @@ def design_space_representation():
 
 @design_space_app.route('/save-set', methods=['POST'])
 def save_set():
-    print(f"Test1", flush=True)  # Debugging log
     try:
         data = request.json
         if not data.get('id'):
@@ -74,6 +90,16 @@ def save_set():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @design_space_app.route('/get-sets', methods=['GET'])
+
+# Endpoint to retrieve all sets from the storage.
+# This function handles GET requests to the '/get-sets' route. It attempts to 
+# fetch all sets stored in the `sets_storage` and return them as a JSON response.
+# If an error occurs during the fetching process, it logs the error and returns 
+# a JSON response with an error message and a 500 status code.
+# Returns:
+#     Response: A Flask Response object containing a JSON array of sets if successful,
+#               or a JSON object with an error message and a 500 status code if an 
+#               exception occurs.
 def get_sets():
     try:
         sets = list(sets_storage.values())
@@ -98,7 +124,7 @@ def get_set(set_id):
 @design_space_app.route('/get-latest-values', methods=['GET'])
 def get_latest_values():
     try:
-        print("Assigning partitions and getting end offsets")
+        print("DesignSpace:Assigning partitions and getting end offsets")
         # Assign partitions
         temp_partition = TopicPartition('ISPEMTemp', 0)
         speed_partition = TopicPartition('ISPESpeed', 0)
@@ -106,21 +132,16 @@ def get_latest_values():
         temp_consumer.assign([temp_partition])
         speed_consumer.assign([speed_partition])
 
-
-        #New Seek to the beginning of the topic to read historical data
-        temp_consumer.seek_to_beginning(temp_partition)
-        speed_consumer.seek_to_beginning(speed_partition)
- 
-        # # Get end offsets
-        # temp_end_offset = temp_consumer.end_offsets([temp_partition])[temp_partition]
-        # speed_end_offset = speed_consumer.end_offsets([speed_partition])[speed_partition]
-        # print(f"End offsets - ISPEMTemp: {temp_end_offset}, ISPESpeed: {speed_end_offset}")
+        # Get end offsets
+        temp_end_offset = temp_consumer.end_offsets([temp_partition])[temp_partition]
+        speed_end_offset = speed_consumer.end_offsets([speed_partition])[speed_partition]
+        print(f"DesignSpace:End offsets - ISPEMTemp: {temp_end_offset}, ISPESpeed: {speed_end_offset}")
             
-        # # Seek to the latest message
-        # temp_consumer.seek(temp_partition, temp_end_offset - 1)
-        # speed_consumer.seek(speed_partition, speed_end_offset - 1)
+        # Seek to the latest message
+        temp_consumer.seek(temp_partition, temp_end_offset - 1)
+        speed_consumer.seek(speed_partition, speed_end_offset - 1)
         
-        print("Polling for the latest messages")
+        print("DesignSpace:Polling for the latest messages")
         # Poll for the latest messages
         temp_records = temp_consumer.poll(timeout_ms=1000)
         speed_records = speed_consumer.poll(timeout_ms=1000)
@@ -128,14 +149,14 @@ def get_latest_values():
         latest_temp = None
         latest_speed = None
         
-        print("Processing messages from ISPEMTemp")
+        print("DesignSpace:Processing messages from ISPEMTemp")
         # Get the latest message from ISPEMTemp
         for tp, messages in temp_records.items():
             for message in messages:
                 latest_temp = message.value['value']
                 print(f"Value for ISPEMTemp: {latest_temp}")
 
-        print("Processing messages from ISPESpeed")
+        print("DesignSpace:Processing messages from ISPESpeed")
         # Get the latest message from ISPESpeed
         for tp, messages in speed_records.items():
             for message in messages:
@@ -143,13 +164,13 @@ def get_latest_values():
                 print(f"Value for ISPESpeed: {latest_speed}")
         
         if latest_temp is None or latest_speed is None:
-            print("No data available from ISPEMTemp or ISPESpeed topics")
+            print("DesignSpace:No data available from ISPEMTemp or ISPESpeed topics")
             return jsonify({'status': 'error', 'message': 'No data available'}), 404
         
-        print(f"Returning latest values: ISPESpeed={latest_speed}, ISPEMTemp={latest_temp}")
+        print(f"DesignSpace:Returning latest values: ISPESpeed={latest_speed}, ISPEMTemp={latest_temp}")
         return jsonify({'ispespeed': latest_speed, 'ispetemp': latest_temp})
     except Exception as e:
-        print(f"Error fetching latest values: {e}")
+        print(f"DesignSpace:Error fetching latest values: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
     
     ################################################################################################

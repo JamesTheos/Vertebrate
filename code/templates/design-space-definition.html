@@ -36,15 +36,23 @@
 <button type="button" onclick="saveSet()">Save Set</button>
 
 <script>
+    // Add an event listener to the document that will run the function when the DOM is fully loaded
     document.addEventListener('DOMContentLoaded', function() {
+        // Fetch data from the '/get-sets' endpoint
         fetch('/get-sets')
-            .then(response => response.json())
+            .then(response => response.json())  // Parse the JSON response
             .then(data => {
+                // Get the <select> element with the ID 'set-select'
                 const select = document.getElementById('set-select');
+                // Iterate over the array of sets received from the server
                 data.forEach(set => {
+                    // Create a new <option> element for each set
                     const option = document.createElement('option');
+                    // Set the value of the <option> element to the set's ID
                     option.value = set.id;
+                    // Set the text content of the <option> element to the set's name
                     option.textContent = set.name;
+                    // Append the <option> element to the <select> element
                     select.appendChild(option);
                 });
             });

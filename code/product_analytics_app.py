@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify  # Import Flask and related modules for web server and request handling
-from confluent_kafka import KafkaException, Producer, Consumer
+from confluent_kafka import KafkaException, Consumer
 import json  # Import JSON module for data serialization
 import logging  # Import logging module for logging
 import threading  # Import threading module for running background tasks
@@ -17,6 +17,12 @@ clusterid= config['clusterid']
 orders_lock = threading.Lock()
 
 product_analytics_app = Blueprint('product_analytics_app',__name__)  # Initialize Flask application
+
+kafka_conf_init = {
+    'bootstrap.servers': Kafkaserver,
+    'group.id': 'manufacturing_orders_init',
+    'auto.offset.reset': 'earliest'
+}
 
 kafka_conf_products = {
     'bootstrap.servers': Kafkaserver,
@@ -46,10 +52,52 @@ temp_consumer.subscribe(['ISPEMTemp'])
 products = {}  # Dictionary to store products
 orders = {}  # Dictionary to store orders
 
+# # Initialize orders with historical data from Kafka topic 'manufacturing_orders'
+# def initialize_orders():
+#     print(f"Product Analytics:Initializing orders with historical data", flush=True)  # Print message to indicate initialization
+#     init_consumer = Consumer(kafka_conf_init)  # Initialize Kafka consumer
+#     init_consumer.subscribe(['manufacturing_orders'])
+#     try:
+#         while True:
+#             msg = init_consumer.poll(timeout=1.0)
+#             if msg is None:
+#                 print(f"Product Analytics:No message received")
+#                 break
+#             if msg.error():
+#                 if msg.error().code() == KafkaException._PARTITION_EOF:
+#                     break
+#                 else:
+#                     logging.error(f"Product Analytics: Consumer error: {msg.error()}")
+#                     continue
+                
+#             order = json.loads(msg.value().decode('utf-8'))
+#             product = order['product']
+#             orderNumber = order['orderNumber']
+#             with orders_lock:
+#                 if product not in products:
+#                     products[product] = []
+#                 if product not in orders:
+#                     orders[product] = []
+#                 if not any(ord['orderNumber'] == orderNumber for ord in orders[product]):
+#                     orders[product].append(order)
+#                 for ord in orders[product]:
+#                     if ord['orderNumber'] == orderNumber and ord['status'] != order['status']:
+#                         ord['status'] = order['status']
+#                         ord['timestamp'] = order['timestamp']
+#         print(f"Product Analytics:Initialized orders: {orders}", flush=True)
+#         print(f"Product Analytics:Initialized Products: {products}", flush=True)
+#     except Exception as e:
+#         logging.error(f"Error initializing orders: {e}")
+#     finally:
+#         init_consumer.close()
+# initialize_orders()
+
+
+####### main program ########
 @product_analytics_app.route('/get-products', methods=['GET'])  # Define route to get the list of products
 def get_products():
     with orders_lock:
-        #print(f"\n Products in get Products: {products} \n", flush=True)  # Print message to indicate route is called
+        print(f"\n Products in get Products: {products} \n", flush=True)  # Print message to indicate route is called
         return jsonify({'products': list(products.keys())})  # Return the list as JSON
     
 
@@ -57,7 +105,7 @@ def get_products():
 def get_product_trend(product):
     try:
         with orders_lock:
-            #print(f"\n Product in get product trend: {product} \n", flush=True)  # Print message to indicate route is called
+            print(f"\n Product in get product trend: {product} \n", flush=True)  # Print message to indicate route is called
             if product not in products:  # Check if the product exists
                 return jsonify({'status': 'error', 'message': 'Product not found'}), 404  # Return error if not found
 
@@ -75,14 +123,14 @@ def get_product_trend(product):
                     oldest_order_data = min(newest_order['data'], key=lambda x: datetime.fromisoformat(x['time']))
                     newest_order_data = [{'value': data_point['value'], 'time': (datetime.fromisoformat(data_point['time']) - datetime.fromisoformat(oldest_order_data['time'])).total_seconds() / 60} for data_point in newest_order['data']]
 
-                    print(f"\nNewest Order Time: {newest_order_data}\n", flush=True)  # Print message to indicate newest order
+                    print(f"Prodcut Analytics:\nNewest Order Time: {newest_order_data}\n", flush=True)  # Print message to indicate newest order
             else:
                 newest_order_data = []
 
             average_data = []
             # Calculate the average values for the product
             all_data = [order['data'] for order in orders[product] if ('data' in order and order['status'] == 'Completed')]
-            print(f"\nAll Data: {all_data}\n", flush=True)  # Print message to indicate all data
+            print(f"Prodcut Analytics:\nAll Data: {all_data}\n", flush=True)  # Print message to indicate all data
             
             if all_data:
                 # Find the maximum length of data points in all orders
@@ -103,7 +151,7 @@ def get_product_trend(product):
 
                 #Calculate the average values for each time point
                 average_data = [{'time': time_diff[i], 'value': sum_values[i] / count_values[i]} for i in range(max_length)]
-                print(f"\nAverage Data: {average_data}\n", flush=True)  # Print message to indicate average data
+                print(f"Prodcut Analytics:\nAverage Data: {average_data}\n", flush=True)  # Print message to indicate average data
            
         return jsonify({'newestOrder': newest_order_data, 'average': average_data})  # Return the trend data as JSON
     except Exception as e:
@@ -111,7 +159,7 @@ def get_product_trend(product):
         return jsonify({'status': 'error', 'message': str(e)}), 500  # Return error response
     
 def consume_orders():
-    print("Starting consume_orders thread", flush=True)  # Print message to indicate thread start
+    print("Prodcut Analytics:Starting consume_orders thread", flush=True)  # Print message to indicate thread start
     try:
         while True:
             msg = consumer.poll(timeout=0.5)  # Poll for messages from the 'manufacturing_orders' topic
@@ -121,10 +169,10 @@ def consume_orders():
                 if msg.error().code() == KafkaException._PARTITION_EOF:
                     continue  # Continue if end of partition is reached
                 else:
-                    logging.error(f"Consumer error: {msg.error()}")  # Log any other errors
+                    logging.error(f"Prodcut Analytics:Consumer error: {msg.error()}")  # Log any other errors
                     continue
             order = json.loads(msg.value().decode('utf-8'))  # Deserialize the message value
-            print(f"Received order: {order}", flush=True)  # Print message to indicate order received
+            print(f"Prodcut Analytics:Received order: {order}", flush=True)  # Print message to indicate order received
             product = order['product']  # Get the product name from the order
             orderNumber = order['orderNumber']  # Get the order ID from the order
             with orders_lock:
@@ -139,14 +187,14 @@ def consume_orders():
                     if ord['orderNumber'] == orderNumber and ord['status'] != order['status']:
                         ord['status'] = order['status']
                         ord['timestamp'] = order['timestamp']
-                print(f"\n\nOrders in Consume Orders: {orders}\n\n", flush=True)  # Print message to indicate orders list
+                print(f"Prodcut Analytics:\n\nOrders in Consume Orders: {orders}\n\n", flush=True)  # Print message to indicate orders list
     except KeyboardInterrupt:
         pass
     finally:
         consumer.close()
 
 def consume_temp():
-    print("Starting consume_temp thread", flush=True)  # Print message to indicate thread start
+    print("Prodcut Analytics:Starting consume_temp thread", flush=True)  # Print message to indicate thread start
     try:
         while True:
             msg = temp_consumer.poll(timeout=0.5)  # Poll for messages from the 'ISPEMTemp' topic
@@ -156,24 +204,24 @@ def consume_temp():
                 if msg.error().code() == KafkaException._PARTITION_EOF:
                     continue  # Continue if end of partition is reached
                 else:
-                    logging.error(f"Consumer error: {msg.error()}")  # Log any other errors
+                    logging.error(f"Prodcut Analytics:Consumer error: {msg.error()}")  # Log any other errors
                     continue
             temp_data = json.loads(msg.value().decode('utf-8'))  # Deserialize the message value
             #print(f"Received temperature data: {temp_data}", flush=True)  # Print message to indicate temperature data received
 
             order_id = temp_data['orderNumber']  # Get the order ID from the temperature data
             product = temp_data['product']  # Get the product name from the temperature data
-            print(f"Product Consume Temp: {product}", flush=True)  # Print message to indicate product name
-            print(f"Orders Consume Temp: {orders}", flush=True)  # Print message to indicate order ID
+            print(f"Prodcut Analytics:Product Consume Temp: {product}", flush=True)  # Print message to indicate product name
+            print(f"Prodcut Analytics:Orders Consume Temp: {orders}", flush=True)  # Print message to indicate order ID
             with orders_lock:
                 if product in orders:
-                    print("Product in Orders")
+                    print("Prodcut Analytics:Product in Orders")
                     for order in orders[product]:
                         if order['orderNumber'] == order_id:
                             if 'data' not in order: 
                                 order['data'] = []  # Initialize data list if not already present
                             order['data'].append({'time': temp_data['timestamp'], 'value': temp_data['value']})  # Add the temperature data to the order
-                            print(f"Updated order data: {order['data']}", flush=True)
+                            print(f"Prodcut Analytics:Updated order data: {order['data']}", flush=True)
     except KeyboardInterrupt:
         pass
     finally:
