@@ -11,7 +11,7 @@ import torch
 Chatbot = Blueprint('Chatbot', __name__)
 
 # Load the token from the environment variable
-token = 'notreally'
+token = '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'
 
 # Load LLaMA model and tokenizer
 # Use the token to authenticate with the Hugging Face API

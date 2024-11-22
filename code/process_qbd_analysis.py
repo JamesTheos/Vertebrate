@@ -85,7 +85,7 @@ def process_qbd_analysis_api():
                     timestamps, values = zip(*temps)
                     normalized_values = [value / normalizeFactor for value in values]
                     temp_values_normalized[order_number] = list(zip(timestamps, normalized_values))
-                    print("Normalized Values:",temp_values_normalized)
+                    #print("Normalized Values:",temp_values_normalized)
                     logging.info(f"Order {order_number}: Normalized Values: {normalized_values}")
 
             return jsonify({'normalized_temps': temp_values_normalized})
@@ -113,13 +113,13 @@ def temp_consumer_qbd():
                         continue
                 message_temp = json.loads(msg.value().decode('utf-8'))  # Deserialize the message value
 
-                print("QBD: Consumer Temp: ", message_temp)
+                #print("QBD: Consumer Temp: ", message_temp)
                 if message_temp['orderNumber'] in completed_orders and message_temp['value'] is not None:
                     #Add the temp values for each completed order to the array list incl. timestamp
                     if message_temp['orderNumber'] not in temp_values:
                         temp_values[message_temp['orderNumber']] = []
                     temp_values[message_temp['orderNumber']].append((message_temp['timestamp'], message_temp['value']))
-                    print("Temp_values after:",temp_values)
+                    #print("Temp_values after:",temp_values)
                 #processing of the timestamp --> converting into minutes for easier visualisation
                 
                 
@@ -127,7 +127,6 @@ def temp_consumer_qbd():
              pass
     finally:
         Process_temp_consumer.close()
-
 
 
 def orders_consumers_qbd():
@@ -146,11 +145,11 @@ def orders_consumers_qbd():
                         logging.error(f"Prodcut Analytics:Consumer error: {msg.error()}")  # Log any other errors
                         continue
                 msg_orders = json.loads(msg.value().decode('utf-8'))  # Deserialize the message value
-                print("QBD: Orders Consumer Message:", msg_orders)
+                #print("QBD: Orders Consumer Message:", msg_orders)
                 # Add the order number to the list of completed orders if the order is completed and not already in the list
                 if msg_orders['status'] == 'Completed' and msg_orders['orderNumber'] not in completed_orders:
                     completed_orders.append(msg_orders['orderNumber']) # Add the order number to the list
-                    print("Completed_orders in Thread orders_consumers_qbd",completed_orders)
+                    #print("Completed_orders in Thread orders_consumers_qbd",completed_orders)
                     reset_offsets(Process_temp_consumer)
     except Exception as e:
             pass

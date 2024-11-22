@@ -97,7 +97,7 @@ orders = {}  # Dictionary to store orders
 @product_analytics_app.route('/get-products', methods=['GET'])  # Define route to get the list of products
 def get_products():
     with orders_lock:
-        print(f"\n Products in get Products: {products} \n", flush=True)  # Print message to indicate route is called
+        #print(f"\n Products in get Products: {products} \n", flush=True)  # Print message to indicate route is called
         return jsonify({'products': list(products.keys())})  # Return the list as JSON
     
 
@@ -105,7 +105,7 @@ def get_products():
 def get_product_trend(product):
     try:
         with orders_lock:
-            print(f"\n Product in get product trend: {product} \n", flush=True)  # Print message to indicate route is called
+            #print(f"\n Product in get product trend: {product} \n", flush=True)  # Print message to indicate route is called
             if product not in products:  # Check if the product exists
                 return jsonify({'status': 'error', 'message': 'Product not found'}), 404  # Return error if not found
 
@@ -123,14 +123,14 @@ def get_product_trend(product):
                     oldest_order_data = min(newest_order['data'], key=lambda x: datetime.fromisoformat(x['time']))
                     newest_order_data = [{'value': data_point['value'], 'time': (datetime.fromisoformat(data_point['time']) - datetime.fromisoformat(oldest_order_data['time'])).total_seconds() / 60} for data_point in newest_order['data']]
 
-                    print(f"Prodcut Analytics:\nNewest Order Time: {newest_order_data}\n", flush=True)  # Print message to indicate newest order
+                    #print(f"Prodcut Analytics:\nNewest Order Time: {newest_order_data}\n", flush=True)  # Print message to indicate newest order
             else:
                 newest_order_data = []
 
             average_data = []
             # Calculate the average values for the product
             all_data = [order['data'] for order in orders[product] if ('data' in order and order['status'] == 'Completed')]
-            print(f"Prodcut Analytics:\nAll Data: {all_data}\n", flush=True)  # Print message to indicate all data
+            #print(f"Prodcut Analytics:\nAll Data: {all_data}\n", flush=True)  # Print message to indicate all data
             
             if all_data:
                 # Find the maximum length of data points in all orders
@@ -151,7 +151,7 @@ def get_product_trend(product):
 
                 #Calculate the average values for each time point
                 average_data = [{'time': time_diff[i], 'value': sum_values[i] / count_values[i]} for i in range(max_length)]
-                print(f"Prodcut Analytics:\nAverage Data: {average_data}\n", flush=True)  # Print message to indicate average data
+                #print(f"Prodcut Analytics:\nAverage Data: {average_data}\n", flush=True)  # Print message to indicate average data
            
         return jsonify({'newestOrder': newest_order_data, 'average': average_data})  # Return the trend data as JSON
     except Exception as e:
@@ -159,7 +159,7 @@ def get_product_trend(product):
         return jsonify({'status': 'error', 'message': str(e)}), 500  # Return error response
     
 def consume_orders():
-    print("Prodcut Analytics:Starting consume_orders thread", flush=True)  # Print message to indicate thread start
+    #print("Prodcut Analytics:Starting consume_orders thread", flush=True)  # Print message to indicate thread start
     try:
         while True:
             msg = consumer.poll(timeout=0.5)  # Poll for messages from the 'manufacturing_orders' topic
@@ -172,7 +172,7 @@ def consume_orders():
                     logging.error(f"Prodcut Analytics:Consumer error: {msg.error()}")  # Log any other errors
                     continue
             order = json.loads(msg.value().decode('utf-8'))  # Deserialize the message value
-            print(f"Prodcut Analytics:Received order: {order}", flush=True)  # Print message to indicate order received
+            #print(f"Prodcut Analytics:Received order: {order}", flush=True)  # Print message to indicate order received
             product = order['product']  # Get the product name from the order
             orderNumber = order['orderNumber']  # Get the order ID from the order
             with orders_lock:
@@ -187,7 +187,7 @@ def consume_orders():
                     if ord['orderNumber'] == orderNumber and ord['status'] != order['status']:
                         ord['status'] = order['status']
                         ord['timestamp'] = order['timestamp']
-                print(f"Prodcut Analytics:\n\nOrders in Consume Orders: {orders}\n\n", flush=True)  # Print message to indicate orders list
+                #print(f"Prodcut Analytics:\n\nOrders in Consume Orders: {orders}\n\n", flush=True)  # Print message to indicate orders list
     except KeyboardInterrupt:
         pass
     finally:
@@ -211,17 +211,17 @@ def consume_temp():
 
             order_id = temp_data['orderNumber']  # Get the order ID from the temperature data
             product = temp_data['product']  # Get the product name from the temperature data
-            print(f"Prodcut Analytics:Product Consume Temp: {product}", flush=True)  # Print message to indicate product name
-            print(f"Prodcut Analytics:Orders Consume Temp: {orders}", flush=True)  # Print message to indicate order ID
+            #print(f"Prodcut Analytics:Product Consume Temp: {product}", flush=True)  # Print message to indicate product name
+            #print(f"Prodcut Analytics:Orders Consume Temp: {orders}", flush=True)  # Print message to indicate order ID
             with orders_lock:
                 if product in orders:
-                    print("Prodcut Analytics:Product in Orders")
+                   # print("Prodcut Analytics:Product in Orders")
                     for order in orders[product]:
                         if order['orderNumber'] == order_id:
                             if 'data' not in order: 
                                 order['data'] = []  # Initialize data list if not already present
                             order['data'].append({'time': temp_data['timestamp'], 'value': temp_data['value']})  # Add the temperature data to the order
-                            print(f"Prodcut Analytics:Updated order data: {order['data']}", flush=True)
+                            #print(f"Prodcut Analytics:Updated order data: {order['data']}", flush=True)
     except KeyboardInterrupt:
         pass
     finally:
