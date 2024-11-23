@@ -4,6 +4,7 @@ from datetime import datetime
 import json
 import logging
 import threading
+from collections import deque
 import os
 
 # Load the configuration for the ISA95 model
@@ -107,7 +108,7 @@ def temp_consumer_qbd():
                     if msg.error().code() == KafkaException._PARTITION_EOF:
                         continue  # Continue if end of partition is reached
                     else:
-                        logging.error(f"Prodcut Analytics:Consumer error: {msg.error()} \n")  # Log any other errors
+                        logging.error(f"QBD Process Analytics:Consumer error: {msg.error()} \n")  # Log any other errors
                         continue
                 message_temp = json.loads(msg.value().decode('utf-8'))  # Deserialize the message value
 
@@ -128,17 +129,17 @@ def temp_consumer_qbd():
 
 def orders_consumers_qbd():
     try:
-        print("Starting orders_consumers_qbd thread", flush=True)
+        print("QBD Starting orders_consumers_qbd thread", flush=True)
         while True:
             with mutex_temp_values and mutex_completed_orders:
                 # Fetch completed orders
                 msg = Process_orders_consumer.poll(1.0)
                 if msg is None:
-                    #print("msg none- orders_consumers_qbd thread", flush=True)
+                    print("QBD msg none- orders_consumers_qbd thread", flush=True)
                     continue  # Continue if no message is received
                 if msg.error():
                     if msg.error().code() == KafkaException._PARTITION_EOF:
-                        #print("msg error- orders_consumers_qbd thread", flush=True)
+                        print("QBD msg error- orders_consumers_qbd thread", flush=True)
                         continue  # Continue if end of partition is reached
                     else:
                         logging.error(f"Prodcut Analytics:Consumer error: {msg.error()}")  # Log any other errors
