@@ -58,9 +58,6 @@ product = None
 consumer = Consumer(kafka_conf)
 consumer.subscribe(['manufacturing_orders'])
 
-
-
-
 def consume_messages():
     global orderNumber, lotNumber, product
     try:
@@ -96,10 +93,6 @@ def consume_messages():
         consumer.close()
     
     
-
-    
-
-
 # Handler for subscription events
 class SubHandler(object):
     def datachange_notification(self, node, val, data):
@@ -129,9 +122,7 @@ class SubHandler(object):
             producer.flush()
             previous_values[node_id] = val
             print(f"Sent data to Kafka: {data_dict}")
-                        
 
-        
 
 # Create a subscription
 subscription = opcua_client.create_subscription(500, SubHandler())

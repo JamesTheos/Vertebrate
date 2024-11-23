@@ -64,34 +64,34 @@
  <div class="overall-grid-scada">
     <div class="scada-grid">
         <div class="scada-group">
-            <div class="scada-value-name">ISPEAmpTemp:</div>
+            <div class="scada-value-name">Ambient Temp (degC):</div>
             <div id="ISPEAmbTempvalue" class="scada-value">N/A</div>
         </div>
     </div>
     <div class="scada-grid">
         <div class="scada-group">
-            <div class="scada-value-name">ISPEMTemp:</div>
+            <div class="scada-value-name">Material Temp (degC):</div>
             <div id="ISPEMTempvalue" class="scada-value">N/A</div>
         </div>
     </div>
     <div class="scada-grid">
         <div class="scada-group">
-            <div class="scada-value-name">ISPESpeed:</div>
+            <div class="scada-value-name">Filling Speed (units/min):</div>
             <div id="ISPESpeedvalue" class="scada-value">N/A</div>
         </div>
     </div>
     <div class="scada-grid">
         <div class="scada-group">
-            <div class="scada-value-name">ISPEPressure:</div>
+            <div class="scada-value-name">Pressure (barg):</div>
             <div id="ISPEPressurevalue" class="scada-value">N/A</div>
         </div>
     </div>
  </div>
  
 
-<div class="scada-container">
+<!-- <div class="scada-container">
     <div id="latest-value1" class="scada-value-2">Latest Value for Scene 1: N/A</div>
-    <div id="latest-value2" class="scada-value-2">Latest Value for Scene 2: N/A</div>
+    <div id="latest-value2" class="scada-value-2">Latest Value for Scene 2: N/A</div> -->
 </div>
     <script>
         async function fetchData(topic) {
@@ -109,23 +109,23 @@
         }
 
         async function updateScadaValues() {
-            const data1 = await fetchData('ISPEScene1');
-            const data2 = await fetchData('ISPEScene2');
+            //const data1 = await fetchData('ISPEScene1');
+            //const data2 = await fetchData('ISPEScene2');
             const data3 = await fetchData('ISPEAmbTemp');
             const data4 = await fetchData('ISPESpeed');
             const data5 = await fetchData('ISPEPressure');
             const data6 = await fetchData('ISPEMTemp');
 
-            const latestValue1 = data1.length > 0 ? data1[data1.length - 1].value : 'N/A';
-            const latestValue2 = data2.length > 0 ? data2[data2.length - 1].value : 'N/A';
+            //const latestValue1 = data1.length > 0 ? data1[data1.length - 1].value : 'N/A';
+            //const latestValue2 = data2.length > 0 ? data2[data2.length - 1].value : 'N/A';
             const latestValue3 = data3.length > 0 ? data3[data3.length - 1].value : 'N/A';
             const latestValue4 = data4.length > 0 ? data4[data4.length - 1].value : 'N/A';
             const latestValue5 = data5.length > 0 ? data5[data5.length - 1].value : 'N/A';
             const latestValue6 = data6.length > 0 ? data6[data6.length - 1].value : 'N/A';
             
 
-            document.getElementById('latest-value1').textContent = `Latest Value for Scene 1: ${latestValue1}`;
-            document.getElementById('latest-value2').textContent = `Latest Value for Scene 2: ${latestValue2}`;
+            //document.getElementById('latest-value1').textContent = `Latest Value for Scene 1: ${latestValue1}`;
+            //document.getElementById('latest-value2').textContent = `Latest Value for Scene 2: ${latestValue2}`;
             document.getElementById('ISPEAmbTempvalue').textContent = `${latestValue3}`;
             document.getElementById('ISPESpeedvalue').textContent = `${latestValue4}`;
             document.getElementById('ISPEPressurevalue').textContent = `${latestValue5}`;

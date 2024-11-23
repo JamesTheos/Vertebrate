@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Process QbD Analysis{% endblock %}
+{% block header_title %}Process QbD Analysis{% endblock %}
+
+{% block content %}
+    <!-- Loading message -->
+    <div id="loading-message" style="font-weight: bold; font-size: 18px;">Loading...</div>
+
+    <!-- The chart canvas -->
+    <canvas id="tempChart" width="400" height="200"></canvas>
+
+    <!-- Include Chart.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const loadingMessage = document.getElementById('loading-message');
+            let chartInstance = null;
+
+            function loadTrend() {
+                // Display the loading message
+                loadingMessage.style.display = 'block';
+
+                fetch('/api/process-qbd-analysis')
+                    .then(response => response.json())
+                    .then(data => {
+                        const orders = data.normalized_temps || {};
+                        const orderNumbers = Object.keys(orders);
+                        if (orderNumbers.length === 0) {
+                            throw new TypeError('No orders found');
+                        }
+
+                        const datasets = orderNumbers.map((orderNumber, index) => {
+                            const orderData = orders[orderNumber];
+                            const colors = ['rgba(75, 192, 192, 1)', 'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 'rgba(255, 206, 86, 1)', 'rgba(153, 102, 255, 1)'];
+                            const color = colors[index % colors.length];
+                            return {
+                                label: `${orderNumber}`,
+                                data: orderData.map(point => ({ x: point[0], y: point[1] })), // Zeit in Minuten als x-Wert
+                                backgroundColor: color,
+                                borderColor: color,
+                                showLine: false
+                            };
+                        });
+
+                        if (chartInstance) {
+                            chartInstance.data.datasets = datasets;
+                            chartInstance.update();
+                        } else {
+                            chartInstance = new Chart(document.getElementById('tempChart').getContext('2d'), {
+                                type: 'scatter',
+                                data: {
+                                    datasets: datasets
+                                },
+                                options: {
+                                    animation: false,
+                                    scales: {
+                                        x: {
+                                            type: 'linear',
+                                            position: 'bottom',
+                                            min: 0,
+                                            max: 5,
+                                            title: {
+                                                display: true,
+                                                text: 'Time (minutes)'
+                                            }
+                                        },
+                                        y: {
+                                            min: -10,
+                                            max: 110,
+                                            title: {
+                                                display: true,
+                                                text: 'Normalized Temperature in %'
+                                            }
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                        
+                        // Hide the loading message after data is loaded
+                        loadingMessage.style.display = 'none';
+                    })
+                    .catch(error => console.error('Error fetching QbD analysis data:', error));
+            }
+
+            loadTrend();
+            setInterval(loadTrend, 3000);
+        });
+    </script>
+{% endblock %}
