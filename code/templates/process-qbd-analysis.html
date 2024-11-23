@@ -42,7 +42,47 @@
                                 showLine: false
                             };
                         });
+                        // Calculate the average y-value
+                        let allYValues = [];
+                        datasets.forEach(dataset => {
+                          dataset.data.forEach(point => {
+                           allYValues.push(point.y);
+                         });
+                        });
 
+                        const sumOfYValues = allYValues.reduce((sum, value) => sum + value, 0);
+                        const averageYValue = sumOfYValues / allYValues.length; // Durchschnittliche Temperatur
+
+                        // Determine the minimum and maximum x-values to span the line across the chart
+                        let allXValues = [];
+                        datasets.forEach(dataset => {
+                            dataset.data.forEach(point => {
+                                allXValues.push(point.x);
+                            });
+                        });
+                        
+                        const minX = Math.min(...allXValues);
+                        const maxX = Math.max(...allXValues);
+                        
+                        // Create the average line dataset
+                        const averageLineDataset = {
+                            label: 'Average Value',
+                            data: [
+                                { x: minX, y: averageYValue },
+                                { x: maxX, y: averageYValue }
+                            ],
+                            borderColor: 'rgba(0, 0, 0, 1)', // Black color for the average line
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            fill: false,
+                            showLine: true,
+                            borderDash: [5, 5] // Dashed line
+                        };
+
+                        // Add the average line dataset to the datasets array
+                        datasets.push(averageLineDataset);
+
+                        // Update or create the chart instance
                         if (chartInstance) {
                             chartInstance.data.datasets = datasets;
                             chartInstance.update();
@@ -50,7 +90,8 @@
                             chartInstance = new Chart(document.getElementById('tempChart').getContext('2d'), {
                                 type: 'scatter',
                                 data: {
-                                    datasets: datasets
+                                    datasets: datasets,
+                            
                                 },
                                 options: {
                                     animation: false,

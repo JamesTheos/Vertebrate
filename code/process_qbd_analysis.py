@@ -84,7 +84,7 @@ def process_qbd_analysis_api():
                     timestamps, values = zip(*temps)
                     normalized_values = [((value - normalizeLowerLimit) / normalizeFactor)*100 for value in values]
                     temp_values_normalized[order_number] = list(zip(timestamps, normalized_values))
-                    print("Normalized Values:",temp_values_normalized)
+                    #print("Normalized Values:",temp_values_normalized)
                     logging.info(f"Order {order_number}: Normalized Values: {normalized_values}")
 
             return jsonify({'normalized_temps': temp_values_normalized})
