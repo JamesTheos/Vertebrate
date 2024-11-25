@@ -110,7 +110,11 @@ def Temp_consume_and_process():
     initialized = False
     # Define the number of messages to retrieve in one call
     num_messages = 100
-    print(f"QBD Initialized:", initialized, flush=True)
+    normalizeUpperLimit = 8
+    normalizeLowerLimit = 2
+    normalizeFactor = normalizeUpperLimit - normalizeLowerLimit
+
+    #print(f"QBD Initialized:", initialized, flush=True)
     print("QBD Starting TEMPS_consumers thread", flush=True)
     def temp_on_assign(consumer, partitions):
         for partition in partitions:
@@ -118,7 +122,7 @@ def Temp_consume_and_process():
         consumer.assign(partitions)
     Process_temp_consumer.subscribe(['ISPEMTemp'], on_assign=temp_on_assign)
 
-    # Poll messages from the beginning once
+    # Consume messages from the beginning of the topic
     while True:
         msgs = Process_temp_consumer.consume(num_messages, timeout=2.0)
         if not msgs:
@@ -129,10 +133,6 @@ def Temp_consume_and_process():
                 logging.error(f"QBD Temperature Consumer error: {msg.error()}")
                 continue
             # Process message
-            normalizeUpperLimit = 8
-            normalizeLowerLimit = 2
-            normalizeFactor = normalizeUpperLimit - normalizeLowerLimit
-
             temp_data = json.loads(msg.value().decode('utf-8'))  # Deserialize the message value
             order_number = temp_data.get('orderNumber')
             print(f"\n QBD temps recieved for order_number:", order_number, flush=True)

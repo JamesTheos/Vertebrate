@@ -4,7 +4,7 @@ from LLM_Consumer import get_kafka_data
 from Neo4j import get_neo4j_data
 from datetime import datetime
 ## Import the blueprints from the other modules
-#from product_analytics_app import product_analytics_app
+from product_analytics_app import product_analytics_app
 from DesignSpaceApp import design_space_app  # Import the blueprint from the DesignSpaceApp module
 from process_qbd_analysis import process_qbd_analysis  # Import the process QbD analysis blueprint
 #from Chatbot import Chatbot, query_llama  # Import the chatbot blueprint
@@ -30,7 +30,7 @@ unit= config['unit']
 app = Flask(__name__)
 
 # Register the blueprints
-#app.register_blueprint(product_analytics_app)
+app.register_blueprint(product_analytics_app)
 app.register_blueprint(design_space_app)
 app.register_blueprint(process_qbd_analysis)
 #app.register_blueprint(Chatbot)

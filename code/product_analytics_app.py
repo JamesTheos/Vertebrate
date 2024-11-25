@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify  # Import Flask and related modules for web server and request handling
-from confluent_kafka import KafkaException, Consumer
+from confluent_kafka import KafkaException, Consumer, OFFSET_BEGINNING  # Import Kafka modules for consuming messages
 import json  # Import JSON module for data serialization
 import logging  # Import logging module for logging
 import threading  # Import threading module for running background tasks
@@ -39,59 +39,15 @@ kafka_conf_values = {
 # Configure logging to only show critical errors
 logging.basicConfig(level=logging.CRITICAL)
 
-
 # Kafka consumer for receiving data from 'manufacturing_orders' topic
-consumer = Consumer(kafka_conf_products)
-consumer.subscribe(['manufacturing_orders'])
+orders_consumer = Consumer(kafka_conf_products)
 
 # Kafka consumer for receiving data from 'ISPEMTemp' topic
 temp_consumer = Consumer(kafka_conf_values)
-temp_consumer.subscribe(['ISPEMTemp'])
 
 # In-memory storage for products and their orders
 products = {}  # Dictionary to store products
 orders = {}  # Dictionary to store orders
-
-# # Initialize orders with historical data from Kafka topic 'manufacturing_orders'
-# def initialize_orders():
-#     print(f"Product Analytics:Initializing orders with historical data", flush=True)  # Print message to indicate initialization
-#     init_consumer = Consumer(kafka_conf_init)  # Initialize Kafka consumer
-#     init_consumer.subscribe(['manufacturing_orders'])
-#     try:
-#         while True:
-#             msg = init_consumer.poll(timeout=1.0)
-#             if msg is None:
-#                 print(f"Product Analytics:No message received")
-#                 break
-#             if msg.error():
-#                 if msg.error().code() == KafkaException._PARTITION_EOF:
-#                     break
-#                 else:
-#                     logging.error(f"Product Analytics: Consumer error: {msg.error()}")
-#                     continue
-                
-#             order = json.loads(msg.value().decode('utf-8'))
-#             product = order['product']
-#             orderNumber = order['orderNumber']
-#             with orders_lock:
-#                 if product not in products:
-#                     products[product] = []
-#                 if product not in orders:
-#                     orders[product] = []
-#                 if not any(ord['orderNumber'] == orderNumber for ord in orders[product]):
-#                     orders[product].append(order)
-#                 for ord in orders[product]:
-#                     if ord['orderNumber'] == orderNumber and ord['status'] != order['status']:
-#                         ord['status'] = order['status']
-#                         ord['timestamp'] = order['timestamp']
-#         print(f"Product Analytics:Initialized orders: {orders}", flush=True)
-#         print(f"Product Analytics:Initialized Products: {products}", flush=True)
-#     except Exception as e:
-#         logging.error(f"Error initializing orders: {e}")
-#     finally:
-#         init_consumer.close()
-# initialize_orders()
-
 
 ####### main program ########
 @product_analytics_app.route('/get-products', methods=['GET'])  # Define route to get the list of products
@@ -159,12 +115,21 @@ def get_product_trend(product):
         return jsonify({'status': 'error', 'message': str(e)}), 500  # Return error response
     
 def consume_orders():
-    #print("Prodcut Analytics:Starting consume_orders thread", flush=True)  # Print message to indicate thread start
+    print("Prodcut Analytics:Starting consume_orders thread", flush=True)  # Print message to indicate thread start
+    # Define the number of messages to retrieve in one call
+    num_messages = 100
+    def temp_on_assign(consumer, partitions):
+        for partition in partitions:
+            partition.offset = OFFSET_BEGINNING
+        consumer.assign(partitions)
+    orders_consumer.subscribe(['manufacturing_orders'], on_assign=temp_on_assign)
+    
     try:
-        while True:
-            msg = consumer.poll(timeout=0.5)  # Poll for messages from the 'manufacturing_orders' topic
-            if msg is None:
+      while True:
+        msgs = orders_consumer.consume(num_messages, timeout=2.0)  # consume messages from the 'manufacturing_orders' topic
+        if msgs is None:
                 continue  # Continue if no message is received
+        for msg in msgs:
             if msg.error():
                 if msg.error().code() == KafkaException._PARTITION_EOF:
                     continue  # Continue if end of partition is reached
@@ -191,15 +156,24 @@ def consume_orders():
     except KeyboardInterrupt:
         pass
     finally:
-        consumer.close()
+        orders_consumer.close()
 
 def consume_temp():
     print("Prodcut Analytics:Starting consume_temp thread", flush=True)  # Print message to indicate thread start
+    # Define the number of messages to retrieve in one call
+    num_messages = 100
+    def temp_on_assign(consumer, partitions):
+        for partition in partitions:
+            partition.offset = OFFSET_BEGINNING
+        consumer.assign(partitions)
+    temp_consumer.subscribe(['ISPEMTemp'], on_assign=temp_on_assign)
+
     try:
-        while True:
-            msg = temp_consumer.poll(timeout=0.5)  # Poll for messages from the 'ISPEMTemp' topic
-            if msg is None:
+      while True:
+        msgs = temp_consumer.consume(num_messages, timeout=2.0)  # consume messages from the 'ISPEMTemp' topic
+        if msgs is None:
                 continue  # Continue if no message is received
+        for msg in msgs:
             if msg.error():
                 if msg.error().code() == KafkaException._PARTITION_EOF:
                     continue  # Continue if end of partition is reached
@@ -207,7 +181,7 @@ def consume_temp():
                     logging.error(f"Prodcut Analytics:Consumer error: {msg.error()}")  # Log any other errors
                     continue
             temp_data = json.loads(msg.value().decode('utf-8'))  # Deserialize the message value
-            #print(f"Received temperature data: {temp_data}", flush=True)  # Print message to indicate temperature data received
+            print(f" Prod. Analytics: Received temperature data", flush=True)  # Print message to indicate temperature data received
 
             order_id = temp_data['orderNumber']  # Get the order ID from the temperature data
             product = temp_data['product']  # Get the product name from the temperature data
