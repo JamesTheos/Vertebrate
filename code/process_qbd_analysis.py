@@ -6,6 +6,7 @@ import logging
 import threading
 from collections import deque
 import os
+import time
 
 # Load the configuration for the ISA95 model
 config_path = os.path.join(os.path.dirname(__file__), 'config.json')
@@ -22,7 +23,8 @@ process_qbd_analysis = Blueprint('process_qbd_analysis', __name__)
 Orders_Kafka_Config= {
     'bootstrap.servers': Kafkaserver,
     'group.id': 'process-analysis-Orders-group',
-    'auto.offset.reset': 'earliest'
+    'auto.offset.reset': 'earliest',
+    'enable.auto.commit': False
 }
 
 Temps_Kafka_Config = {
@@ -33,25 +35,26 @@ Temps_Kafka_Config = {
 }
 
 Process_orders_consumer = Consumer(Orders_Kafka_Config)
-Process_orders_consumer.subscribe(['manufacturing_orders'])
+
 Process_temp_consumer = Consumer(Temps_Kafka_Config)
-Process_temp_consumer.subscribe(['ISPEMTemp'])
 
-def reset_offsets(consumer):
-    partitions = consumer.assignment()
-    for partition in partitions:
-        partition.offset = OFFSET_BEGINNING
-        consumer.seek(partition)
-    consumer.assign(partitions)
 
-###############code below to be done################
+
+############### prepare data ############################
 
 mutex_completed_orders = threading.Lock()
 mutex_temp_values = threading.Lock()
 completed_orders = []
 temp_values = {} #with datetime types
 temp_values_normalized = {} #normalized values
+data_lock = threading.Lock()
 
+# Shared data structures
+processed_data = {
+    'times': [],
+    'normalized_temps': [],
+    'average_normalized_temp': 0
+}
 
 @process_qbd_analysis.route('/process-qbd-analysis')
 def process_qbd_analysis_view():
@@ -59,104 +62,154 @@ def process_qbd_analysis_view():
     return render_template('process-qbd-analysis.html')
    
 
+###################### new code Orders consume and process ############################
+def orders_consumers_qbd():
+    try:
+        print("QBD Starting orders_consumers thread", flush=True)
+        def on_assign(consumer, partitions):
+            for partition in partitions:
+                partition.offset = OFFSET_BEGINNING
+            consumer.assign(partitions)
+
+        Process_orders_consumer.subscribe(['manufacturing_orders'], on_assign=on_assign)
+
+        while True:
+            msg = Process_orders_consumer.poll(timeout=1.0)
+            #time.sleep(3)
+            #print(f"QBD order msg:", msg, flush=True)
+            if msg is None:
+                time.sleep(3)
+                print(f"QBD existing orders:", completed_orders, flush=True) 
+                #print(f"QBD - No new orders: completed are", completed_orders)
+                continue  # Continue if no message is received
+            if msg.error():
+                if msg.error().code() == KafkaException._PARTITION_EOF:
+                    print(f"QBD msg Kafka error- orders_consumers_qbd thread", flush=True)
+                    continue  # Continue if end of partition is reached
+                else:
+                    print(f"QBD msg error- orders_consumers_qbd thread: {msg.error()}")  # Log any other errors
+                    continue
+            msg_orders = json.loads(msg.value().decode('utf-8'))  # Deserialize the message value
+            order_number = msg_orders.get('orderNumber')
+            if order_number not in completed_orders:
+                print(f"QBD: Orders Consumer Message:", msg_orders, flush=True)
+                if msg_orders['status'] == 'Completed':
+                    # Add the order number to the list of completed orders if the order is completed and not already in the list
+                    if order_number:
+                        with mutex_completed_orders:
+                            completed_orders.append(order_number) # Add the order number to the list
+                print(f"Completed_orders in Thread orders_consumers_qbd", completed_orders)
+    except Exception as e:
+        logging.error(f"Error in orders_consumers_qbd: {e}")
+    finally:
+        print("QBD-ending Orders_consumers thread", flush=True)
+        Process_orders_consumer.close()
+
+###################### new code Temperatures consume and process ############################
+def Temp_consume_and_process():
+    initialized = False
+    # Define the number of messages to retrieve in one call
+    num_messages = 100
+    print(f"QBD Initialized:", initialized, flush=True)
+    print("QBD Starting TEMPS_consumers thread", flush=True)
+    def temp_on_assign(consumer, partitions):
+        for partition in partitions:
+            partition.offset = OFFSET_BEGINNING
+        consumer.assign(partitions)
+    Process_temp_consumer.subscribe(['ISPEMTemp'], on_assign=temp_on_assign)
+
+    # Poll messages from the beginning once
+    while True:
+        msgs = Process_temp_consumer.consume(num_messages, timeout=2.0)
+        if not msgs:
+           print(f"QBD msgs empty", flush=True)
+           continue
+        for msg in msgs: 
+            if msg.error():
+                logging.error(f"QBD Temperature Consumer error: {msg.error()}")
+                continue
+            # Process message
+            normalizeUpperLimit = 8
+            normalizeLowerLimit = 2
+            normalizeFactor = normalizeUpperLimit - normalizeLowerLimit
+
+            temp_data = json.loads(msg.value().decode('utf-8'))  # Deserialize the message value
+            order_number = temp_data.get('orderNumber')
+            print(f"\n QBD temps recieved for order_number:", order_number, flush=True)
+            if order_number and order_number in completed_orders:
+                with mutex_completed_orders:
+                    print(f"QBD value addition for order number:", order_number, flush=True)
+                    if order_number in completed_orders:
+                            if order_number not in temp_values:
+                                temp_values[order_number] = []
+                            timestamp = temp_data.get('timestamp')
+                            value = temp_data.get('value')
+                            if timestamp and value is not None:
+                                temp_values[order_number].append((timestamp, value))
+                                # print(f"Order {order_number}: Initial Values ok", flush=True)
+                                # Normalize the temperature values
+                                timestamps, values = zip(*temp_values[order_number])
+                                min_timestamp = min(datetime.fromisoformat(ts) for ts in timestamps)
+                                times_in_minutes = [(datetime.fromisoformat(ts) - min_timestamp).total_seconds() / 60 for ts in timestamps]
+                                normalized_values = [((value - normalizeLowerLimit) / normalizeFactor) * 100 for value in values]
+                                temp_values_normalized[order_number] = list(zip(times_in_minutes, normalized_values))
+                                print(f"Order {order_number}: Value Normalized \n", flush=True)
+            else:
+                with mutex_completed_orders:
+                    print(f"QBD value prep for order number:", order_number, flush=True)
+                    if order_number:
+                            if order_number not in temp_values:
+                                temp_values[order_number] = []
+                            timestamp = temp_data.get('timestamp')
+                            value = temp_data.get('value')
+                            if timestamp and value is not None:
+                                temp_values[order_number].append((timestamp, value))
+                                # print(f"Order {order_number}: Initial Values ok", flush=True)
+                                # Normalize the temperature values
+                                timestamps, values = zip(*temp_values[order_number])
+                                min_timestamp = min(datetime.fromisoformat(ts) for ts in timestamps)
+                                times_in_minutes = [(datetime.fromisoformat(ts) - min_timestamp).total_seconds() / 60 for ts in timestamps]
+                                normalized_values = [((value - normalizeLowerLimit) / normalizeFactor) * 100 for value in values]
+                                temp_values_normalized[order_number] = list(zip(times_in_minutes, normalized_values))
+                                print(f"Order {order_number}: Online Value Normalized \n", flush=True)  
+    
+   
+   
+   
+    #             # Update processed_data
+    #             if temp_values_normalized:
+    #                 for order_number, temps in temp_values_normalized.items():
+    #                     for timestamp, normalized_value in temps:
+    #                         processed_data['times'].append(timestamp)
+    #                         processed_data['normalized_temps'].append(normalized_value)
+
+    #             # Recalculate average
+    #             total = sum(processed_data['normalized_temps'])
+    #             count = len(processed_data['normalized_temps'])
+    #             print(f"QBD Temp msg count:", count, flush=True)
+    #             processed_data['average_normalized_temp'] = total / count if count > 0 else 0
+                
+
+threading.Thread(target=orders_consumers_qbd, daemon=True).start()
+time.sleep(3)   
+threading.Thread(target=Temp_consume_and_process, daemon=True).start()  
+time.sleep(3)
+
+#################### api ###############################
+# @process_qbd_analysis.route('/api/process-qbd-analysis')
+# def process_qbd_analysis_api():
+#     logging.info("Processing QbD Analysis API")
+#     try:
+#         with mutex_temp_values:
+#             return jsonify({'normalized_temps': temp_values_normalized})
+#     except Exception as e:
+#         logging.error(f"Error processing QbD Analysis API: {e}")
+#         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @process_qbd_analysis.route('/api/process-qbd-analysis')
 def process_qbd_analysis_api():
-    logging.info("Processing QbD Analysis API")
-    try:
-        normalizeUpperLimit = 8
-        normalizeLowerLimit = 2
-        with mutex_temp_values:
-            for order_number, temps in temp_values.items():
-                    if temps:
-                        timestamps, values = zip(*temps)
-                        min_timestamp = min(datetime.fromisoformat(ts) for ts in timestamps)
-                        max_timestamp = max(datetime.fromisoformat(ts) for ts in timestamps)
-                        times_in_minutes = [(datetime.fromisoformat(ts) - min_timestamp).total_seconds() / 60 for ts in timestamps]
-                        if order_number not in temp_values:
-                            temp_values_normalized[order_number] = []
-                        temp_values_normalized[order_number] = list(zip(times_in_minutes, values))
-                        logging.info(f"Order {order_number}: Min Timestamp: {min_timestamp}, Max Timestamp: {max_timestamp}")
-                #normalize the temperature values
-
-            normalizeFactor = normalizeUpperLimit - normalizeLowerLimit
-            for order_number, temps in temp_values_normalized.items():
-                if temps:
-                    timestamps, values = zip(*temps)
-                    normalized_values = [((value - normalizeLowerLimit) / normalizeFactor)*100 for value in values]
-                    temp_values_normalized[order_number] = list(zip(timestamps, normalized_values))
-                    #print("Normalized Values:",temp_values_normalized)
-                    logging.info(f"Order {order_number}: Normalized Values: {normalized_values}")
-
-            return jsonify({'normalized_temps': temp_values_normalized})
-    except Exception as e:
-        logging.error(f"Error processing QbD Analysis API: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-
-def temp_consumer_qbd():
-    try:
-        print("Starting temp_consumer_qbd thread, Im Running", flush=True)
-    
-        while True:
-            
-            with mutex_temp_values and mutex_completed_orders:
-                msg = Process_temp_consumer.poll(timeout=1.0)
-                if msg is None:
-                    continue  # Continue if no message is received
-                if msg.error():
-                    if msg.error().code() == KafkaException._PARTITION_EOF:
-                        continue  # Continue if end of partition is reached
-                    else:
-                        logging.error(f"QBD Process Analytics:Consumer error: {msg.error()} \n")  # Log any other errors
-                        continue
-                message_temp = json.loads(msg.value().decode('utf-8'))  # Deserialize the message value
-
-                #print("QBD: Consumer Temp: ", message_temp, flush=True)
-                if message_temp['orderNumber'] in completed_orders and message_temp['value'] is not None:
-                    #Add the temp values for each completed order to the array list incl. timestamp
-                    if message_temp['orderNumber'] not in temp_values:
-                        temp_values[message_temp['orderNumber']] = []
-                    temp_values[message_temp['orderNumber']].append((message_temp['timestamp'], message_temp['value']))
-                    #print("Temp_values after:",temp_values)
-                #processing of the timestamp --> converting into minutes for easier visualisation
-                
-                
-    except Exception as e:
-             pass
-    finally:
-        Process_temp_consumer.close()
-
-def orders_consumers_qbd():
-    try:
-        print("QBD Starting orders_consumers_qbd thread", flush=True)
-        while True:
-            with mutex_temp_values and mutex_completed_orders:
-                # Fetch completed orders
-                msg = Process_orders_consumer.poll(1.0)
-                if msg is None:
-                    print("QBD msg none- orders_consumers_qbd thread", flush=True)
-                    continue  # Continue if no message is received
-                if msg.error():
-                    if msg.error().code() == KafkaException._PARTITION_EOF:
-                        print("QBD msg error- orders_consumers_qbd thread", flush=True)
-                        continue  # Continue if end of partition is reached
-                    else:
-                        logging.error(f"Prodcut Analytics:Consumer error: {msg.error()}")  # Log any other errors
-                        continue
-                msg_orders = json.loads(msg.value().decode('utf-8'))  # Deserialize the message value
-                print("QBD: Orders Consumer Message:", msg_orders, flush=True)
-                # Add the order number to the list of completed orders if the order is completed and not already in the list
-                if msg_orders['status'] == 'Completed' and msg_orders['orderNumber'] not in completed_orders:
-                    completed_orders.append(msg_orders['orderNumber']) # Add the order number to the list
-                    print("Completed_orders in Thread orders_consumers_qbd",completed_orders)
-                    reset_offsets(Process_temp_consumer)
-    except Exception as e:
-            pass
-    finally:
-        print("ending orders_consumers_qbd thread", flush=True)
-        Process_orders_consumer.close()
-
-
-threading.Thread(target=orders_consumers_qbd, daemon=True).start()  # Start thread
-threading.Thread(target=temp_consumer_qbd, daemon=True).start()  # Start thead
+    with data_lock:
+        return jsonify({
+            'processed_data': temp_values_normalized,
+            'completed_orders': completed_orders
+        })

@@ -3,11 +3,11 @@
 {% block header_title %}Process QbD Analysis{% endblock %}
 
 {% block content %}
-    <!-- Loading message -->
-    <div id="loading-message" style="font-weight: bold; font-size: 18px;">Loading...</div>
 
     <!-- The chart canvas -->
     <canvas id="tempChart" width="400" height="200"></canvas>
+    <!-- Loading message -->
+    <div id="loading-message" style="font-weight: bold; font-size: 18px;">Loading...</div>
 
     <!-- Include Chart.js library -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -15,6 +15,9 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const loadingMessage = document.getElementById('loading-message');
+            setTimeout(() => {
+                loadTrend();
+            }, 6000);
             let chartInstance = null;
 
             function loadTrend() {
@@ -24,15 +27,28 @@
                 fetch('/api/process-qbd-analysis')
                     .then(response => response.json())
                     .then(data => {
-                        const orders = data.normalized_temps || {};
-                        const orderNumbers = Object.keys(orders);
-                        if (orderNumbers.length === 0) {
+                        const processedTemps = data.processed_data || {};
+                        const completedOrders = data.completed_orders || [];
+                        if (completedOrders.length === 0) {
                             throw new TypeError('No orders found');
                         }
+                        const orderNumbers = completedOrders;
 
                         const datasets = orderNumbers.map((orderNumber, index) => {
-                            const orderData = orders[orderNumber];
-                            const colors = ['rgba(75, 192, 192, 1)', 'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 'rgba(255, 206, 86, 1)', 'rgba(153, 102, 255, 1)'];
+                            const orderData = processedTemps[orderNumber];
+                            if (!orderData) {
+                                console.warn(`No data found for order number: ${orderNumber}`);
+                                return null;
+                            }
+                            const colors = [
+                                'rgba(75, 192, 192, 1)', 'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 
+                                'rgba(255, 206, 86, 1)', 'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)', 
+                                'rgba(255, 99, 132, 0.5)', 'rgba(75, 192, 192, 0.5)', 'rgba(54, 162, 235, 0.5)', 
+                                'rgba(255, 206, 86, 0.5)', 'rgba(153, 102, 255, 0.5)', 'rgba(255, 159, 64, 0.5)', 
+                                'rgba(75, 192, 192, 0.8)', 'rgba(255, 99, 132, 0.8)', 'rgba(54, 162, 235, 0.8)', 
+                                'rgba(255, 206, 86, 0.8)', 'rgba(153, 102, 255, 0.8)', 'rgba(255, 159, 64, 0.8)', 
+                                'rgba(75, 192, 192, 0.3)', 'rgba(255, 99, 132, 0.3)'
+                            ];
                             const color = colors[index % colors.length];
                             return {
                                 label: `${orderNumber}`,
@@ -41,7 +57,7 @@
                                 borderColor: color,
                                 showLine: false
                             };
-                        });
+                        }).filter(dataset => dataset !== null);
                         // Calculate the average y-value
                         let allYValues = [];
                         datasets.forEach(dataset => {

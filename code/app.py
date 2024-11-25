@@ -4,7 +4,7 @@ from LLM_Consumer import get_kafka_data
 from Neo4j import get_neo4j_data
 from datetime import datetime
 ## Import the blueprints from the other modules
-from product_analytics_app import product_analytics_app
+#from product_analytics_app import product_analytics_app
 from DesignSpaceApp import design_space_app  # Import the blueprint from the DesignSpaceApp module
 from process_qbd_analysis import process_qbd_analysis  # Import the process QbD analysis blueprint
 #from Chatbot import Chatbot, query_llama  # Import the chatbot blueprint
@@ -30,7 +30,7 @@ unit= config['unit']
 app = Flask(__name__)
 
 # Register the blueprints
-app.register_blueprint(product_analytics_app)
+#app.register_blueprint(product_analytics_app)
 app.register_blueprint(design_space_app)
 app.register_blueprint(process_qbd_analysis)
 #app.register_blueprint(Chatbot)
@@ -89,10 +89,14 @@ def consume_messages():
             'timestamp': timestamp,
             'value': data['value']  # Assuming the message contains 'value'
         })
-        print(f"New data for {topic}: {data['value']} at {timestamp}", flush=True)  # Debugging log
+        #print(f"New data for {topic}: {data['value']} at {timestamp}", flush=True)  # Debugging log
         #print("Current data store message to follow", flush=True)  # Debugging log
        # print(f"Current data store: {data_store}", flush=True)  # Debugging log
        # print("Current data store message above me", flush=True)  # Debugging log
+
+
+
+
 
 #######################################################################################
 #main route
