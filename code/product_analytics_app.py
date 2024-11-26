@@ -48,6 +48,10 @@ temp_consumer = Consumer(kafka_conf_values)
 # In-memory storage for products and their orders
 products = {}  # Dictionary to store products
 orders = {}  # Dictionary to store orders
+average_data = {}
+newest_order = {}
+newest_order_data = {}
+
 
 ####### main program ########
 @product_analytics_app.route('/get-products', methods=['GET'])  # Define route to get the list of products
@@ -68,48 +72,11 @@ def get_product_trend(product):
             if product not in orders or not orders[product]:  # Check if there are orders for the product
                 return jsonify({'status': 'error', 'message': 'No orders found for this product'}), 404
 
-            # Get the newest order for the product
-            newest_order = max((order for order in orders[product] if order['status'] == 'Started'), key=lambda x: x['timestamp'], default=None)
-            if newest_order != None:  # Check if the newest order is completed
-                #print(f"\n Newest Order in get product trend: {newest_order} \n", flush=True)  # Print message to indicate newest order
-                if 'data' not in newest_order:  # Check if there is data in the newest order
-                    newest_order_data = []
-                else:
-                    # Get the timestamp of the newest order data oldest and newest
-                    oldest_order_data = min(newest_order['data'], key=lambda x: datetime.fromisoformat(x['time']))
-                    newest_order_data = [{'value': data_point['value'], 'time': (datetime.fromisoformat(data_point['time']) - datetime.fromisoformat(oldest_order_data['time'])).total_seconds() / 60} for data_point in newest_order['data']]
-
-                    #print(f"Prodcut Analytics:\nNewest Order Time: {newest_order_data}\n", flush=True)  # Print message to indicate newest order
-            else:
-                newest_order_data = []
-
-            average_data = []
-            # Calculate the average values for the product
-            all_data = [order['data'] for order in orders[product] if ('data' in order and order['status'] == 'Completed')]
-            #print(f"Prodcut Analytics:\nAll Data: {all_data}\n", flush=True)  # Print message to indicate all data
+            #print(f"Newest Order Data: {newest_order_data}", flush=True)  # Print message to indicate average data
+            #print(f"Average Data: {average_data}", flush=True)  # Print message to indicate average data
             
-            if all_data:
-                # Find the maximum length of data points in all orders
-                max_length = max(len(data) for data in all_data)
-
-                # Initialize lists to store sum of values and count of values for each time point
-                sum_values = [0] * max_length
-                count_values = [0] * max_length
-                time_diff = [0] * max_length
-
-                # Sum up the values and count the occurrences for each time point
-                for data in all_data:
-                    oldest_order_data_avg = min(data, key=lambda x: datetime.fromisoformat(x['time']))
-                    for i, data_point in enumerate(data):
-                        time_diff[i] = (datetime.fromisoformat(data_point['time']) - datetime.fromisoformat(oldest_order_data_avg['time'])).total_seconds() / 60
-                        sum_values[i] += data_point['value']
-                        count_values[i] += 1
-
-                #Calculate the average values for each time point
-                average_data = [{'time': time_diff[i], 'value': sum_values[i] / count_values[i]} for i in range(max_length)]
-                #print(f"Prodcut Analytics:\nAverage Data: {average_data}\n", flush=True)  # Print message to indicate average data
            
-        return jsonify({'newestOrder': newest_order_data, 'average': average_data})  # Return the trend data as JSON
+        return jsonify({'newestOrder': newest_order_data[product], 'average': average_data[product]})  # Return the trend data as JSON
     except Exception as e:
         logging.error(f"Error fetching product trend: {e}")  # Log any errors
         return jsonify({'status': 'error', 'message': str(e)}), 500  # Return error response
@@ -141,6 +108,7 @@ def consume_orders():
             product = order['product']  # Get the product name from the order
             orderNumber = order['orderNumber']  # Get the order ID from the order
             with orders_lock:
+                global average_data
                 if product not in products:
                     products[product] = []  # Initialize product list if not already present
                 if product not in orders:
@@ -153,6 +121,38 @@ def consume_orders():
                         ord['status'] = order['status']
                         ord['timestamp'] = order['timestamp']
                 #print(f"Prodcut Analytics:\n\nOrders in Consume Orders: {orders}\n\n", flush=True)  # Print message to indicate orders list
+
+                global newest_order, newest_order_data, all_data
+                # Get the newest order for the product
+                newest_order[product] = max((order for order in orders[product] if order['status'] == 'Started'), key=lambda x: x['timestamp'], default=None)
+                if newest_order[product] == None:
+                    newest_order_data[product] = []
+        
+                all_data = [order['data'] for order in orders[product] if ('data' in order and order['status'] == 'Completed')]
+                if all_data:
+                        # Find the maximum length of data points in all orders
+                        max_length = max(len(data) for data in all_data)
+
+                        # Initialize lists to store sum of values and count of values for each time point
+                        sum_values = [0] * max_length
+                        count_values = [0] * max_length
+                        time_diff = [0] * max_length
+
+                        # Sum up the values and count the occurrences for each time point
+                        for data in all_data:
+                            oldest_order_data_avg = min(data, key=lambda x: datetime.fromisoformat(x['time']))
+                            for i, data_point in enumerate(data):
+                                time_diff[i] = (datetime.fromisoformat(data_point['time']) - datetime.fromisoformat(oldest_order_data_avg['time'])).total_seconds() / 60
+                                sum_values[i] += data_point['value']
+                                count_values[i] += 1
+
+                        #Calculate the average values for each time point
+                            
+                        average_data[product] = [{'time': time_diff[i], 'value': sum_values[i] / count_values[i]} for i in range(max_length)]
+                        #print(f"Prodcut Analytics:\nAverage Data: {average_data}\n", flush=True)  # Print message to indicate average data
+                else:
+                    average_data[product] = []
+            
     except KeyboardInterrupt:
         pass
     finally:
@@ -196,6 +196,24 @@ def consume_temp():
                                 order['data'] = []  # Initialize data list if not already present
                             order['data'].append({'time': temp_data['timestamp'], 'value': temp_data['value']})  # Add the temperature data to the order
                             #print(f"Prodcut Analytics:Updated order data: {order['data']}", flush=True)
+                global newest_order_data, newest_order
+                if newest_order[product] != None:  # Check there is a newest order
+                        #print(f"\n Newest Order in get product trend: {newest_order} \n", flush=True)  # Print message to indicate newest order
+                        if 'data' not in newest_order[product]:  # Check if there is data in the newest order
+                            newest_order_data[product] = []
+                        else:
+                            # Get the timestamp of the newest order data oldest and newest
+                            oldest_order_data = min(newest_order[product]['data'], key=lambda x: datetime.fromisoformat(x['time']))
+                            newest_order_data[product] = [{'value': data_point['value'], 'time': (datetime.fromisoformat(data_point['time']) - datetime.fromisoformat(oldest_order_data['time'])).total_seconds() / 60} for data_point in newest_order[product]['data']]
+
+                            #print(f"Prodcut Analytics:\nNewest Order Time: {newest_order_data}\n", flush=True)  # Print message to indicate newest order
+                else:
+                    newest_order_data[product] = []
+                # Calculate the average values for the product
+                
+                #print(f"Prodcut Analytics:\nAll Data: {all_data}\n", flush=True)  # Print message to indicate all data
+                
+               
     except KeyboardInterrupt:
         pass
     finally:
