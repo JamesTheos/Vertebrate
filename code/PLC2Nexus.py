@@ -1,6 +1,6 @@
 from opcua import Client, ua
 from opcua.common.subscription import Subscription
-from confluent_kafka import Producer, Consumer, KafkaException
+from confluent_kafka import Producer, Consumer, KafkaException, OFFSET_BEGINNING
 import json
 import time
 from datetime import datetime
@@ -28,13 +28,19 @@ opcua_client.connect()
 
 
 # Kafka producer configuration
-kafka_conf = {
+Producer_conf = {
+    'bootstrap.servers': Kafkaserver,
+    'client.id': clusterid,
+}
+
+Consumer_conf = {
     'bootstrap.servers': Kafkaserver,
     'client.id': clusterid,
     'group.id': 'plc-consumer-group',
     'auto.offset.reset': 'earliest'
 }
-producer = Producer(kafka_conf)
+
+producer = Producer(Producer_conf)
 
 
 # Dictionary mapping OPC UA node IDs to Kafka topics
@@ -55,37 +61,48 @@ orderNumber = None
 lotNumber = None
 product = None
 
-consumer = Consumer(kafka_conf)
+consumer = Consumer(Consumer_conf)
 consumer.subscribe(['manufacturing_orders'])
 
+# Function to consume messages from Kafka
 def consume_messages():
-    global orderNumber, lotNumber, product
+    global orderNumber, lotNumber, product, latest_msg
+    # Define the number of messages to retrieve in one call
+    num_messages = 10
+    latest_msg = {}
+
     try:
+        print(f"\n PLC2Nexus orders consumption started",latest_msg, flush=True)
         while True:
-            order = consumer.poll(timeout=1.0)
-            if  order is None:
+            msgs = consumer.consume(num_messages, timeout=1.0)
+            #print(f"\nNexus Received message from Kafka", msgs, flush=True)
+            if msgs is None:
+                print('No messages consumed from Kafka')
                 continue
-            if order.error():
-                if order.error().code() == KafkaException._PARTITION_EOF:
+            for msg in msgs:
+                if msg.error():
+                    print('PLC2Nexus error:',msg.error())
                     continue
+                order_data = json.loads(msg.value().decode('utf-8'))
+                print(f"\nNexus Received message from Kafka: {order_data}")      
+                #if latest_msg.get('timestamp') is None or order_data.get('timestamp') > latest_msg.get('timestamp'):
+                        #latest_msg = order_data
+                if order_data.get('orderNumber') is not None and order_data.get('lotNumber') is not None and order_data.get('product') is not None and order_data.get('status') == "Started":        
+                        print(f"\nNexus processing order: {latest_msg}")
+                        #if latest_msg.get('status') == "Started":
+                        orderNumber = order_data['orderNumber']
+                        product = order_data['product']
+                        lotNumber = order_data['lotNumber']
+                        print(f"\nNexus processed order: {orderNumber}")
                 else:
-                    print(order.error())
-                    break
-            order_value = order.value()
-            if order_value:
-                order_data = json.loads(order_value.decode('utf-8'))
-                if order_data['status'] == "Started":
-                    orderNumber = order_data['orderNumber']
-                    product = order_data['product']
-                    lotNumber = order_data['lotNumber']
-                else:
-                    orderNumber = None
-                    lotNumber = None
-                    product = None
-            else:
-                orderNumber = None
-                lotNumber = None
-                product = None
+                                        orderNumber = None
+                                        lotNumber = None
+                                        product = None
+                                        print(f"\nNexus Order already processed")
+                #else:
+                        
+                                              
+ 
 
     except KeyboardInterrupt:
         pass
@@ -125,7 +142,7 @@ class SubHandler(object):
 
 
 # Create a subscription
-subscription = opcua_client.create_subscription(500, SubHandler())
+subscription = opcua_client.create_subscription(1000, SubHandler())
 
 # Subscribe to nodes
 for node_id in node_topic_mapping.keys():
@@ -134,6 +151,8 @@ for node_id in node_topic_mapping.keys():
 
 try:
     consume_messages()
+    
+
 except KeyboardInterrupt:
     pass
 finally:
