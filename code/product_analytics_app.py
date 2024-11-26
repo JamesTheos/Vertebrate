@@ -82,6 +82,8 @@ def get_product_trend(product):
         return jsonify({'status': 'error', 'message': str(e)}), 500  # Return error response
     
 def consume_orders():
+    global newest_order, newest_order_data, all_data
+    global average_data
     print("Prodcut Analytics:Starting consume_orders thread", flush=True)  # Print message to indicate thread start
     # Define the number of messages to retrieve in one call
     num_messages = 10
@@ -108,12 +110,13 @@ def consume_orders():
             product = order['product']  # Get the product name from the order
             orderNumber = order['orderNumber']  # Get the order ID from the order
             with orders_lock:
-                global average_data
                 if product not in products:
                     products[product] = []  # Initialize product list if not already present
                 if product not in orders:
                     orders[product] = []  # Initialize order list if not already present
                     orders[product].append(order)  # Add the order to the order list
+                if product not in newest_order:
+                    newest_order[product] = []
                 if not any(ord['orderNumber'] == orderNumber for ord in orders[product]):
                     orders[product].append(order)
                 for ord in orders[product]:
@@ -122,7 +125,7 @@ def consume_orders():
                         ord['timestamp'] = order['timestamp']
                 #print(f"Prodcut Analytics:\n\nOrders in Consume Orders: {orders}\n\n", flush=True)  # Print message to indicate orders list
 
-                global newest_order, newest_order_data, all_data
+                
                 # Get the newest order for the product
                 newest_order[product] = max((order for order in orders[product] if order['status'] == 'Started'), key=lambda x: x['timestamp'], default=None)
                 if newest_order[product] == None:
@@ -160,6 +163,7 @@ def consume_orders():
 
 def consume_temp():
     print("Prodcut Analytics:Starting consume_temp thread", flush=True)  # Print message to indicate thread start
+    global newest_order_data, newest_order
     # Define the number of messages to retrieve in one call
     num_messages = 100
     def temp_on_assign(consumer, partitions):
@@ -187,32 +191,34 @@ def consume_temp():
             product = temp_data['product']  # Get the product name from the temperature data
             #print(f"Prodcut Analytics:Product Consume Temp: {product}", flush=True)  # Print message to indicate product name
             #print(f"Prodcut Analytics:Orders Consume Temp: {orders}", flush=True)  # Print message to indicate order ID
-            with orders_lock:
-                if product in orders:
-                   # print("Prodcut Analytics:Product in Orders")
-                    for order in orders[product]:
-                        if order['orderNumber'] == order_id:
-                            if 'data' not in order: 
-                                order['data'] = []  # Initialize data list if not already present
-                            order['data'].append({'time': temp_data['timestamp'], 'value': temp_data['value']})  # Add the temperature data to the order
-                            #print(f"Prodcut Analytics:Updated order data: {order['data']}", flush=True)
-                global newest_order_data, newest_order
-                if newest_order[product] != None:  # Check there is a newest order
-                        #print(f"\n Newest Order in get product trend: {newest_order} \n", flush=True)  # Print message to indicate newest order
-                        if 'data' not in newest_order[product]:  # Check if there is data in the newest order
-                            newest_order_data[product] = []
-                        else:
-                            # Get the timestamp of the newest order data oldest and newest
-                            oldest_order_data = min(newest_order[product]['data'], key=lambda x: datetime.fromisoformat(x['time']))
-                            newest_order_data[product] = [{'value': data_point['value'], 'time': (datetime.fromisoformat(data_point['time']) - datetime.fromisoformat(oldest_order_data['time'])).total_seconds() / 60} for data_point in newest_order[product]['data']]
+            if product:  # Check if the product exists
+                print("\nProdcut Analytics:Product has value")
+                with orders_lock:
+                    if product in orders:
+                        print("Prodcut Analytics:Product in Orders")
+                        for order in orders[product]:
+                            if order['orderNumber'] == order_id:
+                                if 'data' not in order: 
+                                    order['data'] = []  # Initialize data list if not already present
+                                order['data'].append({'time': temp_data['timestamp'], 'value': temp_data['value']})  # Add the temperature data to the order
+                                #print(f"Prodcut Analytics:Updated order data: {order['data']}", flush=True)
+                   
+                    if newest_order[product]:   # Check there is a newest order
+                            #print(f"\n Newest Order in get product trend: {newest_order} \n", flush=True)  # Print message to indicate newest order
+                            if 'data' not in newest_order[product]:  # Check if there is data in the newest order
+                                newest_order_data[product] = []
+                            else:
+                                # Get the timestamp of the newest order data oldest and newest
+                                oldest_order_data = min(newest_order[product]['data'], key=lambda x: datetime.fromisoformat(x['time']))
+                                newest_order_data[product] = [{'value': data_point['value'], 'time': (datetime.fromisoformat(data_point['time']) - datetime.fromisoformat(oldest_order_data['time'])).total_seconds() / 60} for data_point in newest_order[product]['data']]
 
-                            #print(f"Prodcut Analytics:\nNewest Order Time: {newest_order_data}\n", flush=True)  # Print message to indicate newest order
-                else:
-                    newest_order_data[product] = []
-                # Calculate the average values for the product
-                
-                #print(f"Prodcut Analytics:\nAll Data: {all_data}\n", flush=True)  # Print message to indicate all data
-                
+                                #print(f"Prodcut Analytics:\nNewest Order Time: {newest_order_data}\n", flush=True)  # Print message to indicate newest order
+                    else:
+                        newest_order_data[product] = []
+                    # Calculate the average values for the product
+                    
+                    #print(f"Prodcut Analytics:\nAll Data: {all_data}\n", flush=True)  # Print message to indicate all data
+                    
                
     except KeyboardInterrupt:
         pass

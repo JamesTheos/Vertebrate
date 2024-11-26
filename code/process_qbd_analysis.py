@@ -93,7 +93,7 @@ def orders_consumers_qbd():
             #print(f"QBD order msg:", msg, flush=True)
           if msgs is None:
                 time.sleep(2)
-                print(f"QBD existing orders:", completed_orders, flush=True) 
+                #print(f"QBD existing orders:", completed_orders, flush=True) 
                 #print(f"QBD - No new orders: completed are", completed_orders)
                 continue  # Continue if no message is received
           for msg in msgs:
@@ -107,7 +107,7 @@ def orders_consumers_qbd():
             msg_orders = json.loads(msg.value().decode('utf-8'))  # Deserialize the message value
             order_number = msg_orders.get('orderNumber')
             if order_number not in completed_orders:
-                print(f"QBD: Orders Consumer Message:", msg_orders, flush=True)
+                #print(f"QBD: Orders Consumer Message:", msg_orders, flush=True)
                 if msg_orders['status'] == 'Completed':
                     # Add the order number to the list of completed orders if the order is completed and not already in the list
                     if order_number:
@@ -116,12 +116,12 @@ def orders_consumers_qbd():
                             if order_number in livetemp_values:
                                 livetemp_values.clear()
                                 livetemp_values_normalized.clear()
-                                print(f"QBD: Live Data cleared", flush=True)
+                                #print(f"QBD: Live Data cleared", flush=True)
                 print(f"Completed_orders in Thread orders_consumers_qbd", completed_orders)
     except Exception as e:
         logging.error(f"Error in orders_consumers_qbd: {e}")
     finally:
-        print("QBD-ending Orders_consumers thread", flush=True)
+        #print("QBD-ending Orders_consumers thread", flush=True)
         Process_orders_consumer.close()
 
 ###################### new code Temperatures consume and process ############################
@@ -153,10 +153,10 @@ def Temp_consume_and_process():
             # Process message
             temp_data = json.loads(msg.value().decode('utf-8'))  # Deserialize the message value
             order_number = temp_data.get('orderNumber')
-            print(f"\n QBD temps recieved for order_number:", order_number, flush=True)
+            #print(f"\n QBD temps recieved for order_number:", order_number, flush=True)
             if order_number and order_number in completed_orders:
                 with mutex_completed_orders:
-                    print(f"QBD value addition for order number:", order_number, flush=True)
+                    #print(f"QBD value addition for order number:", order_number, flush=True)
                     if order_number in completed_orders:
                             if order_number not in temp_values:
                                 temp_values[order_number] = []
@@ -171,15 +171,16 @@ def Temp_consume_and_process():
                                 times_in_minutes = [(datetime.fromisoformat(ts) - min_timestamp).total_seconds() / 60 for ts in timestamps]
                                 normalized_values = [((value - normalizeLowerLimit) / normalizeFactor) * 100 for value in values]
                                 temp_values_normalized[order_number] = list(zip(times_in_minutes, normalized_values))
-                                print(f"Order {order_number}: Value Normalized \n", flush=True)
+                                #print(f"Order {order_number}: Value Normalized \n", flush=True)
                                 #livetemp_values = {} #with datetime types
                                 #livetemp_values_normalized = {} #normalized values
             else: # order not completed yet
                 with mutex_completed_orders:
-                    print(f"QBD value prep for order number:", order_number, flush=True)
+                    #print(f"QBD value prep for order number:", order_number, flush=True)
                     if order_number:
                             if order_number not in temp_values:
                                 temp_values[order_number] = []
+                            if order_number not in livetemp_values:
                                 livetemp_values[order_number] = []
                        
                             timestamp = temp_data.get('timestamp')
@@ -202,8 +203,8 @@ def Temp_consume_and_process():
                                 livetimes_in_minutes = [(datetime.fromisoformat(ts) - livemin_timestamp).total_seconds() / 60 for ts in livetimestamps]
                                 livenormalized_values = [((livevalue - normalizeLowerLimit) / normalizeFactor) * 100 for livevalue in livevalues]
                                 livetemp_values_normalized[order_number] = list(zip(livetimes_in_minutes, livenormalized_values))
-                                print(f"Order {order_number}: Online Value Normalized \n", flush=True)  
-                                print(f"QBD: livetemp_values_normalized", livetemp_values_normalized)
+                                #print(f"Order {order_number}: Online Value Normalized \n", flush=True)  
+                                #print(f"QBD: livetemp_values_normalized")
     
    
 threading.Thread(target=orders_consumers_qbd, daemon=True).start()
