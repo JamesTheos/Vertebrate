@@ -117,7 +117,7 @@ def get_product_trend(product):
 def consume_orders():
     print("Prodcut Analytics:Starting consume_orders thread", flush=True)  # Print message to indicate thread start
     # Define the number of messages to retrieve in one call
-    num_messages = 100
+    num_messages = 10
     def temp_on_assign(consumer, partitions):
         for partition in partitions:
             partition.offset = OFFSET_BEGINNING

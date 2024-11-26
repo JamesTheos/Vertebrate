@@ -29,6 +29,8 @@
                     .then(data => {
                         const processedTemps = data.processed_data || {};
                         const completedOrders = data.completed_orders || [];
+                        const latest_data = data.latest_data|| {};
+                        // Check if there are any orders
                         if (completedOrders.length === 0) {
                             throw new TypeError('No orders found');
                         }
@@ -58,6 +60,8 @@
                                 showLine: false
                             };
                         }).filter(dataset => dataset !== null);
+                        
+
                         // Calculate the average y-value
                         let allYValues = [];
                         datasets.forEach(dataset => {
@@ -94,9 +98,37 @@
                             showLine: true,
                             borderDash: [5, 5] // Dashed line
                         };
+//#######################################################################
+                        // // Create the live line dataset
+                        // const liveorderNumbers = completedOrders;
+                        // const livedatasets = liveorderNumbers.map((orderNumber, index) => {
+                        //     const liveorderData = latest_data[orderNumber];
+                        //     if (!liveorderData) {
+                        //         console.warn(`No data found for live order number: ${orderNumber}`);
+                        //         return null;
+                        //     }
+                        //     const colors = 'blue';
+                        //     const color = 'blue';
+                        //     return {
+                        //         label: `Current Order`,
+                        //         data: liveorderData.map(point => ({ x: point[0], y: point[1] })), // Zeit in Minuten als x-Wert
+                        //         borderColor: 'blue', // blue color for the live line
+                        //         borderWidth: 2,
+                        //         pointRadius: 0,
+                        //         fill: false,
+                        //         showLine: true,
+                        //     };
+                        // }).filter(dataset => dataset !== null);
 
                         // Add the average line dataset to the datasets array
                         datasets.push(averageLineDataset);
+                        
+                        // Add the live line dataset to the datasets array
+                        //datasets.push(livedatasets[0]);
+
+                        
+
+
 
                         // Update or create the chart instance
                         if (chartInstance) {
