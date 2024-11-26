@@ -99,6 +99,29 @@
                             borderDash: [5, 5] // Dashed line
                         };
 //#######################################################################
+                        //Create the live line dataset dynamically
+                        Object.keys(latest_data).forEach((liveOrderNumber) => {
+                            const liveorderData = latest_data[liveOrderNumber];
+                            if (liveorderData) {
+                                const livedataset = {
+                                    label: `Current Order ${liveOrderNumber}`,
+                                    data: liveorderData.map(point => ({ x: point[0], y: point[1] })), // Zeit in Minuten als x-Wert
+                                    borderColor: 'blue', // blue color for the live line
+                                    borderWidth: 2,
+                                    pointRadius: 3,
+                                    fill: false,
+                                    showLine: true,
+                                };
+                                datasets.push(livedataset);
+                            } else {
+                                console.warn(`No data found for live order number: ${liveOrderNumber}`);
+                            }
+                        });
+
+
+
+
+
                         // // Create the live line dataset
                         // const liveorderNumbers = completedOrders;
                         // const livedatasets = liveorderNumbers.map((orderNumber, index) => {

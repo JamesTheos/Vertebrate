@@ -113,6 +113,10 @@ def orders_consumers_qbd():
                     if order_number:
                         with mutex_completed_orders:
                             completed_orders.append(order_number) # Add the order number to the list
+                            if order_number in livetemp_values:
+                                livetemp_values.clear()
+                                livetemp_values_normalized.clear()
+                                print(f"QBD: Live Data cleared", flush=True)
                 print(f"Completed_orders in Thread orders_consumers_qbd", completed_orders)
     except Exception as e:
         logging.error(f"Error in orders_consumers_qbd: {e}")
@@ -199,6 +203,7 @@ def Temp_consume_and_process():
                                 livenormalized_values = [((livevalue - normalizeLowerLimit) / normalizeFactor) * 100 for livevalue in livevalues]
                                 livetemp_values_normalized[order_number] = list(zip(livetimes_in_minutes, livenormalized_values))
                                 print(f"Order {order_number}: Online Value Normalized \n", flush=True)  
+                                print(f"QBD: livetemp_values_normalized", livetemp_values_normalized)
     
    
 threading.Thread(target=orders_consumers_qbd, daemon=True).start()
