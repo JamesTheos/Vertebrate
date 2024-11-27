@@ -67,6 +67,7 @@ consumer.subscribe(['manufacturing_orders'])
 # Function to consume messages from Kafka
 def consume_messages():
     global orderNumber, lotNumber, product, latest_msg
+    oldorderNumber = None
     # Define the number of messages to retrieve in one call
     num_messages = 10
     latest_msg = {}
@@ -85,24 +86,20 @@ def consume_messages():
                     continue
                 order_data = json.loads(msg.value().decode('utf-8'))
                 print(f"\nNexus Received message from Kafka: {order_data}")      
-                #if latest_msg.get('timestamp') is None or order_data.get('timestamp') > latest_msg.get('timestamp'):
-                        #latest_msg = order_data
-                if order_data.get('orderNumber') is not None and order_data.get('lotNumber') is not None and order_data.get('product') is not None and order_data.get('status') == "Started":        
-                        print(f"\nNexus processing order: {latest_msg}")
-                        #if latest_msg.get('status') == "Started":
+             
+                if order_data.get('orderNumber') is not None and order_data.get('lotNumber') is not None and order_data.get('product') is not None and (order_data.get('status') == "Started"):        
                         orderNumber = order_data['orderNumber']
                         product = order_data['product']
                         lotNumber = order_data['lotNumber']
+                        if oldorderNumber != orderNumber:
+                            oldorderNumber = orderNumber
                         print(f"\nNexus processed order: {orderNumber}")
                 else:
+                    if order_data.get('orderNumber') is not None and order_data.get('lotNumber') is not None and order_data.get('product') is not None and (order_data.get('status') == "Completed"):
                                         orderNumber = None
                                         lotNumber = None
                                         product = None
-                                        print(f"\nNexus Order already processed")
-                #else:
-                        
-                                              
- 
+                                        print(f"\nNexus Order not running", order_data.get('orderNumber'))
 
     except KeyboardInterrupt:
         pass

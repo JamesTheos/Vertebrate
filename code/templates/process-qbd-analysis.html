@@ -96,7 +96,7 @@
                             pointRadius: 0,
                             fill: false,
                             showLine: true,
-                            borderDash: [5, 5] // Dashed line
+                            //borderDash: [5, 5] // Dashed line
                         };
 //#######################################################################
                         //Create the live line dataset dynamically
@@ -179,7 +179,7 @@
                                         },
                                         y: {
                                             min: -10,
-                                            max: 110,
+                                            max: 200,
                                             title: {
                                                 display: true,
                                                 text: 'Normalized Temperature in %'
@@ -200,7 +200,7 @@
             }
 
             loadTrend();
-            setInterval(loadTrend, 5000);
+            setInterval(loadTrend, 1000);
         });
     </script>
 {% endblock %}
