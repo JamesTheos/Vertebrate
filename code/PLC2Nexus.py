@@ -68,6 +68,7 @@ consumer.subscribe(['manufacturing_orders'])
 def consume_messages():
     global orderNumber, lotNumber, product, latest_msg
     oldorderNumber = None
+    
     # Define the number of messages to retrieve in one call
     num_messages = 10
     latest_msg = {}

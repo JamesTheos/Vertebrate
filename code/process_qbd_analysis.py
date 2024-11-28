@@ -140,135 +140,152 @@ def Temp_consume_and_process():
 
     # Consume messages from the beginning of the topic
     while True:
-      if completed_orders is None: 
-        #print(f"QBD: No orders to process", flush=True)
-        continue
-      if completed_orders:  
-        msgs = Process_temp_consumer.consume(num_messages, timeout=2.0)
-        #print(f"QBD: TEMPS_consumers completed orders", completed_orders, flush=True)
-        if not msgs:
-           continue
-        for msg in msgs: 
-            if msg.error():
-                logging.error(f"QBD Temperature Consumer error: {msg.error()}")
+        if completed_orders is None: 
+            #print(f"QBD: No orders to process", flush=True)
+            continue
+        if completed_orders:  
+            msgs = Process_temp_consumer.consume(num_messages, timeout=2.0)
+            #print(f"QBD: TEMPS_consumers completed orders", completed_orders, flush=True)
+            if not msgs:
                 continue
-            # Process message
-            temp_data = json.loads(msg.value().decode('utf-8'))  # Deserialize the message value
-            T_order_number = temp_data.get('orderNumber') # Order number from the temperature data
-            #print(f"\n QBD temps recieved for order_number:", T_order_number, flush=True)
-            if T_order_number and T_order_number in completed_orders:
-                with data_lock:
-                    print(f"QBD value addition for order number:", T_order_number, flush=True)
-                    if T_order_number in completed_orders: # process the values for the completed orders
-                            if T_order_number not in temp_values:
-                                temp_values[T_order_number] = []
-                            if T_order_number not in averagetemp_values:
-                                averagetemp_values[T_order_number] = []
-                                #print(f"QBD: Averaging Normalized Data requested", flush=True)
-                            timestamp = temp_data.get('timestamp')
-                            value = temp_data.get('value')
-                            averagetimestamp = timestamp #average data trending
-                            averagevalue = value #average data trending
-                            if timestamp and value is not None:
-                                temp_values[T_order_number].append((timestamp, value))
-                                                               
-                                # Normalize the temperature values
-                                timestamps, values = zip(*temp_values[T_order_number])
-                                min_timestamp = min(datetime.fromisoformat(ts) for ts in timestamps)
-                                times_in_minutes = [(datetime.fromisoformat(ts) - min_timestamp).total_seconds() / 60 for ts in timestamps]
-                                normalized_values = [((value - normalizeLowerLimit) / normalizeFactor) * 100 for value in values]
-                                temp_values_normalized[T_order_number] = list(zip(times_in_minutes, normalized_values))
-                                #print(f"Order {T_order_number}: Value Normalized \n",temp_values_normalized, flush=True)
-                                #print(f"Order {T_order_number}: Value Normalized \n", flush=True)
+            for msg in msgs: 
+                if msg.error():
+                    logging.error(f"QBD Temperature Consumer error: {msg.error()}")
+                    continue
+                # Process message
+                temp_data = json.loads(msg.value().decode('utf-8'))  # Deserialize the message value
+                T_order_number = temp_data.get('orderNumber') # Order number from the temperature data
+                #print(f"\n QBD temps recieved for order_number:", T_order_number, flush=True)
+                if T_order_number and T_order_number in completed_orders:
+                    with data_lock:
+                        print(f"QBD value addition for order number:", T_order_number, flush=True)
+                        if T_order_number in completed_orders: # process the values for the completed orders
+                                if T_order_number not in temp_values:
+                                    temp_values[T_order_number] = []
+                                if T_order_number not in averagetemp_values:
+                                    averagetemp_values[T_order_number] = []
+                                    #print(f"QBD: Averaging Normalized Data requested", flush=True)
+                                timestamp = temp_data.get('timestamp')
+                                value = temp_data.get('value')
+                                averagetimestamp = timestamp #average data trending
+                                averagevalue = value #average data trending
+                                if timestamp and value is not None:
+                                    temp_values[T_order_number].append((timestamp, value))
+                                                                
+                                    # Normalize the temperature values
+                                    timestamps, values = zip(*temp_values[T_order_number])
+                                    min_timestamp = min(datetime.fromisoformat(ts) for ts in timestamps)
+                                    times_in_minutes = [(datetime.fromisoformat(ts) - min_timestamp).total_seconds() / 60 for ts in timestamps]
+                                    normalized_values = [((value - normalizeLowerLimit) / normalizeFactor) * 100 for value in values]
+                                    temp_values_normalized[T_order_number] = list(zip(times_in_minutes, normalized_values))
+                                    #print(f"Order {T_order_number}: Value Normalized \n",temp_values_normalized, flush=True)
+                                    #print(f"Order {T_order_number}: Value Normalized \n", flush=True)
+                                    
+                                    # Check if the value already exists before adding
+                                    if (averagetimestamp, averagevalue) not in averagetemp_values[T_order_number]:
+                                        # average data trending
+                                        averagetemp_values[T_order_number].append((averagetimestamp, averagevalue))
+                                        averagetimestamps, averagevalues = zip(*averagetemp_values[T_order_number])
+                                        averagemin_timestamp = min(datetime.fromisoformat(ts) for ts in averagetimestamps)
+                                        averagetimes_in_minutes = [(datetime.fromisoformat(ts) - averagemin_timestamp).total_seconds() / 60 for ts in averagetimestamps]
+                                        averagenormalized_values = [((averagevalue - normalizeLowerLimit) / normalizeFactor) * 100 for averagevalue in averagevalues]
+                                        averagetemp_values_normalized[T_order_number] = list(zip(averagetimes_in_minutes, averagenormalized_values))
+                                        AverageCalculation = True
+                                    
+                elif T_order_number: # order not completed yet
+                    with data_lock: # process the values for the current orders to have them ready for the live view and next steps
+                        if T_order_number:
+                                #print(f"QBD value prep for order number:", T_order_number, flush=True)
+                                if T_order_number not in temp_values:
+                                    temp_values[T_order_number] = []
+                                if T_order_number not in livetemp_values:
+                                    livetemp_values[T_order_number] = []
+                                if T_order_number not in averagetemp_values:
+                                    averagetemp_values[T_order_number] = []
+                        
+                                timestamp = temp_data.get('timestamp')
+                                value = temp_data.get('value')
+                                livetimestamp = timestamp #live data trending
+                                livevalue = value #live data trending
+                                averagetimestamp = timestamp #average data trending
+                                averagevalue = value #average data trending
+                                if timestamp and value is not None:
+                                    temp_values[T_order_number].append((timestamp, value))
+                                    # Normalize the temperature values
+                                    timestamps, values = zip(*temp_values[T_order_number])
+                                    min_timestamp = min(datetime.fromisoformat(ts) for ts in timestamps)
+                                    times_in_minutes = [(datetime.fromisoformat(ts) - min_timestamp).total_seconds() / 60 for ts in timestamps]
+                                    normalized_values = [((value - normalizeLowerLimit) / normalizeFactor) * 100 for value in values]
+                                    temp_values_normalized[T_order_number] = list(zip(times_in_minutes, normalized_values))
                                 
-                                # Check if the value already exists before adding
-                                if (averagetimestamp, averagevalue) not in averagetemp_values[T_order_number]:
-                                    # average data trending
-                                    averagetemp_values[T_order_number].append((averagetimestamp, averagevalue))
-                                    averagetimestamps, averagevalues = zip(*averagetemp_values[T_order_number])
-                                    averagemin_timestamp = min(datetime.fromisoformat(ts) for ts in averagetimestamps)
-                                    averagetimes_in_minutes = [(datetime.fromisoformat(ts) - averagemin_timestamp).total_seconds() / 60 for ts in averagetimestamps]
-                                    averagenormalized_values = [((averagevalue - normalizeLowerLimit) / normalizeFactor) * 100 for averagevalue in averagevalues]
-                                    averagetemp_values_normalized[T_order_number] = list(zip(averagetimes_in_minutes, averagenormalized_values))
-                                    AverageCalculation = True
-                                
-            elif T_order_number: # order not completed yet
-                with data_lock: # process the values for the current orders to have them ready for the live view and next steps
-                    if T_order_number:
-                            #print(f"QBD value prep for order number:", T_order_number, flush=True)
-                            if T_order_number not in temp_values:
-                                temp_values[T_order_number] = []
-                            if T_order_number not in livetemp_values:
-                                livetemp_values[T_order_number] = []
-                       
-                            timestamp = temp_data.get('timestamp')
-                            value = temp_data.get('value')
-                            livetimestamp = temp_data.get('timestamp') #live data trending
-                            livevalue = temp_data.get('value') #live data trending
-                            if timestamp and value is not None:
-                                temp_values[T_order_number].append((timestamp, value))
-                                # Normalize the temperature values
-                                timestamps, values = zip(*temp_values[T_order_number])
-                                min_timestamp = min(datetime.fromisoformat(ts) for ts in timestamps)
-                                times_in_minutes = [(datetime.fromisoformat(ts) - min_timestamp).total_seconds() / 60 for ts in timestamps]
-                                normalized_values = [((value - normalizeLowerLimit) / normalizeFactor) * 100 for value in values]
-                                temp_values_normalized[T_order_number] = list(zip(times_in_minutes, normalized_values))
-                               
-                                
-                                #live data trending
-                                livetemp_values[T_order_number].append((livetimestamp, livevalue))
-                                livetimestamps, livevalues = zip(*livetemp_values[T_order_number])
-                                livemin_timestamp = min(datetime.fromisoformat(ts) for ts in livetimestamps)
-                                livetimes_in_minutes = [(datetime.fromisoformat(ts) - livemin_timestamp).total_seconds() / 60 for ts in livetimestamps]
-                                livenormalized_values = [((livevalue - normalizeLowerLimit) / normalizeFactor) * 100 for livevalue in livevalues]
-                                livetemp_values_normalized[T_order_number] = list(zip(livetimes_in_minutes, livenormalized_values))
-                                print(f"Order: Online Value Normalized \n", flush=True)  
-                                #print(f"\nQBD: livetemp_values_normalized",livetemp_values_normalized, flush=True)
+                                    
+                                    #live data trending
+                                    livetemp_values[T_order_number].append((livetimestamp, livevalue))
+                                    livetimestamps, livevalues = zip(*livetemp_values[T_order_number])
+                                    livemin_timestamp = min(datetime.fromisoformat(ts) for ts in livetimestamps)
+                                    livetimes_in_minutes = [(datetime.fromisoformat(ts) - livemin_timestamp).total_seconds() / 60 for ts in livetimestamps]
+                                    livenormalized_values = [((livevalue - normalizeLowerLimit) / normalizeFactor) * 100 for livevalue in livevalues]
+                                    livetemp_values_normalized[T_order_number] = list(zip(livetimes_in_minutes, livenormalized_values))
+                                    print(f"Order: Online Value Normalized \n", flush=True)  
+                                    #print(f"\nQBD: livetemp_values_normalized",livetemp_values_normalized, flush=True)
+                                    
+                                    # Check if the value already exists before adding
+                                    if (averagetimestamp, averagevalue) not in averagetemp_values[T_order_number]:
+                                        # average data trending
+                                        averagetemp_values[T_order_number].append((averagetimestamp, averagevalue))
+                                        averagetimestamps, averagevalues = zip(*averagetemp_values[T_order_number])
+                                        averagemin_timestamp = min(datetime.fromisoformat(ts) for ts in averagetimestamps)
+                                        averagetimes_in_minutes = [(datetime.fromisoformat(ts) - averagemin_timestamp).total_seconds() / 60 for ts in averagetimestamps]
+                                        averagenormalized_values = [((averagevalue - normalizeLowerLimit) / normalizeFactor) * 100 for averagevalue in averagevalues]
+                                        averagetemp_values_normalized[T_order_number] = list(zip(averagetimes_in_minutes, averagenormalized_values))
+                                        AverageCalculation = True
 
-        # Average the normalized temperature values
-      if AverageCalculation:
-                # print(f"\nQBD: Averaging Normalized Data", flush=True)
-                AverageCalculation = False
+            # Average the normalized temperature values
+        if AverageCalculation and order_status == "Completed":
+                    # print(f"\nQBD: Averaging Normalized Data", flush=True)
+                    AverageCalculation = False
 
-                all_values.clear()
-                averaged_points.clear()
-                current_value_sum = 0.0
-                current_time_sum = 0.0
-                count = 0 
-                current_time = 0.0
-                
-                # Calculate the average value for all orders in the first 5 seconds, next 5 seconds, and so on
-                # Extract only the values (list of tuples) from the dictionary 
-                arrays_of_values = list(averagetemp_values_normalized.values())
-                for values in arrays_of_values:
-                    all_values.extend(values)
-                all_values.sort(key=lambda x: x[0])  # Sort by timestamp
-                print(f"\nQBD: All Values evaluated", all_values, flush=True)
-                for timestamp, value in all_values:
-                    if timestamp - current_time <(5/60) :  # 5 seconds in minutes
-                        current_value_sum += value
-                        current_time_sum += timestamp
-                        count += 1
-                    else:
-                        if count > 0:
+                    all_values.clear()
+                    averaged_points.clear()
+                    current_value_sum = 0.0
+                    current_time_sum = 0.0
+                    count = 0 
+                    current_time = 0.0
+                    
+                    # Calculate the average value for all orders in the first 5 seconds, next 5 seconds, and so on
+                    # Extract only the values (list of tuples) from the dictionary 
+                    arrays_of_values = list(averagetemp_values_normalized.values())
+                    for values in arrays_of_values:
+                        all_values.extend(values)
+                    all_values.sort(key=lambda x: x[0])  # Sort by timestamp
+                    print(f"\nQBD: All Values evaluated", all_values, flush=True)
+                    for timestamp, value in all_values:
+                        if timestamp - current_time <(5/60) :  # 5 seconds in minutes
+                            current_value_sum += value
+                            current_time_sum += timestamp
+                            count += 1
+                        else:
+                            if count > 0:
+                                averagevalue= (current_value_sum/count)
+                                averagetime= (current_time_sum/count)
+                                averaged_points.append((averagetime, averagevalue))                             
+                                #print(f"\nQBD: Averaged Points evaluated", averaged_points, flush=True)
+                            current_value_sum = value
+                            current_time_sum = timestamp
+                            count = 1
+                            current_time += (5/60)  # Reset current_time to the new interval start
+                            
+                    # Append the last interval's average if there were any values accumulated
+                    if count > 0:
                             averagevalue= (current_value_sum/count)
                             averagetime= (current_time_sum/count)
-                            averaged_points.append((averagetime, averagevalue))                             
-                            #print(f"\nQBD: Averaged Points evaluated", averaged_points, flush=True)
-                        current_value_sum = value
-                        current_time_sum = timestamp
-                        count = 1
-                        current_time += (5/60)  # Reset current_time to the new interval start
-                        
-                # Append the last interval's average if there were any values accumulated
-                if count > 0:
-                        averagevalue= (current_value_sum/count)
-                        averagetime= (current_time_sum/count)
-                        averaged_points.append((averagetime, averagevalue))  
-                print(f"\nQBD: Final Averaged Points evaluated", averaged_points, flush=True)
-  
-                averaged_normalized_data = averaged_points
-       
+                            averaged_points.append((averagetime, averagevalue))  
+                    print(f"\nQBD: Final Averaged Points evaluated", averaged_points, flush=True)
+                    print(f"\nQBD: Order Status", order_status, flush=True)     
+        
+        if order_status == "Completed":
+                    averaged_normalized_data = averaged_points
+        
 
 threading.Thread(target=orders_consumers_qbd, daemon=True).start()
    
