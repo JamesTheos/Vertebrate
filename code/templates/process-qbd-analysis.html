@@ -25,11 +25,22 @@
                 loadingMessage.style.display = 'block';
 
                 fetch('/api/process-qbd-analysis')
-                    .then(response => response.json())
+                    .then(response => {
+                        if (!response.ok) {
+                             throw new Error('Network response was not ok ' + response.statusText); 
+                        } 
+                        return response.json();
+                    })
                     .then(data => {
+                        
                         const processedTemps = data.processed_data || {};
                         const completedOrders = data.completed_orders || [];
+                        const averagedNormalizedData = data.averaged_normalized_data || [];
                         const latest_data = data.latest_data|| {};
+
+                        // console.log('live dataset created with data:', latest_data);   //debugging line
+                        // console.log('Average dataset created with data:', averagedNormalizedData); //debugging line
+                        
                         // Check if there are any orders
                         if (completedOrders.length === 0) {
                             throw new TypeError('No orders found');
@@ -62,43 +73,7 @@
                         }).filter(dataset => dataset !== null);
                         
 
-                        // Calculate the average y-value
-                        let allYValues = [];
-                        datasets.forEach(dataset => {
-                          dataset.data.forEach(point => {
-                           allYValues.push(point.y);
-                         });
-                        });
-
-                        const sumOfYValues = allYValues.reduce((sum, value) => sum + value, 0);
-                        const averageYValue = sumOfYValues / allYValues.length; // Durchschnittliche Temperatur
-
-                        // Determine the minimum and maximum x-values to span the line across the chart
-                        let allXValues = [];
-                        datasets.forEach(dataset => {
-                            dataset.data.forEach(point => {
-                                allXValues.push(point.x);
-                            });
-                        });
-                        
-                        const minX = Math.min(...allXValues);
-                        const maxX = Math.max(...allXValues);
-                        
-                        // Create the average line dataset
-                        const averageLineDataset = {
-                            label: 'Average Value',
-                            data: [
-                                { x: minX, y: averageYValue },
-                                { x: maxX, y: averageYValue }
-                            ],
-                            borderColor: 'rgba(0, 0, 0, 1)', // Black color for the average line
-                            borderWidth: 2,
-                            pointRadius: 0,
-                            fill: false,
-                            showLine: true,
-                            //borderDash: [5, 5] // Dashed line
-                        };
-//#######################################################################
+//#################################Live data ######################################
                         //Create the live line dataset dynamically
                         Object.keys(latest_data).forEach((liveOrderNumber) => {
                             const liveorderData = latest_data[liveOrderNumber];
@@ -113,46 +88,30 @@
                                     showLine: true,
                                 };
                                 datasets.push(livedataset);
+                                // console.log('Live dataset created with data:', livedataset);
                             } else {
                                 console.warn(`No data found for live order number: ${liveOrderNumber}`);
                             }
+                           
                         });
 
-
-
-
-
-                        // // Create the live line dataset
-                        // const liveorderNumbers = completedOrders;
-                        // const livedatasets = liveorderNumbers.map((orderNumber, index) => {
-                        //     const liveorderData = latest_data[orderNumber];
-                        //     if (!liveorderData) {
-                        //         console.warn(`No data found for live order number: ${orderNumber}`);
-                        //         return null;
-                        //     }
-                        //     const colors = 'blue';
-                        //     const color = 'blue';
-                        //     return {
-                        //         label: `Current Order`,
-                        //         data: liveorderData.map(point => ({ x: point[0], y: point[1] })), // Zeit in Minuten als x-Wert
-                        //         borderColor: 'blue', // blue color for the live line
-                        //         borderWidth: 2,
-                        //         pointRadius: 0,
-                        //         fill: false,
-                        //         showLine: true,
-                        //     };
-                        // }).filter(dataset => dataset !== null);
-
-                        // Add the average line dataset to the datasets array
-                        datasets.push(averageLineDataset);
+//##################################### average data ##################################
+                        //Create the average line dataset dynamically
+                        const averagedataset = {
+                            label: `Average of the historical data`,
+                            data:  averagedNormalizedData, // Zeit in Minuten als x-Wert
+                            borderColor: 'red', // red color for the average line
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            fill: false,
+                            showLine: true,
+                            //borderDash: [5, 5], // Dashed line
+                        };
                         
-                        // Add the live line dataset to the datasets array
-                        //datasets.push(livedatasets[0]);
-
-                        
-
-
-
+                        console.log('Average dataset created with data:', averagedataset);
+                        datasets.push(averagedataset);
+                                            
+//################################## chart instance ######################################
                         // Update or create the chart instance
                         if (chartInstance) {
                             chartInstance.data.datasets = datasets;
@@ -171,15 +130,15 @@
                                             type: 'linear',
                                             position: 'bottom',
                                             min: 0,
-                                            max: 5,
+                                            max: 10,
                                             title: {
                                                 display: true,
                                                 text: 'Time (minutes)'
                                             }
                                         },
                                         y: {
-                                            min: -10,
-                                            max: 200,
+                                            min: -100,
+                                            max: 300,
                                             title: {
                                                 display: true,
                                                 text: 'Normalized Temperature in %'
@@ -200,7 +159,7 @@
             }
 
             loadTrend();
-            setInterval(loadTrend, 1000);
+            setInterval(loadTrend, 10000);
         });
     </script>
 {% endblock %}

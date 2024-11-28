@@ -181,7 +181,7 @@ def consume_temp():
                     logging.error(f"Prodcut Analytics:Consumer error: {msg.error()}")  # Log any other errors
                     continue
             temp_data = json.loads(msg.value().decode('utf-8'))  # Deserialize the message value
-            print(f" Prod. Analytics: Received temperature data", flush=True)  # Print message to indicate temperature data received
+            #print(f" Prod. Analytics: Received temperature data", flush=True)  # Print message to indicate temperature data received
 
             order_id = temp_data['orderNumber']  # Get the order ID from the temperature data
             product = temp_data['product']  # Get the product name from the temperature data
