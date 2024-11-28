@@ -49,6 +49,7 @@
 
                         const datasets = orderNumbers.map((orderNumber, index) => {
                             const orderData = processedTemps[orderNumber];
+                            console.log('orderData:', orderData);
                             if (!orderData) {
                                 console.warn(`No data found for order number: ${orderNumber}`);
                                 return null;

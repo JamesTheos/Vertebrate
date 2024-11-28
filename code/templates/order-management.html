@@ -11,7 +11,7 @@
                 <th>Order Number</th>
                 <th>Product</th>
                 <th>Lot Number</th>
-                <th>Actions</th>
+                <th>Actions/Status</th>
             </tr>
         </thead>
         <tbody id="order-list-body">
@@ -45,11 +45,17 @@
                     .then(data => {
                         data.ordersOverview.forEach(order => {
                             if(order.orderNumber === orderId){
-                                if(order.status === 'Released' || order.status === 'Started' || order.status === 'Completed'){
+                                if(order.status === 'Released'){
                                     row.querySelector('td:nth-child(4)').textContent = 'Released';
                                 }
                                 else if(order.status === 'Aborted'){
                                     row.querySelector('td:nth-child(4)').textContent = 'Aborted';
+                                }
+                                else if(order.status === 'Started'){
+                                    row.querySelector('td:nth-child(4)').textContent = 'Started';
+                                }
+                                else if(order.status === 'Completed'){
+                                    row.querySelector('td:nth-child(4)').textContent = 'Completed';
                                 }
                             }
                         });
