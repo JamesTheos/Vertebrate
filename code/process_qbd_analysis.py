@@ -258,7 +258,7 @@ def Temp_consume_and_process():
                     for values in arrays_of_values:
                         all_values.extend(values)
                     all_values.sort(key=lambda x: x[0])  # Sort by timestamp
-                    print(f"\nQBD: All Values evaluated", all_values, flush=True)
+                    #print(f"\nQBD: All Values evaluated", all_values, flush=True)
                     for timestamp, value in all_values:
                         if timestamp - current_time <(5/60) :  # 5 seconds in minutes
                             current_value_sum += value
@@ -280,7 +280,7 @@ def Temp_consume_and_process():
                             averagevalue= (current_value_sum/count)
                             averagetime= (current_time_sum/count)
                             averaged_points.append((averagetime, averagevalue))  
-                    print(f"\nQBD: Final Averaged Points evaluated", averaged_points, flush=True)
+                    #print(f"\nQBD: Final Averaged Points evaluated", averaged_points, flush=True)
                     print(f"\nQBD: Order Status", order_status, flush=True)     
         
         if order_status == "Completed":

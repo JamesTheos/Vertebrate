@@ -5,10 +5,19 @@
 
 {% block content %}
 <form id="order-form">
-    <input type="text" id="order-number" placeholder="Manufacturing Order Number" required>
-    <input type="text" id="product" placeholder="Product" required>
-    <input type="text" id="lot-number" placeholder="Lot Number" required>
-    <button type="submit">Submit Order</button>
+    <table>
+        <tr>
+            <td><label for="order-number" style="padding-right: 5px;">Manufacturing Order Number</label></td>
+            <td><label for="product" style="padding-right: 5px;">Product</label></td>
+            <td><label for="lot-number" style="padding-left: 1px;">Lot Number</label></td>
+        </tr>
+        <tr>
+            <td><input type="text" style="text-align: left; padding-left: 5px; width: 210px;" id="order-number" placeholder="Man. Order Number" required></td>
+            <td><input type="text" style="text-align: left; padding-left: 5px; width: 210px;" id="product" placeholder="Product" required></td>
+            <td><input type="text" style="text-align: left; padding-left: 5px; width: 210px;" id="lot-number" placeholder="Lot Number" required></td>
+            <td colspan="2" style="text-align: center;"><button type="submit">Submit Order</button></td>
+        </tr>
+    </table>
 </form>
     <script>
         document.getElementById('order-form').addEventListener('submit', async function(event) {
