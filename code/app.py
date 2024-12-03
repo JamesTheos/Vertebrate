@@ -226,8 +226,9 @@ def batch():
 #     return render_template('order-overview.html')
 @app.route('/overview') # Define route for the overview page under workflows
 def overview():
-    relStaCom_orders = [order for order in data_store['manufacturing_orders'] if order['status'] in ['Released', 'Started', 'Completed']]
+    relStaCom_orders = [order for order in data_store['manufacturing_orders'] if order['status'] == 'Started']
     return render_template('overview.html', orders=relStaCom_orders)
+
 
 @app.route('/api/released-orders', methods=['GET'])
 def get_released_orders():

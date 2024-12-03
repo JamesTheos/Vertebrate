@@ -10,15 +10,10 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentStep = parseInt(localStorage.getItem('currentStep')) || 0;
     let selectedOrder = localStorage.getItem('selectedOrder');
 
-    // Initial Calls
-    // Initialize the workflow steps and the first step
-    
-    
     
     renderWorkflowSteps();
     updateWorkflowStep(currentStep);
     populateReleasedOrders();
-   
 
 
     function renderWorkflowSteps() {

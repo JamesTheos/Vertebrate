@@ -11,7 +11,8 @@
                 <th>Order Number</th>
                 <th>Product</th>
                 <th>Lot Number</th>
-                <th>Actions/Status</th>
+                <th>Status</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody id="order-list-body">
@@ -20,9 +21,14 @@
                     <td>{{ order.orderNumber }}</td>
                     <td>{{ order.product }}</td>
                     <td>{{ order.lotNumber }}</td>
+                    <td>{{ order.status }}</td>
                     <td>
-                        <button class="release-btn" data-id="{{ order.orderNumber }}">Release</button>
-                        <button class="abort-btn" data-id="{{ order.orderNumber }}">Abort</button>
+                        {% if order.status != 'Released' and order.status != 'Started' and order.status != 'Completed' and order.status != 'Aborted'%}
+                            <button class="release-btn" data-id="{{ order.orderNumber }}">Release</button>
+                        {% endif %}
+                        {% if order.status != 'Aborted' and order.status != 'Completed' %}
+                            <button class="abort-btn" data-id="{{ order.orderNumber }}">Abort</button>
+                        {% endif %}
                     </td>
                 </tr>
             {% endfor %}
@@ -31,46 +37,30 @@
 </div>
 
 <script>
+    function refreshPage() {
+        setTimeout(function() {
+            window.location.reload();
+        }, 500); // Delay the refresh by 1 second
+    }
+    
     document.addEventListener('DOMContentLoaded', function() {
         const ordersList = document.getElementById('order-list-body');
-
-        // Update the UI based on the saved status in local storage
-        function updateUIFromStorage() {
-            const rows = ordersList.querySelectorAll('tr');
-            rows.forEach(row => {
-                const orderId = row.querySelector('.release-btn, .abort-btn').getAttribute('data-id');
-                
-                fetch('/api/order-status')
-                    .then(response => response.json())
-                    .then(data => {
-                        data.ordersOverview.forEach(order => {
-                            if(order.orderNumber === orderId){
-                                if(order.status === 'Released'){
-                                    row.querySelector('td:nth-child(4)').textContent = 'Released';
-                                }
-                                else if(order.status === 'Aborted'){
-                                    row.querySelector('td:nth-child(4)').textContent = 'Aborted';
-                                }
-                                else if(order.status === 'Started'){
-                                    row.querySelector('td:nth-child(4)').textContent = 'Started';
-                                }
-                                else if(order.status === 'Completed'){
-                                    row.querySelector('td:nth-child(4)').textContent = 'Completed';
-                                }
-                            }
-                        });
-                    });
-            });
-        }
+        
+        
 
         if (ordersList) {
-            // Update the UI based on the saved status in local storage when the page loads
-            updateUIFromStorage();
-
             ordersList.addEventListener('click', function(event) {
                 if (event.target.classList.contains('release-btn') || event.target.classList.contains('abort-btn')) {
                     const action = event.target.classList.contains('release-btn') ? 'release' : 'abort';
                     const orderId = event.target.getAttribute('data-id');
+                    console.log(action, orderId);
+                    // Reset of process instruction
+                    if (action == 'abort') {
+                        currentStep = 0;
+                        localStorage.setItem('currentStep', currentStep);
+                        localStorage.removeItem('selectedOrder');
+                    }
+                    
 
                     fetch('/order-management', {
                         method: 'POST',
@@ -79,27 +69,13 @@
                         },
                         body: JSON.stringify({ action, order_id: orderId })
                     })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status === 'Action Completed') {
-                            const orderRow = event.target.closest('tr');
-                            const newStatus = action === 'release' ? 'Released' : 'Aborted';
-                            orderRow.querySelector('td:nth-child(4)').textContent = newStatus;
-
-                            if (action === 'release') {
-                                window.location.href = '/overview';
-                            } 
-                            
-                        } else {
-                            alert(data.error || 'An error occurred');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('An error occurred');
-                    });
+        
+                    
                 }
+                console.log("Refresh 2");
+                refreshPage();
             });
+            
         }
     });
 </script>
