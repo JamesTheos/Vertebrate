@@ -76,9 +76,9 @@ def get_product_trend(product):
                     newest_order_data = []
                 else:
                     # Get the timestamp of the newest order data oldest and newest
-                    oldest_order_data = min(newest_order['data'], key=lambda x: datetime.fromisoformat(x['time']))
+                    oldest_order_data = min(newest_order['data'], key=lambda x: datetime.fromisoformat(x['time'])) # Get the oldest data point (time) in the newest order
                     newest_order_data = [{'value': data_point['value'], 'time': (datetime.fromisoformat(data_point['time']) - datetime.fromisoformat(oldest_order_data['time'])).total_seconds() / 60} for data_point in newest_order['data']]
-
+                                                                                 #current time - oldest time
                     #print(f"Prodcut Analytics:\nNewest Order Time: {newest_order_data}\n", flush=True)  # Print message to indicate newest order
             else:
                 newest_order_data = []
@@ -101,7 +101,8 @@ def get_product_trend(product):
                 for data in all_data:
                     oldest_order_data_avg = min(data, key=lambda x: datetime.fromisoformat(x['time']))
                     for i, data_point in enumerate(data):
-                        time_diff[i] = (datetime.fromisoformat(data_point['time']) - datetime.fromisoformat(oldest_order_data_avg['time'])).total_seconds() / 60
+                        if len(data) == max_length:
+                            time_diff[i] = (datetime.fromisoformat(data_point['time']) - datetime.fromisoformat(oldest_order_data_avg['time'])).total_seconds() / 60
                         sum_values[i] += data_point['value']
                         count_values[i] += 1
 
@@ -143,13 +144,13 @@ def consume_orders():
             with orders_lock:
                 if product not in products:
                     products[product] = []  # Initialize product list if not already present
-                if product not in orders:
+                if product not in orders: #Add to Order if not present
                     orders[product] = []  # Initialize order list if not already present
                     orders[product].append(order)  # Add the order to the order list
-                if not any(ord['orderNumber'] == orderNumber for ord in orders[product]):
+                if not any(ord['orderNumber'] == orderNumber for ord in orders[product]): #add other order numbers to the orders array
                     orders[product].append(order)
                 for ord in orders[product]:
-                    if ord['orderNumber'] == orderNumber and ord['status'] != order['status']:
+                    if ord['orderNumber'] == orderNumber and ord['status'] != order['status']:  #update the status of the order
                         ord['status'] = order['status']
                         ord['timestamp'] = order['timestamp']
                 #print(f"Prodcut Analytics:\n\nOrders in Consume Orders: {orders}\n\n", flush=True)  # Print message to indicate orders list
@@ -183,7 +184,7 @@ def consume_temp():
             temp_data = json.loads(msg.value().decode('utf-8'))  # Deserialize the message value
             #print(f" Prod. Analytics: Received temperature data", flush=True)  # Print message to indicate temperature data received
 
-            order_id = temp_data['orderNumber']  # Get the order ID from the temperature data
+            order_id = temp_data['orderNumber']  # Get the order number from the temperature data
             product = temp_data['product']  # Get the product name from the temperature data
             #print(f"Prodcut Analytics:Product Consume Temp: {product}", flush=True)  # Print message to indicate product name
             #print(f"Prodcut Analytics:Orders Consume Temp: {orders}", flush=True)  # Print message to indicate order ID
