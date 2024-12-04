@@ -1,8 +1,11 @@
-from confluent_kafka import Consumer, KafkaException
+from flask import Blueprint
+from confluent_kafka import Consumer    # Import the Kafka consumer class
+import threading
 import json
 from opcua import Client
-from datetime import datetime
+#from datetime import datetime
 import os
+
 
 # Load the configuration for the ISA95 model
 config_path = os.path.join(os.path.dirname(__file__), 'config.json')
@@ -11,6 +14,10 @@ with open(config_path) as config_file:
     
 Kafkaserver= config['Kafkaserver']
 clusterid= config['clusterid']
+
+# Create a blueprint
+nexus2plc = Blueprint('nexus2plc', __name__)
+
 
 # Kafka consumer configuration
 kafka_conf = {
@@ -35,42 +42,51 @@ node_topic_mapping = {
 # Dictionary to store previous values
 previous_values = {}
 
+###################### Route ############################
+@nexus2plc.route('/start-consumer', methods=['POST'])
+def start_consumer():
+    consume_messages()
+    return "Consumer started"
+
+###################### Functions ############################
+
 # Function to update OPC UA node value
 def update_opcua_node(node_id, value):
     node = opcua_client.get_node(node_id)
     node.set_value(bool(value))  # Ensure the value is written as a boolean
-    print(f"Updated OPC UA node {node_id} with value {value}")
+    print(f"N2P Updated OPC UA node {node_id} with value {value}")
 
 def consume_messages():
+    num_messages = 10
+
     try:
+        print("N2P Starting Nexus 2 PLC thread", flush=True)
         while True:
-            msg = consumer.poll(timeout=1.0)
-            if msg is None:
+            msgs = consumer.consume(num_messages,timeout=2.0)
+            if msgs is None:
                 continue
-            if msg.error():
-                if msg.error().code() == KafkaException._PARTITION_EOF:
-                    continue
-                else:
-                    print(msg.error())
-                    break
+            for msg in msgs:
+                if msg.error():
+                        print(f"NexustoPLCerror",msg.error())
+                        continue
 
-            # Parse the message
-            topic = msg.topic()
-            message = json.loads(msg.value().decode('utf-8'))
-            value = message['value']
-            timestamp = message['timestamp']
+                # Parse the message
+                topic = msg.topic()
+                message = json.loads(msg.value().decode('utf-8'))
+                value = message['value']
+                timestamp = message['timestamp']
 
-            # Find the corresponding OPC UA node ID
-            node_id = None
-            for key, val in node_topic_mapping.items():
-                if val == topic:
-                    node_id = key
-                    break
+                # Find the corresponding OPC UA node ID
+                node_id = None
+                for key, val in node_topic_mapping.items():
+                    if val == topic:
+                        node_id = key
+                        break
 
-            # Update OPC UA node if the value has changed
-            if node_id and (topic not in previous_values or previous_values[topic] != value):
-                update_opcua_node(node_id, value)
-                previous_values[topic] = value
+                # Update OPC UA node if the value has changed
+                if node_id and (topic not in previous_values or previous_values[topic] != value):
+                    update_opcua_node(node_id, value)
+                    previous_values[topic] = value
 
     except KeyboardInterrupt:
         pass
@@ -78,5 +94,7 @@ def consume_messages():
         opcua_client.disconnect()
         consumer.close()
 
-if __name__ == '__main__':
-    consume_messages()
+# Start the consumer thread
+threading.Thread(target=consume_messages, daemon=True).start()
+
+

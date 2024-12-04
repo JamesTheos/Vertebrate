@@ -40,6 +40,8 @@ Process_temp_consumer = Consumer(Temps_Kafka_Config)
 data_lock = threading.Lock()
 temp_values_normalized = {} #normalized values
 completed_orders = [] #completed orders
+aborted_orders = [] #aborted orders
+active_orders = [] #active orders
 averaged_normalized_data = [] #averaged normalized data
 livetemp_values_normalized = {} #normalized values
 livetemp_values = {} #live values
@@ -67,7 +69,7 @@ def process_qbd_analysis_api():
 def orders_consumers_qbd():
     # Define the number of messages to retrieve in one call
     num_messages = 10
-    global data_lock, temp_values_normalized, completed_orders, livetemp_values, livetemp_values_normalized, order_status, global_threading_var
+    global data_lock, temp_values_normalized, completed_orders,active_orders, aborted_orders, livetemp_values, livetemp_values_normalized, order_status, global_threading_var
 
     try:
         print("QBD Starting orders_consumers thread",completed_orders, flush=True)
@@ -94,18 +96,44 @@ def orders_consumers_qbd():
             order_number = msg_orders.get('orderNumber')
             order_status = msg_orders.get('status')
             print(f"\norders in Thread orders_consumers_qbd", order_number, order_status, flush=True)
-            if order_number not in completed_orders:
-                #print(f"\nQBD: Orders Consumer Message:", order_number, flush=True)
-                if msg_orders['status'] == 'Completed':
-                    # Add the order number to the list of completed orders if the order is completed and not already in the list
-                    if order_number:
-                        with data_lock:
+           
+            if order_status == 'Completed':
+                # Add the order number to the list of completed orders if the order is completed and not already in the list
+                if order_number:
+                    with data_lock:
+                        if order_number not in completed_orders:
                             completed_orders.append(order_number) # Add the order number to the list
-                            if order_number in livetemp_values:
-                                livetemp_values.clear()
-                                livetemp_values_normalized.clear()
-                                #print(f"QBD: Live Data cleared", flush=True)
-                print(f"Completed_orders in Thread orders_consumers_qbd", completed_orders)
+                        if order_number in active_orders:
+                            active_orders.remove(order_number)  # Remove the order number from the list
+                            print(f"QBD: Completed removed from Active Orders", active_orders, flush=True)
+                        if order_number in livetemp_values:
+                            livetemp_values.clear()
+                            livetemp_values_normalized.clear()
+                            print(f"QBD: Completed-Live Data cleared", flush=True)
+            elif order_status == 'Aborted':
+                # Add the order number to the list of aborted orders if the order is aborted and not already in the list
+                if order_number:
+                    with data_lock:
+                        if order_number not in aborted_orders:
+                            aborted_orders.append(order_number) # Add the order number to the list of aborted orders if the order is aborted
+                        if order_number in completed_orders:
+                            completed_orders.remove(order_number)  # Remove the order number from the list
+                        if order_number in active_orders:
+                            active_orders.remove(order_number)  # Remove the order number from the list
+                        if order_number in livetemp_values:
+                            livetemp_values.clear()
+                            livetemp_values_normalized.clear()
+                            print(f"QBD: Aborted-Live Data cleared", flush=True)
+            elif order_status == 'Started':
+                # Add the order number to the list of active orders if the order is started and not already in the list
+                if order_number:
+                    with data_lock:
+                        if order_number not in active_orders:
+                            active_orders.append(order_number) # Add the order number to the list of active orders if the order is started
+                            print(f"QBD: Active Orders", active_orders, flush=True)
+            else:
+                print(f"QBD: Order status not actionable",order_number,order_status, flush=True)  
+                                    
     except Exception as e:
         logging.error(f"Error in orders_consumers_qbd: {e}")
     finally:
@@ -128,7 +156,7 @@ def Temp_consume_and_process():
     averagetemp_values = {}
     averagetemp_values_normalized = {}
         
-    global data_lock, temp_values_normalized, completed_orders, averaged_normalized_data, livetemp_values, livetemp_values_normalized, order_status, global_threading_var
+    global data_lock, temp_values_normalized, completed_orders,aborted_orders, active_orders, averaged_normalized_data, livetemp_values, livetemp_values_normalized, order_status, global_threading_var
     temp_values = {}  # Temperature values for each order
 
     print("QBD Starting TEMPS_consumers thread",completed_orders,temp_values_normalized, flush=True)
@@ -192,7 +220,7 @@ def Temp_consume_and_process():
                                         averagetemp_values_normalized[T_order_number] = list(zip(averagetimes_in_minutes, averagenormalized_values))
                                         AverageCalculation = True
                                     
-                elif T_order_number: # order not completed yet
+                elif T_order_number and T_order_number in active_orders: # order not completed yet
                     with data_lock: # process the values for the current orders to have them ready for the live view and next steps
                         if T_order_number:
                                 #print(f"QBD value prep for order number:", T_order_number, flush=True)
@@ -239,7 +267,22 @@ def Temp_consume_and_process():
                                         averagenormalized_values = [((averagevalue - normalizeLowerLimit) / normalizeFactor) * 100 for averagevalue in averagevalues]
                                         averagetemp_values_normalized[T_order_number] = list(zip(averagetimes_in_minutes, averagenormalized_values))
                                         AverageCalculation = True
-
+                                        
+                elif T_order_number and T_order_number in aborted_orders: # order not completed yet
+                        with data_lock:
+                            if T_order_number in livetemp_values:
+                                livetemp_values.remove(T_order_number)
+                                livetemp_values_normalized.remove(T_order_number)
+                                #print(f"QBD: Live Data cleared", flush=True)
+                            
+                            if T_order_number in averagetemp_values:
+                                averagetemp_values.remove(T_order_number)
+                                averagetemp_values_normalized.remove(T_order_number)
+                                #print(f"QBD: Averaged Data cleared", flush=True)
+                else:
+                    print(f"QBD: T_Order not actionable",completed_orders,order_status, flush=True)
+                            
+            
             # Average the normalized temperature values
         if AverageCalculation and order_status == "Completed":
                     # print(f"\nQBD: Averaging Normalized Data", flush=True)

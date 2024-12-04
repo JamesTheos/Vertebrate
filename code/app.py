@@ -7,11 +7,14 @@ from datetime import datetime
 from product_analytics_app import product_analytics_app
 from DesignSpaceApp import design_space_app  # Import the blueprint from the DesignSpaceApp module
 from process_qbd_analysis import process_qbd_analysis  # Import the process QbD analysis blueprint
+from Nexus2PLC import nexus2plc
 #from Chatbot import Chatbot, query_llama  # Import the chatbot blueprint
 
 import threading
 import json
 import os
+import time
+import sys
 
 # Load the configuration for the ISA95 model
 config_path = os.path.join(os.path.dirname(__file__), 'config.json')
@@ -33,6 +36,18 @@ app = Flask(__name__)
 app.register_blueprint(product_analytics_app)
 app.register_blueprint(design_space_app)
 app.register_blueprint(process_qbd_analysis)
+app.register_blueprint(nexus2plc)
+def restart_app():
+    print("App: Restarting application in 5 seconds...", flush=True)
+    time.sleep(5)
+    os.execv(sys.executable, ['python'] + sys.argv)
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    print(f"App: Exception occurred: {e}", flush=True)
+    restart_app()
+    return "An error occurred, restarting the application...", 500
+
 #app.register_blueprint(Chatbot)
 
 # Kafka consumer configuration
@@ -141,6 +156,9 @@ def order_management():
                     order['status'] = 'Released'
                 elif action == 'abort':
                     order['status'] = 'Aborted'
+                    send_to_kafka('ISPEScene1', {'value': False, **order})
+                    send_to_kafka('ISPEScene2', {'value': False, **order})
+                    send_to_kafka('ISPEStartPhase1', {'value': False, **order})
                 else:
                     return jsonify({'error': 'Invalid action'}), 400
                 producer.produce('manufacturing_orders', key="FromOrderManagement", value=json.dumps(order).encode('utf-8'))
@@ -154,7 +172,7 @@ def order_management():
 @app.route('/data/<topic>')
 def get_data(topic):
     data = data_store.get(topic, [])
-    print(f"Serving data for {topic}: {data}", flush=True)  # Debugging log
+    #print(f"Serving data for {topic}: {data}", flush=True)  # Debugging log
     return jsonify(data)
 
 @app.route('/submit-order', methods=['POST'])

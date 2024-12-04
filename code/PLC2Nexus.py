@@ -1,8 +1,9 @@
+from flask import Flask
 from opcua import Client, ua
 from opcua.common.subscription import Subscription
 from confluent_kafka import Producer, Consumer, KafkaException, OFFSET_BEGINNING
 import json
-import time
+#import time
 from datetime import datetime
 import os
 
@@ -74,19 +75,19 @@ def consume_messages():
     latest_msg = {}
 
     try:
-        print(f"\n PLC2Nexus orders consumption started",latest_msg, flush=True)
+        #print(f"\n PLC2Nexus orders consumption started",latest_msg, flush=True)
         while True:
             msgs = consumer.consume(num_messages, timeout=1.0)
             #print(f"\nNexus Received message from Kafka", msgs, flush=True)
             if msgs is None:
-                print('No messages consumed from Kafka')
+                #print('No messages consumed from Kafka')
                 continue
             for msg in msgs:
                 if msg.error():
                     print('PLC2Nexus error:',msg.error())
                     continue
                 order_data = json.loads(msg.value().decode('utf-8'))
-                print(f"\nNexus Received message from Kafka: {order_data}")      
+                #print(f"\nNexus Received message from Kafka: {order_data}")      
              
                 if order_data.get('orderNumber') is not None and order_data.get('lotNumber') is not None and order_data.get('product') is not None and (order_data.get('status') == "Started"):        
                         orderNumber = order_data['orderNumber']
