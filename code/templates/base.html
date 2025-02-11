@@ -26,10 +26,9 @@
         body {
             font-family: 'Segoe UI','sans-serif','Tahoma',  'Geneva', Verdana;
             color: var(--text-color);
-            margin-left: 260px;
-            margin-top: 60px;
             transition: background-color 0.3s, color 0.3s;
-            overflow: hidden;
+            margin: 0px;
+            padding: 0px;
         }
         .button-active {
              background-color: rgb(245, 245, 245);
@@ -37,16 +36,18 @@
         }
         
        
-        /* Content */
+        
         .content {
-            padding: 0px;
+            padding: 20px;
+            margin-left: 250px;
+            margin-top: 60px;
         }
         
         
-        .main-content {
+        /* .main-content {
         width: 70%;
-        float: left;
-    }
+        float: left; */
+    /* } */
 
     .workflow-sidebar {
         width: 25%;
@@ -77,8 +78,17 @@
 
 
 <body>
+
+    <!-- 
+    ********************************************************************************************************************
+
+    HEADER DEFINITION
+
+    ********************************************************************************************************************
+     -->
+
     <div class="header">
-        <div class="rome-title">ISPE - Rome Demo</div>
+        <!-- <div class="rome-title">ISPE - Rome Demo</div> -->
         <div class="left-section">
             {% block header_title %}Welcome Screen{% endblock %}
         </div>      
@@ -90,141 +100,179 @@
         </div>
     </div>
 
-    <div class="sidebar">
-        <div class="sb-topic" style="margin-top: 10px">Welcome</div>
-        <div class="sidebar-group">
-            <div class="sidebar-group-item">
-                <div class="icon-menu">
-                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/home_24.svg') }}">
-                </div>
-                <a href="/" class="nav-button">Home</a>
-            </div>
-        </div>
 
-        <div class="sb-topic">Manufacturing Orders</div>
-        <div class="sidebar-group">
-            <div class="sidebar-group-item">
-                <div class="icon-menu">
-                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/orderoverview.svg') }}">
-                </div>
-                <a href="/manufacturing-orders" class="nav-button">Order Management</a>
-            </div>
-        </div>
-        <div class="sidebar-group">
-            <div class="sidebar-group-item">
-                <div class="icon-menu">
-                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/ordermanagement.svg') }}">
-                </div>
-                <a href="/order-management" class="nav-button">Orders Overview</a>
-            </div>
-        </div>
+    <!-- 
+    ********************************************************************************************************************
+
+    SIDEBAR DEFINITION
+
+    ********************************************************************************************************************
+     -->
+
+    <nav class = "sidebar"> 
+        <div href="/" class="logo">ISPE Demo</div>
+
+        <hr style="border: 1px solid white; border-radius: 5px; margin: 0; padding: 0;">
+
+        <div class = "menu-content">
+            <div class = "menu-items">
 
 
-        <div class="sb-topic">Workflows</div>
-        <div class="sidebar-group">
-            <div class="sidebar-group-item">
-                <div class="icon-menu">
-                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/overview.svg') }}">
+                <!-- FIRST SUBMENU -->
+
+                <div class = "item"> 
+                    <a href="/">Home</a>
                 </div>
-                <a href="/overview" class="nav-button">Overview</a>
-            </div>
-        </div>
-        <div class="sidebar-group">
-            <div class="sidebar-group-item">
-                <div class="icon-menu">
-                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/batch.svg') }}">
+
+                <!-- SECOND SUBMENU -->
+
+                <div class = "item"> 
+                    <div class="submenu-item">
+                        <span>Manufacturing Orders</span>
+                        <img class="icon-button" src="{{ url_for('static', filename='images/icons/arrow_right.svg') }}">
+                    </div>
+
+                    <div class = "menu-items submenu">
+                        <div class = "menu-topic">
+                            <img class="icon-button" src="{{ url_for('static', filename='images/icons/arrow_left.svg') }}">
+                            <span>Manufacturing Orders</span>
+                        </div>
+        
+                        <div class = "item"> 
+                            <a href="/manufacturing-orders" >Order Management</a>
+                        </div>
+                        <div class = "item"> 
+                            <a href="/order-management" >Order Overview</a>
+                        </div>
+                        
+                    </div>
                 </div>
-                <a href="/batch" class="nav-button">Batch</a>
-            </div>
-        </div>
-        <div class="sidebar-group">
-            <div class="sidebar-group-item">
-                <div class="icon-menu">
-                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/processinstructions.svg') }}">
-                </div>
-                <a href="/process-instructions" class="nav-button">Process Instructions</a>
-            </div>
-        </div>
-        <div class="sidebar-group">
-            <div class="sidebar-group-item">
-                <div class="icon-menu">
-                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/sampling.svg') }}">
-                </div>
-                <a href="/sampling" class="nav-button">Sampling</a>
-            </div>
-        </div>
 
 
-
-        <div class="sb-topic">SCADA</div>
-        <div class="sidebar-group">
-            <div class="sidebar-group-item">
-                <div class="icon-menu">
-                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/equipmentoverview.svg') }}">
-                </div>
-                <a href="/equipment-overview" class="nav-button">Equipment Overview</a>
-            </div>
-        </div>
-        <div class="sidebar-group">
-            <div class="sidebar-group-item">
-                <div class="icon-menu">
-                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/pid.svg') }}">
-                </div>
-                <a href="/scada" class="nav-button">P&ID</a>
-            </div>
-        </div>
-        <div class="sidebar-group">
-            <div class="sidebar-group-item">
-                <div class="icon-menu">
-                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/3d.svg') }}">
-                </div>
-                <a href="/3d-view" class="nav-button">3D-View</a>
-            </div>
-        </div>
-
-        <div class="sb-topic">QBD</div>
-        <div class="sidebar-group">
-            <div class="sidebar-group-item-design-space">
-                <div class="icon-menu">
-                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/dsd.svg') }}">
-                </div>
-                <a href="/design-space-definition" class="nav-button">Design Space<br> Definition</a>
-            </div>
-        </div>
-        <div class="sidebar-group">
-            <div class="sidebar-group-item-design-space">
-                <div class="icon-menu">
-                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/dsr.svg') }}">
-                </div>
-                <a href="/design-space-representation" class="nav-button">Design Space Representation</a>
-            </div>
-        </div>
+                <!-- THIRD SUBMENU -->
 
 
-        <div class="sb-topic">Analytics</div>
-        <div class="sidebar-group">
-            <div class="sidebar-group-item">
-                <div class="icon-menu">
-                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/trending.svg') }}">
+                <div class = "item"> 
+                    <div class="submenu-item">
+                        <span>Workflows</span>
+                        <img class="icon-button" src="{{ url_for('static', filename='images/icons/arrow_right.svg') }}">
+                    </div>
+
+                    <div class = "menu-items submenu">
+                        <div class = "menu-topic">
+                            <img class="icon-button" src="{{ url_for('static', filename='images/icons/arrow_left.svg') }}">
+                            <span>Workflows</span>
+                        </div>
+        
+                        <div class = "item"> 
+                            <a href="/overview" >Overview</a>
+                        </div>
+                        <div class = "item"> 
+                            <a href="/batch" >Batch</a>
+                        </div>
+                        <div class = "item"> 
+                            <a href="/process-instructions" >Process Instructions</a>
+                        </div>
+                        <div class = "item"> 
+                            <a href="/sampling" >Sampling</a>
+                        </div>
+                
+                    </div>
                 </div>
-            <a href="/product_analytics" class="nav-button"> Product Analysis</a>
-            </div>  
-        </div>
-        <div class="sidebar-group">
-            <div class="sidebar-group-item">
-                <div class="icon-menu">
-                    <img class="icon-button" src="{{ url_for('static', filename='images/icons/trending.svg') }}">
+
+                <!-- Fourth Submenu -->
+
+                <div class = "item"> 
+                    <div class="submenu-item">
+                        <span>SCADA</span>
+                        <img class="icon-button" src="{{ url_for('static', filename='images/icons/arrow_right.svg') }}">
+                    </div>
+
+                    <div class = "menu-items submenu">
+                        <div class = "menu-topic">
+                            <img class="icon-button" src="{{ url_for('static', filename='images/icons/arrow_left.svg') }}">
+                            <span>SCADA</span>
+                        </div>
+        
+                        <div class = "item"> 
+                            <a href="/equipment-overview" >Equipment Overview</a>
+                        </div>
+                        <div class = "item"> 
+                            <a href="/scada" >P&ID</a>
+                        </div>
+                    </div>
                 </div>
-                <a href="/process-qbd-analysis" class="nav-button">Process QbD Analysis</a>
+
+                 <!-- fifth Submenu -->
+
+                 <div class = "item"> 
+                    <div class="submenu-item">
+                        <span>QBD</span>
+                        <img class="icon-button" src="{{ url_for('static', filename='images/icons/arrow_right.svg') }}">
+                    </div>
+
+                    <div class = "menu-items submenu">
+                        <div class = "menu-topic">
+                            <img class="icon-button" src="{{ url_for('static', filename='images/icons/arrow_left.svg') }}">
+                            <span>QBD</span>
+                        </div>
+        
+                        <div class = "item"> 
+                            <a href="/design-space-definition" >Design Space<br> Definition</a>
+                        </div>
+                        <div class = "item"> 
+                            <a href="/design-space-representation" >Design Space Representation</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- sixth submenu -->
+
+                <div class = "item"> 
+                    <div class="submenu-item">
+                        <span>Analytics</span>
+                        <img class="icon-button" src="{{ url_for('static', filename='images/icons/arrow_right.svg') }}">
+                    </div>
+
+                    <div class = "menu-items submenu">
+                        <div class = "menu-topic">
+                            <img class="icon-button" src="{{ url_for('static', filename='images/icons/arrow_left.svg') }}">
+                            <span>Analytics</span>
+                        </div>
+        
+                        <div class = "item"> 
+                            <a href="/product_analytics" >Product Analysis</a>
+                        </div>
+                        <div class = "item"> 
+                            <a href="/process-qbd-analysis" >Process QbD Analysis</a>
+                        </div>
+                        
+                
+                    </div>
+                </div>
             </div>
         </div>
+    </nav>
 
-    
-    </div>
+    <!-- 
+    ********************************************************************************************************************
+
+    CONTENT DEFINITION
+
+    ********************************************************************************************************************
+     -->
 
     <div class="content">
         {% block content %}{% endblock %}
     </div>
+
+    <!-- 
+    ********************************************************************************************************************
+
+    CHATBOT DEFINITION
+
+    ********************************************************************************************************************
+     -->
 
     <div id="chatbot-container">
         <h2>Chat with our bot</h2>
@@ -266,6 +314,7 @@
 
     </script>
     <script src="{{ url_for('static', filename='js/chatbot.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}" defer></script>
 </body>
 </html>
 

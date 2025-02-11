@@ -7,14 +7,14 @@
     background-color: var(--header-background);
     color: var(--text-color);
     height: 60px;
-    left: 0px;
+    left: 250px;
     right: 0px;
     top: 0px;
     transition: background-color 0.3s;
     
 }
 
-.rome-title{
+/* .rome-title{
     display: flex;
     width: 230px;;
     justify-content: left;
@@ -22,7 +22,7 @@
     padding-left: 20px;
     font-weight: bold;
     min-width: 230px;
-}
+} */
 
 .left-section {
     display: flex;

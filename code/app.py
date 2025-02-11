@@ -7,7 +7,7 @@ from datetime import datetime
 from product_analytics_app import product_analytics_app
 from DesignSpaceApp import design_space_app  # Import the blueprint from the DesignSpaceApp module
 from process_qbd_analysis import process_qbd_analysis  # Import the process QbD analysis blueprint
-from Nexus2PLC import nexus2plc
+#from Nexus2PLC import nexus2plc
 #from Chatbot import Chatbot, query_llama  # Import the chatbot blueprint
 
 import threading
@@ -36,7 +36,7 @@ app = Flask(__name__)
 app.register_blueprint(product_analytics_app)
 app.register_blueprint(design_space_app)
 app.register_blueprint(process_qbd_analysis)
-app.register_blueprint(nexus2plc)
+#app.register_blueprint(nexus2plc)
 def restart_app():
     print("App: Restarting application in 5 seconds...", flush=True)
     time.sleep(5)
@@ -349,4 +349,4 @@ def processinstructions():
 
 if __name__ == '__main__':
     threading.Thread(target=consume_messages, daemon=True).start()
-    app.run(debug=True, use_reloader=False,port=5001)
+    app.run(debug=True, use_reloader=True,port=5001)
