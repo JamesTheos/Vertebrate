@@ -27,6 +27,7 @@
     color: #fff;
     display: flex;
     align-items: center;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .menu-content{

@@ -5,7 +5,7 @@
 
 {% block content %}
 <div class="order-list">
-    <table>
+    <table class="order-table-overview">
         <thead>
             <tr>
                 <th>Order Number</th>
@@ -17,10 +17,10 @@
         <tbody>
             {% for order in orders %}
                     <tr>
-                        <td>{{ order.orderNumber }}</td>
-                        <td>{{ order.product }}</td>
-                        <td>{{ order.lotNumber }}</td>
-                        <td>{{ order.status }}</td>
+                        <td class="order-columns-overview">{{ order.orderNumber }}</td>
+                        <td class="order-columns-overview">{{ order.product }}</td>
+                        <td class="order-columns-overview">{{ order.lotNumber }}</td>
+                        <td class="order-columns-overview">{{ order.status }}</td>
                     </tr>
             {% endfor %}
         </tbody>

@@ -5,7 +5,7 @@
 
 {% block content %}
 <div class="order-list">
-    <table>
+    <table class="order-table">
         <thead>
             <tr>
                 <th>Order Number</th>
@@ -18,16 +18,16 @@
         <tbody id="order-list-body">
             {% for order in orders %}
                 <tr>
-                    <td>{{ order.orderNumber }}</td>
-                    <td>{{ order.product }}</td>
-                    <td>{{ order.lotNumber }}</td>
-                    <td>{{ order.status }}</td>
-                    <td>
+                    <td class = "order-columns">{{ order.orderNumber }}</td>
+                    <td class = "order-columns">{{ order.product }}</td>
+                    <td class = "order-columns">{{ order.lotNumber }}</td>
+                    <td class = "order-columns">{{ order.status }}</td>
+                    <td class="action-buttons">
                         {% if order.status != 'Released' and order.status != 'Started' and order.status != 'Completed' and order.status != 'Aborted'%}
-                            <button class="release-btn" data-id="{{ order.orderNumber }}">Release</button>
+                            <button class="button-style-om release-btn" data-id="{{ order.orderNumber }}">Release</button>
                         {% endif %}
                         {% if order.status != 'Aborted' and order.status != 'Completed' %}
-                            <button class="abort-btn" data-id="{{ order.orderNumber }}">Abort</button>
+                            <button class="button-style-om abort-btn" data-id="{{ order.orderNumber }}">Abort</button>
                         {% endif %}
                     </td>
                 </tr>
@@ -72,7 +72,6 @@
         
                     
                 }
-                console.log("Refresh 2");
                 refreshPage();
             });
             

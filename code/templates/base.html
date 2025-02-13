@@ -4,22 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}My Application{% endblock %}</title>
-    
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
-    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/manufacturing-orders.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/order-management.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/overview.css') }}">
 
     <style>
         :root {
-            --background-color: rgb(252, 242, 199);
-            --text-color: rgb(59, 59, 59);
-            --header-background: rgb(245, 245, 245); /* header background */
-            --sidebar-background: rgb(245, 245, 245); /* sidebar background */
-            --button-background: rgb(249, 248, 255);
-            /*--button-hover-color:rgb(224, 224, 224) ;*/
-            --button-text-color: #424242;
-            --border-color: rgb(245, 245, 245);/* SAME color as background */
+            --background-color: #02000e;
+            --text-color: #02000e;
+            --header-background: #02000e; /* header background */
+            --sidebar-background: #02000e; /* sidebar background */
+            --button-background: #02000e;
+            --button-hover-color:rgba(255, 255, 255, 0.1);
+            --button-text-color: #ffffff;
+            --border-color: #02000e;/* SAME color as background */
             --card-background: #f0f2f5;
             --card-shadow: 0 4prgb(3, 3, 3)gba(0, 0, 0, 0.1);
         } 
@@ -29,6 +32,7 @@
             transition: background-color 0.3s, color 0.3s;
             margin: 0px;
             padding: 0px;
+            background-color: #02000e;
         }
         .button-active {
              background-color: rgb(245, 245, 245);
@@ -38,16 +42,26 @@
        
         
         .content {
+            margin-left: 260px;
+            margin-top: 70px;
+            margin-bottom: 20px;
+            margin-right: 20px;
+            border-radius: 12px;
+            border-width: 5px;
             padding: 20px;
-            margin-left: 250px;
-            margin-top: 60px;
+            background-color: #f0f2f5;
+            height: calc(100vh - 130px);
+            width: calc(100% - 320px);
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+            overflow: auto;
         }
-        
-        
-        /* .main-content {
-        width: 70%;
-        float: left; */
-    /* } */
+
+        /* Style of Scrollbar */
+        .content::-webkit-scrollbar {
+            display: none;
+        }
+            
+                
 
     .workflow-sidebar {
         width: 25%;
@@ -93,11 +107,12 @@
             {% block header_title %}Welcome Screen{% endblock %}
         </div>      
         <div class="middle-section">
-        
+
         </div>
         <div class="right-section" id="datetime">
 
         </div>
+        
     </div>
 
 
@@ -112,7 +127,7 @@
     <nav class = "sidebar"> 
         <div href="/" class="logo">ISPE Demo</div>
 
-        <hr style="border: 1px solid white; border-radius: 5px; margin: 0; padding: 0;">
+        
 
         <div class = "menu-content">
             <div class = "menu-items">
@@ -274,14 +289,17 @@
     ********************************************************************************************************************
      -->
 
-    <div id="chatbot-container">
+    <!-- <div id="chatbot-container">
         <h2>Chat with our bot</h2>
         <div id="chatbot">
             <input type="text" id="chatbot-input" placeholder="Ask a question...">
             <button onclick="askChatbot()">Send</button>
             <div id="chatbot-response"></div>
         </div>
-    </div>
+    </div> -->
+
+
+
     <script>
     function updateDateTime() {
         const now = new Date();
@@ -289,7 +307,7 @@
         document.getElementById('datetime').textContent = now.toLocaleDateString('en-US', options).replace(',', '');
     }
     setInterval(updateDateTime, 1000);
-    updateDateTime(); 
+    updateDateTime();  
 
 // JavaScript to handle button selection and maintain state
         document.addEventListener('DOMContentLoaded', function() {
