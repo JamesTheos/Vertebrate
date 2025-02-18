@@ -24,22 +24,21 @@ document.addEventListener('DOMContentLoaded', function() {
             stepElement.classList.add('workflow-step');
             stepElement.id = step.id;
             stepElement.innerHTML = `
-                <div class="step-content">
+                <div class="step-content" >
                     <h3>${step.name}</h3>
                     ${index === 0 ? `
-                        <label for="released-orders">Select Released Order:</label>
-                        <select id="released-orders" ${selectedOrder && currentStep >= 1 && currentStep <= 3 ? 'disabled' : ''}>
+                        <select id="released-orders" class="dropdown-pi" ${selectedOrder && currentStep >= 1 && currentStep <= 3 ? 'disabled' : ''}>
                             ${selectedOrder ? `<option value="${selectedOrder}" selected>${selectedOrder}</option>` : '<option value="">Select an order</option>'}
                         </select>
-                        <button id="select-order-btn" disabled>Select Order</button>
+                        <button id="select-order-btn" class= "button-pi" disabled>Select Order</button>
                     `: index === 1 ? `
-                     <button id="step1-btn" disabled>Start</button>
+                     <button id="step1-btn" class= "button-pi" disabled>Start</button>
                     `
                     : index === 2 ? `
-                        <button id="scene1-btn" disabled>Scene 1</button>
-                        <button id="scene2-btn" disabled>Scene 2</button>
+                        <button id="scene1-btn" class= "button-pi" disabled>Scene 1</button>
+                        <button id="scene2-btn" class= "button-pi" disabled>Scene 2</button>
                     ` :  `
-                        <button id="step3-btn" disabled>Complete</button>
+                        <button id="step3-btn" class= "button-pi" disabled>Complete</button>
                     `}
                 </div>
             `;

@@ -4,14 +4,12 @@
 {% block header_title %}QBD - Design Space Representation{% endblock %}
 
 {% block content %}
-<h2>Design Space Representation</h2>
-
 <!-- Dropdown to select different sets -->
 <label for="set-select">Select Set:</label>
 <select id="set-select" onchange="loadSet(this.value)">
     <option value="">Select a set</option>
 </select>
-<br><br>
+
 
 <!-- Canvas for the chart -->
 <div style="width: 900px; height: 900px;">

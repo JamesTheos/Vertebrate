@@ -37,16 +37,16 @@ app.register_blueprint(product_analytics_app)
 app.register_blueprint(design_space_app)
 app.register_blueprint(process_qbd_analysis)
 #app.register_blueprint(nexus2plc)
-def restart_app():
-    print("App: Restarting application in 5 seconds...", flush=True)
-    time.sleep(5)
-    os.execv(sys.executable, ['python'] + sys.argv)
+# def restart_app():
+#     print("App: Restarting application in 5 seconds...", flush=True)
+#     time.sleep(5)
+#     os.execv(sys.executable, ['python'] + sys.argv)
 
-@app.errorhandler(Exception)
-def handle_exception(e):
-    print(f"App: Exception occurred: {e}", flush=True)
-    restart_app()
-    return "An error occurred, restarting the application...", 500
+# @app.errorhandler(Exception)
+# def handle_exception(e):
+#     print(f"App: Exception occurred: {e}", flush=True)
+#     restart_app()
+#     return "An error occurred, restarting the application...", 500
 
 #app.register_blueprint(Chatbot)
 
@@ -132,12 +132,13 @@ def trending():
 #Orders route
 @app.route('/manufacturing-orders', methods=['GET', 'POST'])
 def manufacturing_orders():
-    if request.method == 'POST':
-        order_data = request.json
-        order_data['status'] = 'Created'
-        producer.send('manufacturing_orders', order_data)
-        data_store['manufacturing_orders'].append(order_data)
-        return jsonify({'status': 'Order Created'}), 201
+    # if request.method == 'POST':  not needed??? -->submit order call
+    #     order_data = request.json
+    #     order_data['status'] = 'Created'
+    #     producer.send('manufacturing_orders', order_data)
+    #     print(f"Order Created: {order_data}")
+    #     data_store['manufacturing_orders'].append(order_data)
+    #     return jsonify({'status': 'Order Created'}), 201
     return render_template('manufacturing-orders.html', orders=data_store['manufacturing_orders'])
 
 @app.route('/order-management', methods=['GET', 'POST'])
@@ -198,7 +199,7 @@ def submit_order():
         'timestamp': datetime.now().isoformat(),
         'status': 'Created'
     }
-
+    print(f"Order Submitted: {message}")
     producer.produce('manufacturing_orders', key="FromOrderCreation", value=json.dumps(message).encode('utf-8'))
     producer.flush()
 
@@ -245,6 +246,7 @@ def batch():
 @app.route('/overview') # Define route for the overview page under workflows
 def overview():
     relStaCom_orders = [order for order in data_store['manufacturing_orders'] if order['status'] == 'Started']
+    print(f"Orders: {relStaCom_orders}")
     return render_template('overview.html', orders=relStaCom_orders)
 
 
@@ -349,4 +351,4 @@ def processinstructions():
 
 if __name__ == '__main__':
     threading.Thread(target=consume_messages, daemon=True).start()
-    app.run(debug=True, use_reloader=True,port=5001)
+    app.run(debug=True, use_reloader=False,port=5001)

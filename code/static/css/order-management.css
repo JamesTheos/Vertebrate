@@ -1,34 +1,46 @@
 .order-table {
     width: 100%;
-    border-collapse: collapse;
     margin: 0px 0;
     text-align: left;
+    border-collapse: collapse;
 }
 
-.order-table th, .order-columns {
-    padding: 5px 10px;
+.order-table th, .order-table td {
+    height: 30px;
+    padding: 5px 10px; 
     border: 1px solid #ddd;
+}
+
+
+.order-columns{
     width: 21%;
 }
-
 .order-table th {
     background-color: #f2f2f2;
 }
-
 .action-buttons {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 14px; 
-    border-bottom: 1px solid #ddd;
-    border-right: 1px solid #ddd;
+    text-align: center; 
+    vertical-align: middle; 
+    padding: 0; 
+    margin: 0; 
+    border: none; 
+    height: 30px;
+    white-space: nowrap;
+    
 }
 
-
+.order-table td.action-buttons {
+    padding-top: 0;
+    padding-bottom: 0; 
+    padding-left: 10px; 
+    padding-right: 10px; 
+    border: 1px solid #ddd; 
+    height: 30px; 
+}
 
 .button-style-om {
-    padding: 10px 20px;
-    margin: 5px 0;
+    padding: 5px 20px;
+    margin: 5px 5px;
     width: 100px;
     border: none;
     border-radius: 4px;
