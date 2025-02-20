@@ -32,6 +32,7 @@
 .workflow-step.completed {
     background-color: #004288;
     border-color: #ddd;
+    color: rgba(224, 224, 224, 0.5);
 }
 
 .workflow-sidebar {
@@ -52,12 +53,6 @@
 .workflow-sidebar div {
     margin-bottom: 0px;
 }
-
-
-
-
-
-
 
 
 .button-pi {
@@ -97,6 +92,7 @@
     font-size: 16px;
     color: #333;
     margin-bottom: 10px;
+    cursor: pointer;
 }
 
 .dropdown-pi:disabled {

@@ -10,10 +10,30 @@
     padding-bottom: 10px;
     top: 0;
     left: 0;
+    display: none;
+}
+.sidebar.show-sidebar {
+    display: block; /* Show when 'show-sidebar' class is added */
+}
+
+.settings-sidebar{
+    position: fixed;
+    height: 100%;
+    width: 230px;
+    background: #02000e;
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-bottom: 10px;
+    top: 0;
+    left: 0;
+    display: none; /* Initially hidden */
+}
+.settings-sidebar.show-sidebar {
+    display: block; /* Show when 'show-sidebar' class is added */
 }
 
 
-.sidebar a{
+.sidebar a, .settings-sidebar a{
     text-decoration: none;
     color: #fff;
 }

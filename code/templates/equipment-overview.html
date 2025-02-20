@@ -24,28 +24,33 @@
         grid-template-columns: minmax(270px, 1fr) minmax(270px, 1fr);
         align-items: center;
         justify-items: center; 
-        padding-top:20px;
+        padding-top : 20px;
+        padding-bottom: 40px;
     }
 
     .eo-button-style {
         height: 38px;
         font-size: 16pt;
+        border: none;
         cursor: pointer;
-        transition: background-color 0.3s;
+        transition: background-color 0.3s, box-shadow 0.3s;
         text-decoration: none;
         width: 250px;
-        color: var(--text-color);
+        color: var(--button-text-color);
         border-radius: 15px;
-        border-width: 1px;
-        border-color: var(--button-border-color);
-        border-style: solid;
+        background-color: var(--button-background);
         justify-content: center;
         display: flex; 
-        align-items: center; 
+        align-items: center;
     }
     .eo-button-style:hover{
-        background-color: var(--button-hover-color);
+        background-color: rgba(0, 0, 0, 0.5);
+        box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
     }
+
+    .eo-button-style:focus {
+    outline: none;
+}
 
 </style>
  

@@ -5,16 +5,14 @@
 
 {% block content %}
 <!-- Dropdown to select different sets -->
-<label for="set-select">Select Set:</label>
-<select id="set-select" onchange="loadSet(this.value)">
+<select id="set-select" class="dropdown-dsr" " loadSet(this.value)">
     <option value="">Select a set</option>
 </select>
 
 
 <!-- Canvas for the chart -->
-<div style="width: 900px; height: 900px;">
-    <canvas id="chart"></canvas>
-</div>
+<canvas id="chart"></canvas>
+
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>

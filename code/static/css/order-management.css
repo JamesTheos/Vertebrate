@@ -16,7 +16,7 @@
     width: 21%;
 }
 .order-table th {
-    background-color: #f2f2f2;
+    background-color: #ffffff;
 }
 .action-buttons {
     text-align: center; 
@@ -32,21 +32,21 @@
 .order-table td.action-buttons {
     padding-top: 0;
     padding-bottom: 0; 
-    padding-left: 10px; 
-    padding-right: 10px; 
+    padding-left: 5px; 
+    padding-right: 5px; 
     border: 1px solid #ddd; 
     height: 30px; 
 }
 
 .button-style-om {
     padding: 5px 20px;
-    margin: 5px 5px;
+    margin: 0px 5px;
     width: 100px;
     border: none;
     border-radius: 4px;
     background-color: var(--button-background);
     color: var(--button-text-color);
-    font-size: 14px;
+    font-size: 16px;
     cursor: pointer;
     transition: background-color 0.3s, box-shadow 0.3s;
 }

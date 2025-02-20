@@ -4,17 +4,14 @@
 {% block header_title %}QBD - Design Space Definition{% endblock %}
 
 {% block content %}
-<h2>Design Space Definition</h2>
-
 <!-- Dropdown to select different sets -->
-<label for="set-select">Select Set:</label>
-<select id="set-select" onchange="loadSet(this.value)">
-    <option value="">New Set</option>
+<select id="set-select" class="dropdown-dsd" onchange="loadSet(this.value)">
+    <option value="">Select/Create new Set</option>
 </select>
 <br><br>
 
 <!-- Table to input value pairs -->
-<table id="value-pairs-table">
+<table id="value-pairs-table" class="table-dsd">
     <thead>
         <tr>
             <th>ISPESpeed</th>
@@ -26,14 +23,14 @@
         <tr>
             <td><input type="number" class="ispespeed" required></td>
             <td><input type="number" class="ispetemp" required></td>
-            <td><button type="button" onclick="removeRow(this)">Remove</button></td>
+            <td><button type="button" class="button-dsd-row" onclick="removeRow(this)">Remove</button></td>
         </tr>
     </tbody>
 </table>
 <br>
-<button type="button" onclick="addRow()">Add Row</button>
-<br><br>
-<button type="button" onclick="saveSet()">Save Set</button>
+<button type="button" class="button-dsd" onclick="addRow()">Add Row</button>
+<span style="display:inline-block; width: 20px;"></span>
+<button type="button" class="button-dsd" onclick="saveSet()">Save Set</button>
 
 <script>
     // Add an event listener to the document that will run the function when the DOM is fully loaded
@@ -64,7 +61,7 @@
         newRow.innerHTML = `
             <td><input type="number" class="ispespeed" required></td>
             <td><input type="number" class="ispetemp" required></td>
-            <td><button type="button" onclick="removeRow(this)">Remove</button></td>
+            <td><button type="button" class="button-dsd-row" onclick="removeRow(this)">Remove</button></td>
         `;
     }
 

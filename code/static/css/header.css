@@ -31,6 +31,39 @@
     
 }
 
+.user-info {
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    padding-left: 20px;
+    padding-right: 20px;
+    background-color: var(--button-background); 
+    margin-top: 5px;
+    margin-bottom: 5px;
+    cursor: pointer;
+}
+
+.user-name{
+    padding-left: 10px;
+}
+
+.settings {
+    display: flex;
+    align-items: center;
+    padding-left: 20px;
+    padding-right: 20px;
+    max-width: 50px;
+    cursor: pointer;
+    border-radius: 8px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    background-color: var(--button-background); 
+}
+
+.settings:hover, .user-info:hover {
+    background-color: var(--button-hover-color);
+}
+
 .right-section {
     display: flex;
     align-items: center;

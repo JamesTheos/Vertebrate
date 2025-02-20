@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}My Application{% endblock %}</title>
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
@@ -13,6 +12,9 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/order-management.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/overview.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/processinstructions.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/product_analytics.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/designspacerepresentation.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-space-definition.css') }}">
     <style>
         :root {
             --background-color: #02000e;
@@ -88,6 +90,14 @@
         <div class="middle-section">
 
         </div>
+        <div class="user-info">
+            <img src="{{ url_for('static', filename='images/icons/user.svg') }}" alt="User" class="user-icon" style="width: 32px; height: 32px;">
+            <span class="user-name">User Name</span>
+
+        </div>
+        <div class="settings">
+            <img src="{{ url_for('static', filename='images/icons/settings.svg') }}" alt="Settings" class="settings-icon" style="width: 32px; height: 32px;">
+        </div>
         <div class="right-section" id="datetime">
 
         </div>
@@ -102,8 +112,21 @@
 
     ********************************************************************************************************************
      -->
+    <nav class = "settings-sidebar"> 
+        <div href="/" class="logo">ISPE Demo</div>
 
-    <nav class = "sidebar"> 
+        
+
+        <div class = "menu-content">
+            <div class = "menu-items">
+                <div class = "item"> 
+                    <a href="/">Home</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <nav class = "sidebar show-sidebar"> 
         <div href="/" class="logo">ISPE Demo</div>
 
         
@@ -193,6 +216,9 @@
                         </div>
                         <div class = "item"> 
                             <a href="/scada" >P&ID</a>
+                        </div>
+                        <div class = "item"> 
+                            <a href="/3d-view" >3D-View</a>
                         </div>
                     </div>
                 </div>
@@ -312,6 +338,7 @@
     </script>
     <script src="{{ url_for('static', filename='js/chatbot.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/settingssidebar.js') }}" defer></script>
 </body>
 </html>
 

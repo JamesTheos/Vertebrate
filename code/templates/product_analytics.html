@@ -4,8 +4,7 @@
 {% block header_title %}Analytics - Product Analysis{% endblock %}
 
 {% block content %}
-<label for="product-select">Select Product:</label>
-<select id="product-select" onchange="loadProductTrend(this.value)">
+<select id="product-select" class="dropdown-pa" onchange="loadProductTrend(this.value)">
     <option value="">Select a product</option>
 </select>
 <br><br>
