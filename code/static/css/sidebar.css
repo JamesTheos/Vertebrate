@@ -4,7 +4,7 @@
     position: fixed;
     height: 100%;
     width: 230px;
-    background: #02000e;
+    background: var(--sidebar-background);
     padding-left: 10px;
     padding-right: 10px;
     padding-bottom: 10px;
@@ -14,13 +14,13 @@
 }
 .sidebar.show-sidebar {
     display: block; /* Show when 'show-sidebar' class is added */
-}
+} 
 
 .settings-sidebar{
     position: fixed;
     height: 100%;
     width: 230px;
-    background: #02000e;
+    background: var(--sidebar-background);
     padding-left: 10px;
     padding-right: 10px;
     padding-bottom: 10px;
@@ -35,31 +35,31 @@
 
 .sidebar a, .settings-sidebar a{
     text-decoration: none;
-    color: #fff;
+    color: var(--sidebar-text-color);
 }
 
 
-.logo{
+.logo, .logo-settings{
     font-size: 20px;
     font-weight: bold;
     padding-left: 16px;
     height: 60px;
-    color: #fff;
+    color: var(--sidebar-text-color);
     display: flex;
     align-items: center;
 }
 
-.menu-content{
+.menu-content, .menu-content-settings{
     position: relative;
     height: 100%;
     width: 100%;
     margin-top: 10px;
     overflow-y: scroll;
 }
-.menu-content::-webkit-scrollbar{
+.menu-content::-webkit-scrollbar, .menu-content-settings::-webkit-scrollbar{
     display: none;
 }
-.menu-items{
+.menu-items, .menu-items-settings{
     height: 100%;
     width: 100%;
     transition: all 0.3s ease;
@@ -70,10 +70,11 @@
     transform: translateX(-56%);
 }
 .menu-topic{
-    color: #fff;
+    color: var(--sidebar-text-color);
     padding: 16px;
 }
 .item a,
+.item-settings a,
 .submenu-item{
     padding:16px;
     display: inline-block;
@@ -83,16 +84,17 @@
 }
 
 .item a:hover,
+.item-settings a:hover,
 .submenu-item:hover,
 .submenu .menu-topic:hover{
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: var(--button-hover-color);
 }
 
 .submenu-item{
     display: flex;
     justify-content: space-between;
     align-items: center;
-    color: #fff
+    color: var(--sidebar-text-color)
 }
 .submenu{
     position: absolute;
@@ -100,7 +102,7 @@
     width: 100%;
     top: 0;
     right: calc(-100% - 26px);
-    background: #02000e;
+    background: var(--sidebar-background);
     display: none;
 }
 

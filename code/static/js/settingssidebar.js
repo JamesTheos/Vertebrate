@@ -6,5 +6,6 @@ document.addEventListener('DOMContentLoaded', function() {
     button.addEventListener('click', function() {
         settingsidebar.classList.toggle('show-sidebar');
         sidebar.classList.toggle('show-sidebar');
+        button.classList.toggle('active');
     });
 });

@@ -43,7 +43,7 @@
 }
 
 .input-style-mo:focus {
-    border-color: #66afe9;
+    border-color: var(--border-focus-color);
     box-shadow: 0 0 8px rgba(102, 175, 233, 0.6);
     outline: none;
 }
@@ -61,7 +61,7 @@
 }
 
 .button-style-mo:hover {
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: var(--button-hover-color);
     box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
 }
 

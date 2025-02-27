@@ -8,12 +8,12 @@
 
 .order-table-overview th, .order-columns-overview {
     padding: 5px 10px; 
-    border: 1px solid #ddd;
+    border: 1px solid var(--table-border);
     height: 30px; 
     width: 25%;
 }
 
 
 .order-table-overview th {
-    background-color: #ffffff;
+    background-color: var(--content-background);
 }

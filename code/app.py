@@ -29,6 +29,14 @@ area = config['area']
 process_cell = config['process_cell']
 unit= config['unit'] 
 
+colors = {
+    'textColor': '#000000',
+    'bgColor': '#ffffff',
+    'sbColor': '#ffffff',
+    'sbTColor': '#ffffff'
+}
+
+
 # Create Flask application with custom static folder
 app = Flask(__name__)
 
@@ -326,6 +334,35 @@ def sampling():
 @app.route('/process-instructions')
 def processinstructions():
     return render_template('process-instructions.html')
+
+@app.route('/settings')
+def settings():
+    return render_template('settings.html')
+
+@app.route('/api/colors', methods=['GET'])
+def get_colors():
+    return jsonify(colors)
+
+@app.route('/api/colors', methods=['POST'])
+def save_colors():
+    global colors
+    colors = request.json
+    return jsonify(success=True)
+
+@app.route('/api/colors/reset', methods=['POST'])
+def reset_colors():
+    global colors
+    colors = {
+        'textColor': '#000000',
+        'bgColor': '#ffffff',
+        'sbColor': '#ffffff',
+        'sbTColor': '#ffffff'
+    }
+    return jsonify(success=True)
+
+@app.route('/plantconfig')
+def plantconfig():
+    return render_template('plantconfig.html')
 
 # ############################################################################################################
 # # Chatbot route

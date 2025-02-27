@@ -5,7 +5,7 @@
     flex-direction: row;
     justify-content: space-between;
     background-color: var(--header-background);
-    color: #ffffff;
+    color:var(--header-text-color);
     height: 60px;
     left: 250px;
     right: 0px;
@@ -60,7 +60,7 @@
     background-color: var(--button-background); 
 }
 
-.settings:hover, .user-info:hover {
+.settings:hover, .user-info:hover,.settings.active {
     background-color: var(--button-hover-color);
 }
 

@@ -8,7 +8,7 @@
 .order-table th, .order-table td {
     height: 30px;
     padding: 5px 10px; 
-    border: 1px solid #ddd;
+    border: 1px solid var(--table-border);
 }
 
 
@@ -16,7 +16,7 @@
     width: 21%;
 }
 .order-table th {
-    background-color: #ffffff;
+    background-color: var(--content-background);
 }
 .action-buttons {
     text-align: center; 
@@ -34,7 +34,7 @@
     padding-bottom: 0; 
     padding-left: 5px; 
     padding-right: 5px; 
-    border: 1px solid #ddd; 
+    border: 1px solid var(--table-border); 
     height: 30px; 
 }
 
@@ -52,7 +52,7 @@
 }
 
 .button-style-om:hover {
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: var(--button-hover-color);
     box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
 }
 

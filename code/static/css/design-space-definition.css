@@ -1,11 +1,11 @@
 .dropdown-dsd{
     width: 30%;
     padding: 10px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--dropdown-border);
     border-radius: 4px;
-    background-color: #f9f9f9;
+    background-color: var(--dropdown-background);
     font-size: 16px;
-    color: #333;
+    color: var(--dropdown-textcolor);
     margin-bottom: 10px;
     cursor: pointer;
 }
@@ -20,11 +20,11 @@
 .table-dsd th, .table-dsd td {
     height: 30px;
     padding: 5px 10px; 
-    border: 1px solid #ddd;
+    border: 1px solid var(--table-border);
 }
 
 .table-dsd th {
-    background-color: #ffffff;
+    background-color: var(--background-color);
 }
 
 
@@ -47,7 +47,7 @@
 }
 
 .button-dsd:hover, .button-dsd-row:hover{
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: var(--button-hover-color);
     box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
 }
 
@@ -69,7 +69,7 @@
 }
 
 .ispespeed:focus, .ispetemp:focus {
-    border-color: #66afe9;
+    border-color: var(--border-focus-color);
     box-shadow: 0 0 8px rgba(102, 175, 233, 0.6);
     outline: none;
 }

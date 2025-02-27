@@ -5,6 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}My Application{% endblock %}</title>
 
+    <script>
+        // Inline script to apply colors from local storage
+        (function() {
+            const defaultColors = {
+                textColor: '#000000',
+                bgColor: '#ffffff',
+                sbColor: '#ffffff',
+                sbTColor: '#ffffff'
+            };
+
+            const localColors = {
+                textColor: localStorage.getItem('textColor') || defaultColors.textColor,
+                bgColor: localStorage.getItem('bgColor') || defaultColors.bgColor,
+                sbColor: localStorage.getItem('sbColor') || defaultColors.sbColor,
+                sbTColor: localStorage.getItem('sbTColor') || defaultColors.sbTColor
+            };
+
+            document.documentElement.style.setProperty('--text-color', localColors.textColor);
+            document.documentElement.style.setProperty('--content-background', localColors.bgColor);
+            document.documentElement.style.setProperty('--sidebar-background', localColors.sbColor);
+            document.documentElement.style.setProperty('--header-background', localColors.sbColor);
+            document.documentElement.style.setProperty('--button-background', localColors.sbColor);
+            document.documentElement.style.setProperty('--background-color', localColors.sbColor);
+            document.documentElement.style.setProperty('--button-text-color', localColors.sbTColor);
+            document.documentElement.style.setProperty('--sidebar-text-color', localColors.sbTColor);
+            document.documentElement.style.setProperty('--header-text-color', localColors.sbTColor);
+        })();
+    </script>
+
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
@@ -15,18 +44,34 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/product_analytics.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/designspacerepresentation.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/design-space-definition.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
     <style>
         :root {
             --background-color: #02000e;
             --text-color: #02000e;
-            --header-background: #02000e; /* header background */
-            --sidebar-background: #02000e; /* sidebar background */
+
+            --header-background: #02000e; 
+            --header-text-color: #ffffff;
+
+            --sidebar-background: #02000e; 
+            --sidebar-text-color: #ffffff;
+
             --button-background: #02000e;
-            --button-hover-color:rgba(255, 255, 255, 0.1);
+            --button-hover-color:rgba(255, 255, 255, 0.1); /*rgba(0, 0, 0, 0.5) */
             --button-text-color: #ffffff;
-            --border-color: #02000e;/* SAME color as background */
+            
+            --border-color: #02000e;
+            --border-focus-color: #66afe9;
+
             --card-background: #f0f2f5;
             --card-shadow: 0 4prgb(3, 3, 3)gba(0, 0, 0, 0.1);
+            
+            --dropdown-textcolor: #333;
+            --dropdown-background: #f9f9f9;
+            --dropdown-border: #ccc;
+            --table-border: #ddd;
+
+            --content-background: #f0f2f5;
         } 
         body {
             font-family: 'Segoe UI','sans-serif','Tahoma',  'Geneva', Verdana;
@@ -34,13 +79,9 @@
             transition: background-color 0.3s, color 0.3s;
             margin: 0px;
             padding: 0px;
-            background-color: #02000e;
+            background-color: var(--background-color);
         }
-        .button-active {
-             background-color: rgb(245, 245, 245);
-             color: rgb(84, 86, 255);
-        }
-        
+       
        
         
         .content {
@@ -51,7 +92,7 @@
             border-radius: 12px;
             border-width: 5px;
             padding: 20px;
-            background-color: #f0f2f5;
+            background-color: var(--content-background);
             height: calc(100vh - 130px);
             width: calc(100% - 320px);
             box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
@@ -113,14 +154,15 @@
     ********************************************************************************************************************
      -->
     <nav class = "settings-sidebar"> 
-        <div href="/" class="logo">ISPE Demo</div>
+        <div href="/" class="logo-settings">ISPE Demo</div>
 
-        
-
-        <div class = "menu-content">
-            <div class = "menu-items">
-                <div class = "item"> 
-                    <a href="/">Home</a>
+        <div class = "menu-content-settings">
+            <div class = "menu-items-setting">
+                <div class = "item-settings"> 
+                    <a href="/settings">Settings</a>
+                </div>
+                <div class = "item-settings"> 
+                    <a href="/plantconfig">Plant Configuration</a>
                 </div>
             </div>
         </div>
@@ -333,9 +375,13 @@
                     localStorage.setItem('activeButton', this.getAttribute('href'));
                 });
             });
-        });
 
+        });
+       
+         
+       
     </script>
+    <script src="{{ url_for('static', filename='js/colorsettings.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/chatbot.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/settingssidebar.js') }}" defer></script>

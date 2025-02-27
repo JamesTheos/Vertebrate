@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Settings{% endblock %}
+{% block header_title %}Settings{% endblock %}
+
+{% block content %}
+<div class="color-picker-table">
+    <div class="color-picker-row">
+        <label for="textColor">Text Color</label>
+        <input type="color" id="textColor" name="textColor" value="#000000" class="color-picker">
+    </div>
+    <div class="color-picker-row">
+        <label for="bgColor">Background Color</label>
+        <input type="color" id="bgColor" name="bgColor" value="#ffffff" class="color-picker">
+    </div>
+    <div class="color-picker-row">
+        <label for="sbColor">Sidebar/Header/Button<br>Background Color</label>
+        <input type="color" id="sbColor" name="sbColor" value="#ffffff" class="color-picker">
+    </div>
+    <div class="color-picker-row">
+        <label for="sbTColor">Sidebar/Header/Button<br>Text Color</label>
+        <input type="color" id="sbTColor" name="sbTColor" value="#ffffff" class="color-picker">
+    </div>
+</div>
+
+<div class="button-row">
+    <button id="saveButton" class="button-style-settings">Save</button>
+    <button id="resetButton" class="button-style-settings">Reset</button>
+</div>
+
+
+{% endblock %}
