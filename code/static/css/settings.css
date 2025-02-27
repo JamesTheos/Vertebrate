@@ -72,7 +72,7 @@
 }
 
 .button-style-settings:hover {
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: var(--button-hover-color-view);
     box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
 }
 

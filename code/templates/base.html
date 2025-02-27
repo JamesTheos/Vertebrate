@@ -6,33 +6,42 @@
     <title>{% block title %}My Application{% endblock %}</title>
 
     <script>
-        // Inline script to apply colors from local storage
+        
         (function() {
-            const defaultColors = {
-                textColor: '#000000',
-                bgColor: '#ffffff',
-                sbColor: '#ffffff',
-                sbTColor: '#ffffff'
-            };
+            fetch('/api/colors')
+                .then(response => response.json())
+                .then(data => {
+                    const defaultColors = {
+                        textColor: data.textColor,
+                        bgColor: data.bgColor,
+                        sbColor: data.sbColor,
+                        sbTColor: data.sbTColor
+                    };
 
-            const localColors = {
-                textColor: localStorage.getItem('textColor') || defaultColors.textColor,
-                bgColor: localStorage.getItem('bgColor') || defaultColors.bgColor,
-                sbColor: localStorage.getItem('sbColor') || defaultColors.sbColor,
-                sbTColor: localStorage.getItem('sbTColor') || defaultColors.sbTColor
-            };
+                    const localColors = {
+                        textColor: localStorage.getItem('textColor') || defaultColors.textColor,
+                        bgColor: localStorage.getItem('bgColor') || defaultColors.bgColor,
+                        sbColor: localStorage.getItem('sbColor') || defaultColors.sbColor,
+                        sbTColor: localStorage.getItem('sbTColor') || defaultColors.sbTColor
+                    };
 
-            document.documentElement.style.setProperty('--text-color', localColors.textColor);
-            document.documentElement.style.setProperty('--content-background', localColors.bgColor);
-            document.documentElement.style.setProperty('--sidebar-background', localColors.sbColor);
-            document.documentElement.style.setProperty('--header-background', localColors.sbColor);
-            document.documentElement.style.setProperty('--button-background', localColors.sbColor);
-            document.documentElement.style.setProperty('--background-color', localColors.sbColor);
-            document.documentElement.style.setProperty('--button-text-color', localColors.sbTColor);
-            document.documentElement.style.setProperty('--sidebar-text-color', localColors.sbTColor);
-            document.documentElement.style.setProperty('--header-text-color', localColors.sbTColor);
+                    document.documentElement.style.setProperty('--text-color', localColors.textColor);
+                    document.documentElement.style.setProperty('--content-background', localColors.bgColor);
+                    document.documentElement.style.setProperty('--sidebar-background', localColors.sbColor);
+                    document.documentElement.style.setProperty('--header-background', localColors.sbColor);
+                    document.documentElement.style.setProperty('--button-background', localColors.sbColor);
+                    document.documentElement.style.setProperty('--background-color', localColors.sbColor);
+                    document.documentElement.style.setProperty('--button-text-color', localColors.sbTColor);
+                    document.documentElement.style.setProperty('--sidebar-text-color', localColors.sbTColor);
+                    document.documentElement.style.setProperty('--header-text-color', localColors.sbTColor);
+                    const headerColor = getComputedStyle(document.documentElement).getPropertyValue('--header-background');
+                    const headerColorWithOpacity = headerColor + '80'; // Adding 80 for 0.5 opacity in hex
+                    document.documentElement.style.setProperty('--button-hover-color-view', headerColorWithOpacity);
+                });
         })();
+        
     </script>
+    <script src="{{ url_for('static', filename='js/settingssidebar.js') }}" defer></script>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
@@ -45,6 +54,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/designspacerepresentation.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/design-space-definition.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/plantconfig.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
     <style>
         :root {
             --background-color: #02000e;
@@ -57,7 +68,8 @@
             --sidebar-text-color: #ffffff;
 
             --button-background: #02000e;
-            --button-hover-color:rgba(255, 255, 255, 0.1); /*rgba(0, 0, 0, 0.5) */
+            --button-hover-color:rgba(255, 255, 255, 0.1); 
+            --button-hover-color-view:rgba(2, 0, 14, 0.5);
             --button-text-color: #ffffff;
             
             --border-color: #02000e;
@@ -133,7 +145,7 @@
         </div>
         <div class="user-info">
             <img src="{{ url_for('static', filename='images/icons/user.svg') }}" alt="User" class="user-icon" style="width: 32px; height: 32px;">
-            <span class="user-name">User Name</span>
+            <span class="user-name" id="user-name">User Name</span>
 
         </div>
         <div class="settings">
@@ -143,6 +155,24 @@
 
         </div>
         
+    </div>
+
+
+    <div id="loginModal" class="modal-login">
+        <div class="modal-content-login">
+            <form>
+                <div class="form-group-login">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" class="input-style-login" name="username">
+                </div>
+                <div class="form-group-login">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" class="input-style-login" name="password">
+                </div>
+                <button class="button-style-login">Log In</button>
+                <button id = "close-login" class="button-style-login">Close</button>
+            </form>
+        </div>
     </div>
 
 
@@ -381,10 +411,11 @@
          
        
     </script>
-    <script src="{{ url_for('static', filename='js/colorsettings.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/chatbot.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='js/settingssidebar.js') }}" defer></script>
+    
+    <script src="{{ url_for('static', filename='js/login.js') }}" defer></script>
+   
 </body>
 </html>
 

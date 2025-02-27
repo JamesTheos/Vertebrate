@@ -29,12 +29,21 @@ area = config['area']
 process_cell = config['process_cell']
 unit= config['unit'] 
 
-colors = {
-    'textColor': '#000000',
-    'bgColor': '#ffffff',
-    'sbColor': '#ffffff',
+defautcolors = {
+    'textColor': '#02000e',
+    'bgColor': '#f0f2f5',
+    'sbColor': '#02000e',
     'sbTColor': '#ffffff'
 }
+
+
+colors = {
+    'textColor': '#02000e',
+    'bgColor': '#f0f2f5',
+    'sbColor': '#02000e',
+    'sbTColor': '#ffffff'
+}
+
 
 
 # Create Flask application with custom static folder
@@ -339,30 +348,53 @@ def processinstructions():
 def settings():
     return render_template('settings.html')
 
+#API Call to get the current the colors
 @app.route('/api/colors', methods=['GET'])
 def get_colors():
     return jsonify(colors)
 
+#API Call to save the colors
 @app.route('/api/colors', methods=['POST'])
 def save_colors():
     global colors
     colors = request.json
     return jsonify(success=True)
 
-@app.route('/api/colors/reset', methods=['POST'])
+#API Call to get the default colors and reset the colors
+@app.route('/api/colors/reset', methods=['GET'])
 def reset_colors():
     global colors
-    colors = {
-        'textColor': '#000000',
-        'bgColor': '#ffffff',
-        'sbColor': '#ffffff',
-        'sbTColor': '#ffffff'
-    }
-    return jsonify(success=True)
+    colors = defautcolors
+    return jsonify(colors)
 
 @app.route('/plantconfig')
 def plantconfig():
-    return render_template('plantconfig.html')
+    config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+    with open(config_path) as config_file:
+        config = json.load(config_file)
+    return render_template('plantconfig.html', config=config)
+
+@app.route('/save-plant-config', methods=['POST'])
+def save_plant_config():
+    new_config = request.json
+    config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+    
+    # Ensure Kafkaserver and clusterid remain unchanged
+    new_config['Kafkaserver'] = Kafkaserver
+    new_config['clusterid'] = clusterid
+    
+    with open(config_path, 'w') as config_file:
+        json.dump(new_config, config_file, indent=4)
+    
+    # Update the global config variable
+    global enterprise, site, area, process_cell, unit
+    enterprise = new_config['enterprise']
+    site = new_config['site']
+    area = new_config['area']
+    process_cell = new_config['process_cell']
+    unit = new_config['unit']
+    
+    return jsonify({'status': 'Configuration saved successfully'})
 
 # ############################################################################################################
 # # Chatbot route

@@ -6,13 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const saveButton = document.getElementById('saveButton');
     const resetButton = document.getElementById('resetButton');
 
-    // Set default colors
-    const defaultColors = {
-        textColor: '#000000',
-        bgColor: '#ffffff',
-        sbColor: '#ffffff',
-        sbTColor: '#ffffff'
-    };
+    
 
     // Function to apply colors
     function applyColors(colors) {
@@ -30,16 +24,11 @@ document.addEventListener('DOMContentLoaded', function() {
         document.documentElement.style.setProperty('--button-text-color', colors.sbTColor);
         document.documentElement.style.setProperty('--sidebar-text-color', colors.sbTColor);
         document.documentElement.style.setProperty('--header-text-color', colors.sbTColor);
+        const headerColor = getComputedStyle(document.documentElement).getPropertyValue('--header-background');
+        const headerColorWithOpacity = headerColor + '80'; // Adding 80 for 0.5 opacity in hex
+        document.documentElement.style.setProperty('--button-hover-color-view', headerColorWithOpacity);
     }
 
-    // Load colors from local storage
-    const localColors = {
-        textColor: localStorage.getItem('textColor') || defaultColors.textColor,
-        bgColor: localStorage.getItem('bgColor') || defaultColors.bgColor,
-        sbColor: localStorage.getItem('sbColor') || defaultColors.sbColor,
-        sbTColor: localStorage.getItem('sbTColor') || defaultColors.sbTColor
-    };
-    applyColors(localColors);
 
     // Load colors from server
     fetch('/api/colors')
@@ -76,15 +65,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Reset colors to default
     resetButton.addEventListener('click', function() {
-        applyColors(defaultColors);
-
         fetch('/api/colors/reset', {
-            method: 'POST'
-        });
+            method: 'GET'
+        })
+        .then(response => response.json())
+        .then(defaultColors => {
+            applyColors(defaultColors);
 
-        localStorage.removeItem('textColor');
-        localStorage.removeItem('bgColor');
-        localStorage.removeItem('sbColor');
-        localStorage.removeItem('sbTColor');
+            localStorage.setItem('textColor', defaultColors.textColor);
+            localStorage.setItem('bgColor', defaultColors.bgColor);
+            localStorage.setItem('sbColor', defaultColors.sbColor);
+            localStorage.setItem('sbTColor', defaultColors.sbTColor);
+        });
     });
 });

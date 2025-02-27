@@ -4,5 +4,81 @@
 {% block header_title %}Plant Configuration{% endblock %}
 
 {% block content %}
-Plant Configuration
+<form id="plant-config-form-pc">
+    <div class="form-group-pc">
+        <label for="Enterprisein">Enterprise</label>
+        <input type="text" class="input-style-pc" id="Enterprisein" placeholder="{{ config.enterprise }}" required>
+    </div>
+    <div class="form-group-pc">
+        <label for="Sitein">Site</label>
+        <input type="text" class="input-style-pc" id="Sitein" placeholder="{{ config.site }}" required>
+    </div>
+    <div class="form-group-pc">
+        <label for="Areain">Area</label>
+        <input type="text" class="input-style-pc" id="Areain" placeholder="{{ config.area }}" required>
+    </div>
+    <div class="form-group-pc">
+        <label for="processcellin">Process Cell</label>
+        <input type="text" class="input-style-pc" id="processcellin" placeholder="{{ config.process_cell }}" required>
+    </div>
+    <div class="form-group-pc">
+        <label for="unitin">Unit</label>
+        <input type="text" class="input-style-pc" id="unitin" placeholder="{{ config.unit }}" required>
+    </div>
+    <button type="submit" class="button-style-pc">Save</button>
+</form>
+
+<div id="successModal" class="modal">
+    <div class="modal-content">
+        <div><strong>Configuration saved successfully!</strong></div>
+        <button class="button-style-pc close-button">Close</button>
+    </div>
+</div>
+
+<script>
+    document.getElementById('plant-config-form-pc').addEventListener('submit', async function(event) {
+        event.preventDefault();
+        const enterprise = document.getElementById('Enterprisein').value;
+        const site = document.getElementById('Sitein').value;
+        const area = document.getElementById('Areain').value;
+        const processCell = document.getElementById('processcellin').value;
+        const unit = document.getElementById('unitin').value;
+
+        const response = await fetch('/save-plant-config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                enterprise: enterprise,
+                site: site,
+                area: area,
+                process_cell: processCell,
+                unit: unit
+            })
+        });
+
+        if (response.ok) {
+            const modal = document.getElementById('successModal');
+            modal.style.display = 'block';
+        } else {
+            alert('Failed to save configuration.');
+        }
+    });
+
+    // Close the modal when the user clicks on the close button
+    document.querySelector('.close-button').addEventListener('click', function() {
+        const modal = document.getElementById('successModal');
+        modal.style.display = 'none';
+    });
+
+    // Close the modal when the user clicks anywhere outside of the modal
+    window.addEventListener('click', function(event) {
+        const modal = document.getElementById('successModal');
+        if (event.target == modal) {
+            modal.style.display = 'none';
+        }
+    });
+</script>
+
 {% endblock %}

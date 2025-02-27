@@ -52,7 +52,7 @@
 }
 
 .button-style-om:hover {
-    background-color: var(--button-hover-color);
+    background-color: var(--button-hover-color-view);
     box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
 }
 
