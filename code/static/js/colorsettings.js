@@ -6,37 +6,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const saveButton = document.getElementById('saveButton');
     const resetButton = document.getElementById('resetButton');
 
+    setColors();
     
-
-    // Function to apply colors
-    function applyColors(colors) {
-        textColorPicker.value = colors.textColor;
-        bgColorPicker.value = colors.bgColor;
-        sbColorPicker.value = colors.sbColor;
-        sbTColorPicker.value = colors.sbTColor;
-
-        document.documentElement.style.setProperty('--text-color', colors.textColor);
-        document.documentElement.style.setProperty('--content-background', colors.bgColor);
-        document.documentElement.style.setProperty('--sidebar-background', colors.sbColor);
-        document.documentElement.style.setProperty('--header-background', colors.sbColor);
-        document.documentElement.style.setProperty('--button-background', colors.sbColor);
-        document.documentElement.style.setProperty('--background-color', colors.sbColor);
-        document.documentElement.style.setProperty('--button-text-color', colors.sbTColor);
-        document.documentElement.style.setProperty('--sidebar-text-color', colors.sbTColor);
-        document.documentElement.style.setProperty('--header-text-color', colors.sbTColor);
-        const headerColor = getComputedStyle(document.documentElement).getPropertyValue('--header-background');
-        const headerColorWithOpacity = headerColor + '80'; // Adding 80 for 0.5 opacity in hex
-        document.documentElement.style.setProperty('--button-hover-color-view', headerColorWithOpacity);
-    }
-
-
-    // Load colors from server
-    fetch('/api/colors')
-        .then(response => response.json())
-        .then(colors => {
-            applyColors(colors);
-        });
-
     // Save colors to server and local storage
     saveButton.addEventListener('click', function() {
         const colors = {
@@ -55,27 +26,32 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(() => {
-            applyColors(colors);
-            localStorage.setItem('textColor', colors.textColor);
-            localStorage.setItem('bgColor', colors.bgColor);
-            localStorage.setItem('sbColor', colors.sbColor);
-            localStorage.setItem('sbTColor', colors.sbTColor);
+            location.reload();
         });
     });
+
+    function setColors() {
+        fetch('/api/colors')
+            .then(response => response.json())
+            .then(colors => {
+                textColorPicker.value = colors.textColor;
+                bgColorPicker.value = colors.bgColor;
+                sbColorPicker.value = colors.sbColor;
+                sbTColorPicker.value = colors.sbTColor;
+            });
+    }
+
+    
 
     // Reset colors to default
     resetButton.addEventListener('click', function() {
         fetch('/api/colors/reset', {
-            method: 'GET'
+            method: 'POST'
         })
         .then(response => response.json())
-        .then(defaultColors => {
-            applyColors(defaultColors);
-
-            localStorage.setItem('textColor', defaultColors.textColor);
-            localStorage.setItem('bgColor', defaultColors.bgColor);
-            localStorage.setItem('sbColor', defaultColors.sbColor);
-            localStorage.setItem('sbTColor', defaultColors.sbTColor);
+        .then(() => {
+            location.reload();
         });
+        
     });
 });

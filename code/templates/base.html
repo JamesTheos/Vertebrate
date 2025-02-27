@@ -7,39 +7,10 @@
 
     <script>
         
-        (function() {
-            fetch('/api/colors')
-                .then(response => response.json())
-                .then(data => {
-                    const defaultColors = {
-                        textColor: data.textColor,
-                        bgColor: data.bgColor,
-                        sbColor: data.sbColor,
-                        sbTColor: data.sbTColor
-                    };
-
-                    const localColors = {
-                        textColor: localStorage.getItem('textColor') || defaultColors.textColor,
-                        bgColor: localStorage.getItem('bgColor') || defaultColors.bgColor,
-                        sbColor: localStorage.getItem('sbColor') || defaultColors.sbColor,
-                        sbTColor: localStorage.getItem('sbTColor') || defaultColors.sbTColor
-                    };
-
-                    document.documentElement.style.setProperty('--text-color', localColors.textColor);
-                    document.documentElement.style.setProperty('--content-background', localColors.bgColor);
-                    document.documentElement.style.setProperty('--sidebar-background', localColors.sbColor);
-                    document.documentElement.style.setProperty('--header-background', localColors.sbColor);
-                    document.documentElement.style.setProperty('--button-background', localColors.sbColor);
-                    document.documentElement.style.setProperty('--background-color', localColors.sbColor);
-                    document.documentElement.style.setProperty('--button-text-color', localColors.sbTColor);
-                    document.documentElement.style.setProperty('--sidebar-text-color', localColors.sbTColor);
-                    document.documentElement.style.setProperty('--header-text-color', localColors.sbTColor);
-                    const headerColor = getComputedStyle(document.documentElement).getPropertyValue('--header-background');
-                    const headerColorWithOpacity = headerColor + '80'; // Adding 80 for 0.5 opacity in hex
-                    document.documentElement.style.setProperty('--button-hover-color-view', headerColorWithOpacity);
-                });
-        })();
-        
+        const headerColor = "{{ appconfig.SidebarColor }}"; 
+        const headerColorWithOpacity = headerColor + '80'; // Adding 80 for 0.5 opacity in hex
+        document.documentElement.style.setProperty('--button-hover-color-view', headerColorWithOpacity);
+         
     </script>
     <script src="{{ url_for('static', filename='js/settingssidebar.js') }}" defer></script>
 
@@ -58,21 +29,21 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
     <style>
         :root {
-            --background-color: #02000e;
-            --text-color: #02000e;
+            --background-color: {{ appconfig.SidebarColor }};
+            --text-color: {{ appconfig.TextColor }};
 
-            --header-background: #02000e; 
-            --header-text-color: #ffffff;
+            --header-background: {{ appconfig.SidebarColor }}; 
+            --header-text-color: {{ appconfig.SidebarTextColor }};
 
-            --sidebar-background: #02000e; 
-            --sidebar-text-color: #ffffff;
+            --sidebar-background: {{ appconfig.SidebarColor }}; 
+            --sidebar-text-color: {{ appconfig.SidebarTextColor }};
 
-            --button-background: #02000e;
+            --button-background: {{ appconfig.SidebarColor }};
             --button-hover-color:rgba(255, 255, 255, 0.1); 
             --button-hover-color-view:rgba(2, 0, 14, 0.5);
-            --button-text-color: #ffffff;
+            --button-text-color: {{ appconfig.SidebarTextColor }};
             
-            --border-color: #02000e;
+            --border-color: {{ appconfig.SidebarColor }};
             --border-focus-color: #66afe9;
 
             --card-background: #f0f2f5;
@@ -83,7 +54,7 @@
             --dropdown-border: #ccc;
             --table-border: #ddd;
 
-            --content-background: #f0f2f5;
+            --content-background: {{ appconfig.BackgroundColor }};
         } 
         body {
             font-family: 'Segoe UI','sans-serif','Tahoma',  'Geneva', Verdana;
@@ -145,7 +116,7 @@
         </div>
         <div class="user-info">
             <img src="{{ url_for('static', filename='images/icons/user.svg') }}" alt="User" class="user-icon" style="width: 32px; height: 32px;">
-            <span class="user-name" id="user-name">User Name</span>
+            <span class="user-name" id="user-name">{{appconfig.Username}}</span>
 
         </div>
         <div class="settings">

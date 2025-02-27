@@ -29,20 +29,7 @@ area = config['area']
 process_cell = config['process_cell']
 unit= config['unit'] 
 
-defautcolors = {
-    'textColor': '#02000e',
-    'bgColor': '#f0f2f5',
-    'sbColor': '#02000e',
-    'sbTColor': '#ffffff'
-}
 
-
-colors = {
-    'textColor': '#02000e',
-    'bgColor': '#f0f2f5',
-    'sbColor': '#02000e',
-    'sbTColor': '#ffffff'
-}
 
 
 
@@ -129,7 +116,12 @@ def consume_messages():
 
 
 
-
+@app.context_processor
+def inject_config():
+    config_path = os.path.join(os.path.dirname(__file__), 'appconfig.json')
+    with open(config_path) as config_file:
+        config = json.load(config_file)
+    return dict(appconfig=config)
 #######################################################################################
 #main route
 @app.route('/')
@@ -348,24 +340,64 @@ def processinstructions():
 def settings():
     return render_template('settings.html')
 
-#API Call to get the current the colors
-@app.route('/api/colors', methods=['GET'])
-def get_colors():
-    return jsonify(colors)
 
-#API Call to save the colors
+
+# API Call to save the colors
 @app.route('/api/colors', methods=['POST'])
 def save_colors():
-    global colors
-    colors = request.json
+    new_colors = request.json
+    
+    # Update the colors in the config file
+    config_path = os.path.join(os.path.dirname(__file__), 'appconfig.json')
+    with open(config_path) as config_file:
+        config = json.load(config_file)
+    
+    # Overwrite current color values with new values
+    config['TextColor'] = new_colors['textColor']
+    config['BackgroundColor'] = new_colors['bgColor']
+    config['SidebarTextColor'] = new_colors['sbTColor']
+    config['SidebarColor'] = new_colors['sbColor']
+
+    with open(config_path, 'w') as config_file:
+        json.dump(config, config_file, indent=4)
+    
     return jsonify(success=True)
 
-#API Call to get the default colors and reset the colors
-@app.route('/api/colors/reset', methods=['GET'])
-def reset_colors():
-    global colors
-    colors = defautcolors
+@app.route('/api/colors', methods=['GET'])
+def get_colors():
+    config_path = os.path.join(os.path.dirname(__file__), 'appconfig.json')
+    with open(config_path) as config_file:
+        config = json.load(config_file)
+        
+    colors = {
+            'textColor': config.get('TextColor'),
+            'bgColor': config.get('BackgroundColor'),
+            'sbTColor': config.get('SidebarTextColor'),
+            'sbColor': config.get('SidebarColor')
+    }
+        
     return jsonify(colors)
+
+@app.route('/api/colors/reset', methods=['POST'])
+def reset_colors():
+    config_path = os.path.join(os.path.dirname(__file__), 'appconfig.json')
+    with open(config_path) as config_file:
+        config = json.load(config_file)
+    
+    # Overwrite current color values with default values
+    config['TextColor'] = config['defaultTextColor']
+    config['BackgroundColor'] = config['defaultBackgroundColor']
+    config['SidebarTextColor'] = config['defaultSidebarTextColor']
+    config['SidebarColor'] = config['defaultSidebarColor']
+
+    with open(config_path, 'w') as config_file:
+        json.dump(config, config_file, indent=4)
+
+    return jsonify(success=True)
+
+
+
+
 
 @app.route('/plantconfig')
 def plantconfig():
@@ -395,6 +427,23 @@ def save_plant_config():
     unit = new_config['unit']
     
     return jsonify({'status': 'Configuration saved successfully'})
+
+@app.route('/api/login', methods=['POST'])
+def login():
+
+    username = request.json.get('username')
+    password = request.json.get('password')
+
+    config_path = os.path.join(os.path.dirname(__file__), 'appconfig.json')
+    with open(config_path) as config_file:
+        config = json.load(config_file)
+
+    config['Username'] = username
+
+    with open(config_path, 'w') as config_file:
+        json.dump(config, config_file, indent=4)
+
+    return jsonify({'status': 'Username saved successfully'})
 
 # ############################################################################################################
 # # Chatbot route

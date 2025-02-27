@@ -5,10 +5,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const userNameField = document.getElementById("user-name");
     const closeButton = document.getElementById("close-login");
 
-    const storedUserName = localStorage.getItem("userName");
-    if (storedUserName) {
-        userNameField.textContent = storedUserName;
-    }
 
     userInfo.onclick = function() {
         modal.style.display = "block";
@@ -18,11 +14,32 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.style.display = "none"; 
     }
 
-    loginButton.onclick = function() {
+    loginButton.onclick = async function() {
         const userName = document.getElementById("username").value;
-        localStorage.setItem("userName", userName);
-        userNameField.textContent = userName; 
-        modal.style.display = "none";
+        const password = document.getElementById("password").value;
+
+        try {
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username: userName, password: password })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                console.log('Login successful:', result);
+                modal.style.display = "none";
+                location.reload(); 
+            } else {
+                console.error('Login failed:', response.statusText);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+
+        
     }
 
     
