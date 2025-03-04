@@ -2,7 +2,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const modal = document.getElementById("loginModal");
     const userInfo = document.querySelector(".user-info");
     const loginButton = document.querySelector(".button-style-login");
-    const userNameField = document.getElementById("user-name");
     const closeButton = document.getElementById("close-login");
 
 
@@ -11,6 +10,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     closeButton.onclick = function() { 
+        event.preventDefault();
         modal.style.display = "none"; 
     }
 
