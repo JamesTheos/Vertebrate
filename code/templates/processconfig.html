@@ -1,0 +1,40 @@
+{% extends "basesettings.html" %}
+
+{% block title %}Process Configuration{% endblock %}
+{% block header_title %}Process Configuration{% endblock %}
+
+{% block content %}
+
+<div></div>
+    <div class = "row-proconf">Option 1: <button class="button-style-processconfig">Confirm</button></div>
+
+    <div class = "row-proconf">Option 2: 
+        <button class="button-style-processconfig">Yes</button>
+        <button class="button-style-processconfig">No</button>
+    </div>
+
+    <div class = "row-proconf">Option 3: <button class="button-style-processconfig">Confirm</button></div>
+
+    <div class = "row-proconf">Option 4: 
+        <button class="button-style-processconfig">Yes</button>
+        <button class="button-style-processconfig">No</button>
+    </div>
+    <button type="submit" class="button-style-processconfig">Save Workflow</button>
+
+
+
+    <div id="successModalProcConf" class="modal-procConfig">
+        <div class="modal-content-procConfig">
+            <div><strong>Workflow saved successfully!</strong></div>
+            <button class="button-style-processconfig close-button">Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.querySelector('.close-button').addEventListener('click', function() {
+        const modal = document.getElementById('successModal');
+        modal.style.display = 'none';
+    });
+</script>
+{% endblock %}

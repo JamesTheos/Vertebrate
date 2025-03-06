@@ -1,12 +1,12 @@
 .color-picker-table {
     display: block;
-    width: 25%; /* Adjust width to fit the container */
+    width: 25%; 
 }
 
 .color-picker-row {
     display: flex;
     align-items: center;
-    margin-bottom: 10px; /* Add margin to create space between rows */
+    margin-bottom: 10px;
 }
 
 .color-picker-row label {
@@ -21,7 +21,7 @@
 
 .color-picker {
     width: 100px;
-    height: 40px;
+    height: 40px; 
     border: 1px solid var(--dropdown-border); 
     border-radius: 4px;
     background-color: var(--dropdown-background);

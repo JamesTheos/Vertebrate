@@ -406,6 +406,10 @@ def plantconfig():
         config = json.load(config_file)
     return render_template('plantconfig.html', config=config)
 
+@app.route('/processconfig')
+def processconfig():
+    return render_template('processconfig.html')
+
 @app.route('/save-plant-config', methods=['POST'])
 def save_plant_config():
     new_config = request.json
