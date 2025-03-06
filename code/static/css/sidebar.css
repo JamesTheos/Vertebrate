@@ -11,23 +11,17 @@
     top: 0;
     left: 0;
 }
-#sidebar.show-sidebar {
-    display: block; /* Show when 'show-sidebar' class is added */
-} 
 
 
-#settings-sidebar.show-sidebar {
-    display: block; /* Show when 'show-sidebar' class is added */
-}
 
 
-.sidebar a, .settings-sidebar a{
+.sidebar a{
     text-decoration: none;
     color: var(--sidebar-text-color);
 }
 
 
-.logo, .logo-settings{
+.logo{
     font-size: 20px;
     font-weight: bold;
     padding-left: 16px;
@@ -37,13 +31,22 @@
     align-items: center;
 }
 
-.menu-content, .menu-content-settings{
+.menu-content{
     position: relative;
     height: 100%;
     width: 100%;
     margin-top: 10px;
     overflow-y: scroll;
-    display: none;
+    visibility: hidden;
+}
+
+.menu-content-settings{
+    position: relative;
+    height: 100%;
+    width: 100%;
+    margin-top: 10px;
+    overflow-y: scroll;
+    visibility: hidden;
 }
 .menu-content::-webkit-scrollbar, .menu-content-settings::-webkit-scrollbar{
     display: none;
@@ -61,6 +64,7 @@
 .menu-topic{
     color: var(--sidebar-text-color);
     padding: 16px;
+    margin-right: 20px;
 }
 .item a,
 .item-settings a,
@@ -90,7 +94,7 @@
     height: 100%;
     width: 100%;
     top: 0;
-    right: calc(-100% - 26px);
+    right: calc(-100% - 30px);
     background: var(--sidebar-background);
     display: none;
 }
@@ -109,3 +113,24 @@
     vertical-align: text-bottom;
 }
 
+#sidebar, #settings-sidebar {
+    position: absolute; /* Beide Sidebars absolut positionieren, damit sie sich überlappen */
+    top: 70;
+    left: 10;
+    width: 100%;
+    height: 100%;
+    visibility: hidden; /* Standardmäßig unsichtbar */
+    transition: opacity 0.3s ease;
+    opacity: 0;
+}
+
+#sidebar.show-sidebar {
+    visibility: visible; /* Show when 'show-sidebar' class is added */
+    opacity: 1;
+} 
+
+
+#settings-sidebar.show-sidebar {
+    visibility: visible; /* Show when 'show-sidebar' class is added */
+    opacity: 1;
+}

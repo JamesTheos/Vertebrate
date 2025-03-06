@@ -19,44 +19,42 @@
     }
 
     
-    .scada-grid{
-        width: 200px;
-    }
 
     .scada-group{
         display: grid;
-        grid-template-columns: 125px 50px;
-        background-color: rgb(233, 233, 233);
+        grid-template-columns: 30px auto 50px auto;
         border-radius: 5px;
-        padding-right: 2px;
-        padding-left: 2px;
         align-items: center;
         border-style: solid;
+        padding-left: 5px;
+        padding-right: 10px;
+        height: 40px;
         border-width: 1px;
-        border-color: var(--border-color); 
-        box-shadow: 0 4px 8px rgba(253, 0, 0, 0.178);
+        border-color: var(--border-color);
+        background-color: var(--background-color);
+        color: var(--header-text-color);
+        gap: 10px;
+        box-sizing: border-box;
     }
     
     .scada-value{
-        background-color:  rgb(233, 233, 233);
-        border-radius: 10px;
-        margin-top: 2px;
-        margin-bottom: 2px;
-        text-align: left;
-        padding-left: 1px;
-        padding-right: 5px;
-        font-size: 15px;
-        font-weight: bold;
+        background-color: var(--content-background);
+        color: var(--text-color);
+        border-radius: 6px;
+        text-align: center;
+        width: 100%; 
+        overflow: hidden; 
+        white-space: nowrap; 
     }
 
     .overall-grid-scada{
-        padding-top: 20px;
-        padding-bottom: 20px;
-        padding-left: 40px;
-        padding-right: 40px;
         display: flex;
         flex-direction: row;
         justify-content: space-between;
+        padding-top: 40px;
+        padding-bottom: 40px;
+        padding-right: 40px;
+        padding-left: 40px;
     }
 
 </style>
@@ -68,26 +66,34 @@
  <div class="overall-grid-scada">
     <div class="scada-grid">
         <div class="scada-group">
-            <div class="scada-value-name">Ambient Temp (degC):</div>
+            <img src="{{url_for('static', filename='images/icons/thermometer.svg')}}"  class="scada-icon">
+            <div class="scada-value-name">Ambient Temp.:</div>
             <div id="ISPEAmbTempvalue" class="scada-value">N/A</div>
+            <div class="scada-value-unit">[°C]</div>
         </div>
     </div>
     <div class="scada-grid">
         <div class="scada-group">
-            <div class="scada-value-name">Material Temp (degC):</div>
+            <img src="{{url_for('static', filename='images/icons/thermometer.svg')}}"  class="scada-icon">
+            <div class="scada-value-name">Material Temp.:</div>
             <div id="ISPEMTempvalue" class="scada-value">N/A</div>
+            <div class="scada-value-unit">[°C]</div>
         </div>
     </div>
     <div class="scada-grid">
         <div class="scada-group">
-            <div class="scada-value-name">Filling Speed (units/min):</div>
+            <img src="{{url_for('static', filename='images/icons/speed.svg')}}"  class="scada-icon">
+            <div class="scada-value-name">Filling Speed:</div>
             <div id="ISPESpeedvalue" class="scada-value">N/A</div>
+            <div class="scada-value-unit">[units/min]</div>
         </div>
     </div>
     <div class="scada-grid">
         <div class="scada-group">
-            <div class="scada-value-name">Pressure (barg):</div>
+            <img src="{{url_for('static', filename='images/icons/speed.svg')}}"  class="scada-icon">
+            <div class="scada-value-name">Pressure:</div>
             <div id="ISPEPressurevalue" class="scada-value">N/A</div>
+            <div class="scada-value-unit">[bar]</div>
         </div>
     </div>
  </div>

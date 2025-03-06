@@ -77,29 +77,29 @@
 }
 
 .button-pi:disabled {
-    background-color: rgba(0, 0, 0, 0.5); /* Change background color for disabled buttons */
-    color:rgb(224, 224, 224); /* Change text color for disabled buttons */
-    cursor: not-allowed; /* Change cursor for disabled buttons */
-    opacity: 0.6; /* Adjust opacity for disabled buttons */
+    background-color: rgba(0, 0, 0, 0.5); 
+    color:rgb(224, 224, 224); 
+    cursor: not-allowed; 
+    opacity: 0.6; 
 }
 
 .dropdown-pi{
     width: 30%;
     padding: 10px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--dropdown-border);
     border-radius: 4px;
-    background-color: #f9f9f9;
+    background-color: var(--dropdown-background-color);
     font-size: 16px;
-    color: #333;
+    color: var(--dropdown-text-color);
     margin-bottom: 10px;
     cursor: pointer;
 }
 
 .dropdown-pi:disabled {
-    background-color: #eee; /* Change background color for disabled dropdowns */
-    color: #666; /* Change text color for disabled dropdowns */
-    cursor: not-allowed; /* Change cursor for disabled dropdowns */
-    opacity: 0.6; /* Adjust opacity for disabled dropdowns */
+    background-color: #eee; 
+    color: #666; 
+    cursor: not-allowed; 
+    opacity: 0.6; 
 }
 
 

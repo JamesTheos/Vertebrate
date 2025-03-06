@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}My Application{% endblock %}</title>
+
+    <script>
+        
+        const headerColor = "{{ appconfig.SidebarColor }}"; 
+        const headerColorWithOpacity = headerColor + '80'; 
+        document.documentElement.style.setProperty('--button-hover-color-view', headerColorWithOpacity);
+         
+    </script>
+   
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/plantconfig.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+    <style>
+        :root {
+            --background-color: {{ appconfig.SidebarColor }};
+            --text-color: {{ appconfig.TextColor }};
+
+            --header-background: {{ appconfig.SidebarColor }}; 
+            --header-text-color: {{ appconfig.SidebarTextColor }};
+
+            --sidebar-background: {{ appconfig.SidebarColor }}; 
+            --sidebar-text-color: {{ appconfig.SidebarTextColor }};
+
+            --button-background: {{ appconfig.SidebarColor }};
+            --button-hover-color:rgba(255, 255, 255, 0.1); 
+            --button-hover-color-view:rgba(2, 0, 14, 0.5);
+            --button-text-color: {{ appconfig.SidebarTextColor }};
+            
+            --border-color: {{ appconfig.SidebarColor }};
+            --border-focus-color: #66afe9;
+
+            --card-background: #f0f2f5;
+            --card-shadow: 0 4prgb(3, 3, 3)gba(0, 0, 0, 0.1);
+            
+            --dropdown-textcolor: #333;
+            --dropdown-background: #f9f9f9;
+            --dropdown-border: #ccc;
+            --table-border: #ddd;
+
+            --content-background: {{ appconfig.BackgroundColor }};
+        } 
+        body {
+            font-family: 'Segoe UI','sans-serif','Tahoma',  'Geneva', Verdana;
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+            margin: 0px;
+            padding: 0px;
+            background-color: var(--background-color);
+        }
+       
+       
+        
+        .content {
+            margin-left: 260px;
+            margin-top: 70px;
+            margin-bottom: 20px;
+            margin-right: 20px;
+            border-radius: 12px;
+            border-width: 5px;
+            padding: 20px;
+            background-color: var(--content-background);
+            height: calc(100vh - 130px);
+            width: calc(100% - 320px);
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+            overflow: auto;
+        }
+
+        .content::-webkit-scrollbar {
+            display: none;
+        }
+            
+       
+    </style>
+</head>
+
+
+
+<body>
+
+    <!-- 
+    ********************************************************************************************************************
+
+    HEADER DEFINITION
+
+    ********************************************************************************************************************
+     -->
+
+    <div class="header">
+        <!-- <div class="rome-title">ISPE - Rome Demo</div> -->
+        <div class="left-section">
+            {% block header_title %}Welcome Screen{% endblock %}
+        </div>      
+        <div class="middle-section">
+
+        </div>
+        <div class="user-info">
+            <img src="{{ url_for('static', filename='images/icons/user.svg') }}" alt="User" class="user-icon" style="width: 32px; height: 32px;">
+            <span class="user-name" id="user-name">{{appconfig.Username}}</span>
+
+        </div>
+        <a href="/" class="settings active"> 
+            <img src="{{ url_for('static', filename='images/icons/settings.svg') }}" alt="Settings" class="settings-icon" style="width: 32px; height: 32px;">
+        </a>
+        <div class="right-section" id="datetime">
+
+        </div>
+        
+    </div>
+
+
+    <div id="loginModal" class="modal-login">
+        <div class="modal-content-login">
+            <form>
+                <div class="form-group-login">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" class="input-style-login" name="username">
+                </div>
+                <div class="form-group-login">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" class="input-style-login" name="password">
+                </div>
+                <button class="button-style-login">Log In</button>
+                <button id = "close-login" class="button-style-login">Close</button>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- 
+    ********************************************************************************************************************
+
+    SIDEBAR DEFINITION
+
+    ********************************************************************************************************************
+     -->
+    <nav class = "sidebar"> 
+        <div href="/" class="logo">ISPE Demo</div>
+
+        <div id = "settings-sidebar" class = "menu-content-settings show-sidebar">
+            <div class = "menu-items-setting">
+                <div class = "item-settings"> 
+                    <a href="/settings">Settings</a>
+                </div>
+                <div class = "item-settings"> 
+                    <a href="/plantconfig">Plant Configuration</a>
+                </div>
+                <div class = "item-settings"> 
+                    <a href="/Process Configuration">Process Configuration</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 
+    ********************************************************************************************************************
+
+    CONTENT DEFINITION
+
+    ********************************************************************************************************************
+     -->
+
+    <div class="content">
+        {% block content %}{% endblock %}
+    </div>
+
+    <script>
+    function updateDateTime() {
+        const now = new Date();
+        const options = { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+        document.getElementById('datetime').textContent = now.toLocaleDateString('en-US', options).replace(',', '');
+    }
+    setInterval(updateDateTime, 1000);
+    updateDateTime();  
+
+    </script>
+   
+    <script src="{{ url_for('static', filename='js/login.js') }}" defer></script>
+   
+</body>
+</html>
+

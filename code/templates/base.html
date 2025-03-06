@@ -12,7 +12,6 @@
         document.documentElement.style.setProperty('--button-hover-color-view', headerColorWithOpacity);
          
     </script>
-    <script src="{{ url_for('static', filename='js/settingssidebar.js') }}" defer></script>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
@@ -86,14 +85,9 @@
         .content::-webkit-scrollbar {
             display: none;
         }
-            
-                
-
-
-
+                      
     </style>
 </head>
-
 
 
 <body>
@@ -119,15 +113,13 @@
             <span class="user-name" id="user-name">{{appconfig.Username}}</span>
 
         </div>
-        <div class="settings">
+        <a href="/settings" class="settings">
             <img src="{{ url_for('static', filename='images/icons/settings.svg') }}" alt="Settings" class="settings-icon" style="width: 32px; height: 32px;">
-        </div>
+        </a>
         <div class="right-section" id="datetime">
 
-        </div>
-        
+        </div>        
     </div>
-
 
     <div id="loginModal" class="modal-login">
         <div class="modal-content-login">
@@ -157,18 +149,7 @@
     <nav class = "sidebar"> 
         <div href="/" class="logo">ISPE Demo</div>
 
-        <div id = "settings-sidebar" class = "menu-content-settings">
-            <div class = "menu-items-setting">
-                <div class = "item-settings"> 
-                    <a href="/settings">Settings</a>
-                </div>
-                <div class = "item-settings"> 
-                    <a href="/plantconfig">Plant Configuration</a>
-                </div>
-            </div>
-        </div>
-
-        <div id = "sidebar" class = "menu-content">
+        <div id = "sidebar" class = "menu-content show-sidebar">
             <div class = "menu-items">
 
 
@@ -340,8 +321,6 @@
         </div>
     </div> -->
 
-
-
     <script>
     function updateDateTime() {
         const now = new Date();
@@ -351,34 +330,9 @@
     setInterval(updateDateTime, 1000);
     updateDateTime();  
 
-// JavaScript to handle button selection and maintain state
-        document.addEventListener('DOMContentLoaded', function() {
-            const buttons = document.querySelectorAll('.nav-button');
-            const activeButton = localStorage.getItem('activeButton');
-
-            if (activeButton) {
-                const activeElement = document.querySelector(`.nav-button[href="${activeButton}"]`);
-                if (activeElement) {
-                    activeElement.classList.add('button-active');
-                }
-            }
-
-            buttons.forEach(button => {
-                button.addEventListener('click', function(event) {
-                    buttons.forEach(btn => btn.classList.remove('button-active'));
-                    this.classList.add('button-active');
-                    localStorage.setItem('activeButton', this.getAttribute('href'));
-                });
-            });
-
-        });
-       
-         
-       
     </script>
     <script src="{{ url_for('static', filename='js/chatbot.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}" defer></script>
-    
     <script src="{{ url_for('static', filename='js/login.js') }}" defer></script>
    
 </body>

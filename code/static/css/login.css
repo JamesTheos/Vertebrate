@@ -14,7 +14,7 @@
     background-color: var(--content-background);
     margin: 15% auto; 
     padding: 20px;
-    border: 1px solid #888;
+    border: 1px solid var(--table-border);
     width: 400px; 
     height: 25%;
 
@@ -43,7 +43,7 @@
     padding: 10px;
     margin: 5px 0;
     box-sizing: border-box;
-    border: 1px solid #ccc;
+    border: 1px solid var(--dropdown-border);
     border-radius: 4px;
     background-color: var(--content-background);
     font-size: 16px;
