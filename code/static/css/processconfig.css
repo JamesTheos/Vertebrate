@@ -19,9 +19,10 @@
 }
 
 #workflow-select {
-    width: 70%;
+    width: 400px;
     height: 40px;
 }
+
 
 
 .option-table {
@@ -112,7 +113,19 @@
     transition: border-color 0.3s, box-shadow 0.3s;
 }
 
-.input-style-proc:focus {
+.option-input{
+    width: 100%;
+    padding: 10px;
+    margin: 0px 0;
+    box-sizing: border-box;
+    border: 1px solid var(--dropdown-border);
+    border-radius: 4px;
+    background-color: var(--dropdown-background);
+    font-size: 16px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.input-style-proc:focus, .option-input:focus {
     border-color: var(--border-focus-color);
     box-shadow: 0 0 8px rgba(102, 175, 233, 0.6);
     outline: none;
