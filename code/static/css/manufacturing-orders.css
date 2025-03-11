@@ -72,3 +72,15 @@
 .close-button{
     margin-top: 20px;
 }
+
+.workflow-dropdown {
+    width: 400px;
+    padding: 10px;
+    border: 1px solid var(--dropdown-border);
+    border-radius: 4px;
+    background-color: var(--dropdown-background);
+    font-size: 16px;
+    color: var(--dropdown-textcolor);
+    margin-bottom: 10px;
+    cursor: pointer;
+}

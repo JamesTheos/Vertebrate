@@ -5,36 +5,236 @@
 
 {% block content %}
 
-<div></div>
-    <div class = "row-proconf">Option 1: <button class="button-style-processconfig">Confirm</button></div>
-
-    <div class = "row-proconf">Option 2: 
-        <button class="button-style-processconfig">Yes</button>
-        <button class="button-style-processconfig">No</button>
-    </div>
-
-    <div class = "row-proconf">Option 3: <button class="button-style-processconfig">Confirm</button></div>
-
-    <div class = "row-proconf">Option 4: 
-        <button class="button-style-processconfig">Yes</button>
-        <button class="button-style-processconfig">No</button>
-    </div>
-    <button type="submit" class="button-style-processconfig">Save Workflow</button>
 
 
-
-    <div id="successModalProcConf" class="modal-procConfig">
-        <div class="modal-content-procConfig">
-            <div><strong>Workflow saved successfully!</strong></div>
-            <button class="button-style-processconfig close-button">Close</button>
+<div class="config-container">
+    <div class="config-table">
+        <div class="form-group-procconf">
+            <input type="text" class="input-style-proc" id="workflow-name" placeholder="Workflow Name" required>
         </div>
+        <table class="option-table">
+            <thead>
+                <tr>
+                    <th>Option</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="option-columns-text" data-option-id="1">Option 1</td>
+                    <td class="option-columns-buttons">
+                        <button class="button-style-processconfig">Confirm</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="option-columns-text" data-option-id="2">Option 2</td>
+                    <td class="option-columns-buttons">
+                        <button class="button-style-processconfig">Yes</button>
+                        <button class="button-style-processconfig">No</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="option-columns-text" data-option-id="3">Option 3</td>
+                    <td class="option-columns-buttons">
+                        <button class="button-style-processconfig">Confirm</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="option-columns-text" data-option-id="4">Option 4</td>
+                    <td class="option-columns-buttons">
+                        <button class="button-style-processconfig">Yes</button>
+                        <button class="button-style-processconfig">No</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="save-button-container">
+            <button type="submit" class="button-style-processconfig-save" id="savebutton">Save Workflow</button>
+        </div>
+    </div>
+    <div class="config-dropdown">
+        <div class="form-group-procconf">
+            <select id="workflow-select" class="input-style-proc">
+                <option>Select Workflow</option>
+            </select>
+        </div class="form-group-procconf">   
+        <div class="preview-container" id="preview-container" style="display: none;">
+            <div id="workflow-preview" class="workflow-preview">
+                <table class="option-table">
+                    <thead>
+                        <tr>
+                            <th class="option-columns-text">Option</th>
+                            <th class="option-columns-buttons">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="workflow-preview-body">
+                    </tbody>
+                </table>
+            </div>
+            <div class="button-container"></div>
+                <button id="release-workflow" class="button-style-processconfig-save">Release</button>
+                <button id="delete-workflow" class="button-style-processconfig-save">Delete</button>
+            </div>  
+        </div> 
     </div>
 </div>
 
+
+
+
+<div id="successModalProcConf" class="modal-procConfig">
+    <div class="modal-content-procConfig">
+        <div><strong>Workflow saved successfully!</strong></div>
+        <button class="button-style-processconfig-close close-button">Close</button>
+    </div>
+</div>
+
+<div id="noWorkflowNameModalProcConf" class="modal-procConfig">
+    <div class="modal-content-procConfig">
+        <div><strong>Saving workflow requires a name.</strong></div>
+        <button class="button-style-processconfig-close close-button">Close</button>
+    </div>
+</div>
+
+
 <script>
-    document.querySelector('.close-button').addEventListener('click', function() {
-        const modal = document.getElementById('successModal');
-        modal.style.display = 'none';
+     document.querySelectorAll('.button-style-processconfig').forEach(button => {
+        button.addEventListener('click', function() {
+            const row = this.closest('tr');
+            const isHighlighted = this.classList.contains('button-marked');
+            
+            row.querySelectorAll('.button-style-processconfig').forEach(btn => {
+                btn.classList.remove('button-marked');
+            });
+            
+            if (!isHighlighted) {
+                this.classList.add('button-marked');
+            }
+        });
     });
+
+
+    document.getElementById('savebutton').addEventListener('click', function(event) {
+        event.preventDefault();
+        
+        const workflowName = document.getElementById('workflow-name').value.trim();
+        if (!workflowName) {
+            const noNameModal = document.getElementById('noWorkflowNameModalProcConf');
+            noNameModal.style.display = 'block';
+        }
+
+
+        if(workflowName){
+            const selectedOptions = [];
+            document.querySelectorAll('.button-marked').forEach(button => {
+            const optionId = button.closest('tr').querySelector('.option-columns-text').dataset.optionId;
+            const buttonText = button.textContent.trim();
+            selectedOptions.push({ optionID: optionId, action: buttonText });
+            });
+
+            const data = {
+                workflowName: workflowName,
+                selectedOptions: selectedOptions
+            };
+
+            fetch('/save-workflow', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    const successModal = document.getElementById('successModalProcConf');
+                    successModal.style.display = 'block';
+
+                    fetchWorkflows();
+                    document.querySelectorAll('.button-marked').forEach(button => {
+                        button.classList.remove('button-marked');
+                    });
+
+                    document.getElementById('workflow-name').value = '';
+                } else {
+                    alert('Error saving workflow.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error saving workflow.');
+            });
+        }
+    });
+    
+    window.addEventListener('click', function(event) {
+        const modal1 = document.getElementById('successModalProcConf');
+        const modal2 = document.getElementById('noWorkflowNameModalProcConf');
+        if (event.target == modal1) {
+            modal.style.display = 'none';
+        }
+        if(event.target == modal2){
+            modal.style.display = 'none';
+        }
+    });
+
+    document.querySelectorAll('.close-button').forEach(button => {
+        button.addEventListener('click', function() {
+            const noNameModal = document.getElementById('noWorkflowNameModalProcConf');
+            const successModal = document.getElementById('successModalProcConf');
+            noNameModal.style.display = 'none';
+            successModal.style.display = 'none';
+        });
+    });
+
+      
+    function fetchWorkflows() {
+        fetch('/get-workflows')
+            .then(response => response.json())
+            .then(data => {
+                const workflowSelect = document.getElementById('workflow-select');
+                data.workflows.forEach(workflow => {
+                    const option = document.createElement('option');
+                    option.value = workflow;
+                    option.textContent = workflow;
+                    workflowSelect.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error fetching workflows:', error));
+    }
+
+    document.getElementById('workflow-select').addEventListener('change', function() {
+    const workflowName = this.value;
+    const previewContainer = document.getElementById('preview-container');
+    if (workflowName) {
+        fetch(`/get-workflow/${workflowName}`)
+            .then(response => response.json())
+            .then(data => {
+                const previewBody = document.getElementById('workflow-preview-body');
+                previewBody.innerHTML = ''; 
+                data.forEach(option => {
+                    const row = document.createElement('tr');
+                    const optionCell = document.createElement('td');
+                    const actionCell = document.createElement('td');
+                    
+                    const optionText = document.querySelector(`.option-columns-text[data-option-id="${option.optionID}"]`).textContent;
+                    
+                    optionCell.textContent = optionText; 
+                    actionCell.textContent = option.action;
+                    row.appendChild(optionCell);
+                    row.appendChild(actionCell);
+                    previewBody.appendChild(row);
+                });
+                previewContainer.style.display = 'block';
+            })
+            .catch(error => console.error('Error fetching workflow:', error));
+    } else {
+        document.getElementById('workflow-preview-body').innerHTML = '';
+        previewContainer.style.display = 'none';
+    }
+});
+
+
+    fetchWorkflows();
 </script>
 {% endblock %}

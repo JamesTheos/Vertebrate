@@ -432,6 +432,45 @@ def save_plant_config():
     
     return jsonify({'status': 'Configuration saved successfully'})
 
+
+@app.route('/save-workflow', methods=['POST'])
+def save_workflow():
+    data = request.json
+    workflow_name = data.get('workflowName')
+    
+    save_path = os.path.join(os.path.dirname(__file__), 'workflows')
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+
+    file_path = os.path.join(save_path, f'{workflow_name}.json')
+    with open(file_path, 'w') as json_file:
+        json.dump(data.get('selectedOptions'), json_file, indent=4)
+
+    return jsonify({'success': True, 'message': 'Workflow saved successfully.'})
+
+@app.route('/get-workflows', methods=['GET'])
+def get_workflows():
+    save_path = os.path.join(os.path.dirname(__file__), 'workflows')
+    if not os.path.exists(save_path):
+        return jsonify({'workflows': []})
+
+    workflows = [f.split('.')[0] for f in os.listdir(save_path) if f.endswith('.json')]
+    return jsonify({'workflows': workflows})
+
+
+@app.route('/get-workflow/<workflow_name>', methods=['GET'])
+def get_workflow(workflow_name):
+    file_path = os.path.join(os.path.dirname(__file__), 'workflows', f'{workflow_name}.json')
+    if not os.path.exists(file_path):
+        return jsonify({'error': 'Workflow not found'}), 404
+
+    with open(file_path, 'r') as json_file:
+        data = json.load(json_file)
+
+    return jsonify(data)
+
+
+
 @app.route('/api/login', methods=['POST'])
 def login():
 
