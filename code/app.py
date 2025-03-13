@@ -7,6 +7,7 @@ from datetime import datetime
 from product_analytics_app import product_analytics_app
 from DesignSpaceApp import design_space_app  # Import the blueprint from the DesignSpaceApp module
 from process_qbd_analysis import process_qbd_analysis  # Import the process QbD analysis blueprint
+from processconfiguration import processconfiguration
 #from Nexus2PLC import nexus2plc
 #from Chatbot import Chatbot, query_llama  # Import the chatbot blueprint
 
@@ -40,6 +41,7 @@ app = Flask(__name__)
 app.register_blueprint(product_analytics_app)
 app.register_blueprint(design_space_app)
 app.register_blueprint(process_qbd_analysis)
+app.register_blueprint(processconfiguration)
 #app.register_blueprint(nexus2plc)
 # def restart_app():
 #     print("App: Restarting application in 5 seconds...", flush=True)
@@ -84,7 +86,8 @@ data_store = {
     'ISPEStartPhase1': [],
     'ISPESelectPhase1': [],
     'manufacturing_orders': [],
-    'order-management': []
+    'order-management': [],
+    'released_orders': []
 }
 
 def consume_messages():
@@ -141,13 +144,6 @@ def trending():
 #Orders route
 @app.route('/manufacturing-orders', methods=['GET', 'POST'])
 def manufacturing_orders():
-    # if request.method == 'POST':  not needed??? -->submit order call
-    #     order_data = request.json
-    #     order_data['status'] = 'Created'
-    #     producer.send('manufacturing_orders', order_data)
-    #     print(f"Order Created: {order_data}")
-    #     data_store['manufacturing_orders'].append(order_data)
-    #     return jsonify({'status': 'Order Created'}), 201
     return render_template('manufacturing-orders.html', orders=data_store['manufacturing_orders'])
 
 @app.route('/order-management', methods=['GET', 'POST'])
@@ -433,41 +429,7 @@ def save_plant_config():
     return jsonify({'status': 'Configuration saved successfully'})
 
 
-@app.route('/save-workflow', methods=['POST'])
-def save_workflow():
-    data = request.json
-    workflow_name = data.get('workflowName')
-    
-    save_path = os.path.join(os.path.dirname(__file__), 'workflows')
-    if not os.path.exists(save_path):
-        os.makedirs(save_path)
 
-    file_path = os.path.join(save_path, f'{workflow_name}.json')
-    with open(file_path, 'w') as json_file:
-        json.dump(data.get('selectedOptions'), json_file, indent=4)
-
-    return jsonify({'success': True, 'message': 'Workflow saved successfully.'})
-
-@app.route('/get-workflows', methods=['GET'])
-def get_workflows():
-    save_path = os.path.join(os.path.dirname(__file__), 'workflows')
-    if not os.path.exists(save_path):
-        return jsonify({'workflows': []})
-
-    workflows = [f.split('.')[0] for f in os.listdir(save_path) if f.endswith('.json')]
-    return jsonify({'workflows': workflows})
-
-
-@app.route('/get-workflow/<workflow_name>', methods=['GET'])
-def get_workflow(workflow_name):
-    file_path = os.path.join(os.path.dirname(__file__), 'workflows', f'{workflow_name}.json')
-    if not os.path.exists(file_path):
-        return jsonify({'error': 'Workflow not found'}), 404
-
-    with open(file_path, 'r') as json_file:
-        data = json.load(json_file)
-
-    return jsonify(data)
 
 
 

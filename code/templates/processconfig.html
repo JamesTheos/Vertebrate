@@ -58,6 +58,7 @@
             <div class="button-container"></div>
                 <button id="release-workflow" class="button-style-processconfig-save">Release</button>
                 <button id="delete-workflow" class="button-style-processconfig-save">Delete</button>
+                <button id="deactivate-workflow" class="button-style-processconfig-save">Deactivate</button>
             </div>  
         </div> 
     </div>
@@ -68,17 +69,12 @@
 
 <div id="successModalProcConf" class="modal-procConfig">
     <div class="modal-content-procConfig">
-        <div><strong>Workflow saved successfully!</strong></div>
+        <div id="genericMessage">Test</div>
         <button class="button-style-processconfig-close close-button">Close</button>
     </div>
 </div>
 
-<div id="noWorkflowNameModalProcConf" class="modal-procConfig">
-    <div class="modal-content-procConfig">
-        <div><strong>Saving workflow requires a name.</strong></div>
-        <button class="button-style-processconfig-close close-button">Close</button>
-    </div>
-</div>
+
 
 
 <script>
@@ -121,7 +117,8 @@
         
         const workflowName = document.getElementById('workflow-name').value.trim();
         if (!workflowName) {
-            const noNameModal = document.getElementById('noWorkflowNameModalProcConf');
+            const noNameModal = document.getElementById('successModalProcConf');
+            document.getElementById('genericMessage').innerHTML = '<strong>Please enter a workflow name!</strong>';
             noNameModal.style.display = 'block';
         }
 
@@ -152,6 +149,7 @@
             .then(result => {
                 if (result.success) {
                     const successModal = document.getElementById('successModalProcConf');
+                    document.getElementById('genericMessage').innerHTML = '<strong>Workflow saved successfully!</strong>';
                     successModal.style.display = 'block';
 
                     fetchWorkflows();
@@ -169,27 +167,21 @@
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Error saving workflow.');
+                alert('Error saving workflow.234');
             });
         }
     });
 
     window.addEventListener('click', function(event) {
-        const modal1 = document.getElementById('successModalProcConf');
-        const modal2 = document.getElementById('noWorkflowNameModalProcConf');
+        const modal1 = document.getElementById('successModalProcConf'); 
         if (event.target == modal1) {
-            modal.style.display = 'none';
-        }
-        if(event.target == modal2){
             modal.style.display = 'none';
         }
     });
 
     document.querySelectorAll('.close-button').forEach(button => {
         button.addEventListener('click', function() {
-            const noNameModal = document.getElementById('noWorkflowNameModalProcConf');
             const successModal = document.getElementById('successModalProcConf');
-            noNameModal.style.display = 'none';
             successModal.style.display = 'none';
         });
     });
@@ -240,6 +232,68 @@
         }
     });
 
+    document.getElementById('release-workflow').addEventListener('click', function() {
+        const workflowName = document.getElementById('workflow-select').value;
+        if (workflowName) {
+            fetch(`/release-workflow/${workflowName}`, {
+                method: 'POST'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const successModal = document.getElementById('successModalProcConf');
+                        document.getElementById('genericMessage').innerHTML = '<strong>Workflow released successfully!</strong>';
+                        successModal.style.display = 'block';
+                    } else {
+                        alert('Error releasing workflow.');
+                    }
+                })
+                .catch(error => console.error('Error releasing workflow:', error));
+        }
+    });
+    document.getElementById('delete-workflow').addEventListener('click', function() {
+        const workflowName = document.getElementById('workflow-select').value;
+        if (workflowName) {
+            fetch(`/delete-workflow/${workflowName}`, {
+                method: 'POST'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const successModal = document.getElementById('successModalProcConf');
+                        document.getElementById('genericMessage').innerHTML = '<strong>Workflow deleted successfully!</strong>';
+                        successModal.style.display = 'block';
+                        fetchWorkflows();
+                    } else {
+                        alert('Error deleting workflow.');
+                    }
+                })
+                .catch(error => console.error('Error deleting workflow:', error));
+        }
+    });
+
+    document.getElementById('deactivate-workflow').addEventListener('click', function() {
+        const workflowName = document.getElementById('workflow-select').value;
+        if (workflowName) {
+            fetch(`/deactivate-workflow/${workflowName}`, {
+                method: 'POST'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const successModal = document.getElementById('successModalProcConf');
+                        document.getElementById('genericMessage').innerHTML = '<strong>Workflow deactivated successfully!</strong>';
+                        successModal.style.display = 'block';
+                    } else {
+                        alert('Error deactivating workflow.');
+                    }
+                })
+                .catch(error => console.error('Error deactivating workflow:', error));
+        }
+    });
+
+
+    
 
 
     fetchWorkflows();
