@@ -22,7 +22,7 @@ kafka_produce_conf = {
 }
 producer = Producer(kafka_produce_conf)
 
-
+released_workflows = {}
 
 def send_to_kafka(topic, value):
     producer.produce(topic, key="FromUX", value=json.dumps(value).encode('utf-8'))
@@ -67,8 +67,12 @@ def get_workflow(workflow_name):
         return jsonify({'error': 'Workflow not found'}), 404
 
     with open(file_path, 'r') as json_file:
-        data = json.load(json_file)
-
+        workflows = json.load(json_file)
+        
+    data = {
+        'workflows': workflows,
+        'released_workflows': released_workflows
+    }
     return jsonify(data)
 
 @processconfiguration.route('/delete-workflow/<workflow_name>', methods=['POST'])
@@ -83,13 +87,14 @@ def delete_workflow(workflow_name):
 @processconfiguration.route('/deactivate-workflow/<workflow_name>', methods=['POST'])   
 def deactivate_workflow(workflow_name):
     send_to_kafka('workflows', {'workflow_name': workflow_name, 'released': 0})
-    print('Workflow deactivated', workflow_name)
+    released_workflows[workflow_name]['released'] = 0
         
     return jsonify({'success': True, 'message': 'Workflow deactivated successfully.'})
 
 @processconfiguration.route('/release-workflow/<workflow_name>', methods=['POST'])
 def release_workflow(workflow_name):
     send_to_kafka('workflows', {'workflow_name': workflow_name, 'released': 1})
-    print('Workflow activated' , workflow_name)
+    released_workflows[workflow_name] = {'released': 1}
+    print(released_workflows)
 
     return jsonify({'success': True, 'message': 'Workflow released successfully.'})

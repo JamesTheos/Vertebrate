@@ -151,7 +151,7 @@
                     const successModal = document.getElementById('successModalProcConf');
                     document.getElementById('genericMessage').innerHTML = '<strong>Workflow saved successfully!</strong>';
                     successModal.style.display = 'block';
-
+                    resetDropdownAndPreview();
                     fetchWorkflows();
                     document.querySelectorAll('.button-marked').forEach(button => {
                         button.classList.remove('button-marked');
@@ -206,13 +206,17 @@
   document.getElementById('workflow-select').addEventListener('change', function() {
         const workflowName = this.value;
         const previewContainer = document.getElementById('preview-container');
+        const releaseButton = document.getElementById('release-workflow');
+        const deactivateButton = document.getElementById('deactivate-workflow');
+        const deleteButton = document.getElementById('delete-workflow');
+
         if (workflowName) {
             fetch(`/get-workflow/${workflowName}`)
                 .then(response => response.json())
-                .then(data => {
+                .then(({ workflows, released_workflows })=> {
                     const previewBody = document.getElementById('workflow-preview-body');
                     previewBody.innerHTML = ''; // Clear previous preview
-                    data.forEach(option => {
+                    workflows.forEach(option => {
                         const row = document.createElement('tr');
                         const optionCell = document.createElement('td');
                         const actionCell = document.createElement('td');
@@ -224,13 +228,49 @@
                         previewBody.appendChild(row);
                     });
                     previewContainer.style.display = 'block';
+                    console.log(released_workflows);
+                    updateButtons(workflowName, released_workflows);
+                  
+                        
+                       
+                    
+                    
                 })
-                .catch(error => console.error('Error fetching workflow:', error));
+        .catch(error => console.error('Error fetching workflow:', error));
         } else {
             document.getElementById('workflow-preview-body').innerHTML = '';
             previewContainer.style.display = 'none';
         }
     });
+
+
+    function updateButtons(workflowName, releasedWorkflows) {
+        const releaseButton = document.getElementById('release-workflow');
+        const deactivateButton = document.getElementById('deactivate-workflow');
+        const deleteButton = document.getElementById('delete-workflow');
+
+        if (releasedWorkflows[workflowName] && releasedWorkflows[workflowName]['released'] === 1)
+        {
+            releaseButton.style.display = 'none';
+            deactivateButton.style.display = 'inline-block';
+            deleteButton.style.display = 'none';
+        }
+        else if (releasedWorkflows[workflowName] && releasedWorkflows[workflowName]['released'] === 0)
+        {
+            releaseButton.style.display = 'none';
+            deactivateButton.style.display = 'none';
+            deleteButton.style.display = 'none';
+        }
+        else
+        {
+            releaseButton.style.display = 'inline-block';
+            deactivateButton.style.display = 'none';
+            deleteButton.style.display = 'inline-block';
+        }
+
+       
+    
+    }
 
     document.getElementById('release-workflow').addEventListener('click', function() {
         const workflowName = document.getElementById('workflow-select').value;
@@ -244,6 +284,7 @@
                         const successModal = document.getElementById('successModalProcConf');
                         document.getElementById('genericMessage').innerHTML = '<strong>Workflow released successfully!</strong>';
                         successModal.style.display = 'block';
+                        resetDropdownAndPreview();
                     } else {
                         alert('Error releasing workflow.');
                     }
@@ -263,6 +304,7 @@
                         const successModal = document.getElementById('successModalProcConf');
                         document.getElementById('genericMessage').innerHTML = '<strong>Workflow deleted successfully!</strong>';
                         successModal.style.display = 'block';
+                        resetDropdownAndPreview();
                         fetchWorkflows();
                     } else {
                         alert('Error deleting workflow.');
@@ -284,6 +326,7 @@
                         const successModal = document.getElementById('successModalProcConf');
                         document.getElementById('genericMessage').innerHTML = '<strong>Workflow deactivated successfully!</strong>';
                         successModal.style.display = 'block';
+                        resetDropdownAndPreview();
                     } else {
                         alert('Error deactivating workflow.');
                     }
@@ -292,8 +335,21 @@
         }
     });
 
-
-    
+    function resetDropdownAndPreview() {
+        const workflowSelect = document.getElementById('workflow-select');
+        workflowSelect.selectedIndex = 0; 
+        const previewBody = document.getElementById('workflow-preview-body');
+        previewBody.innerHTML = ''; // Clear preview
+        const previewContainer = document.getElementById('preview-container');
+        previewContainer.style.display = 'none'; 
+        const releaseButton = document.getElementById('release-workflow');
+        const deactivateButton = document.getElementById('deactivate-workflow');
+        const deleteButton = document.getElementById('delete-workflow');
+        releaseButton.style.display = 'none';
+        deactivateButton.style.display = 'none';
+        deleteButton.style.display = 'none';
+    }
+        
 
 
     fetchWorkflows();
