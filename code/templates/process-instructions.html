@@ -5,18 +5,104 @@
 
 {% block content %}
 <div class="workflow-container">
+    <div class="order-dropdown">
+        <select id="order-select" class="order-selection-process-instr">
+            <option value="">Select Order</option>
+        </select>
+    </div>
     <div class="workflow-overview" id="workflow-overview">
         <!-- Workflow steps will be dynamically inserted here -->
     </div>
-
-    
-
-    <div class="workflow-sidebar">
-        <h3>Current Workflow Step</h3>
-        <div id="current-step">
-            <!-- Current workflow step will be displayed here -->
-        </div>
-    </div>
 </div>
-<script src="{{ url_for('static', filename='js/workflow.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        fetch('/api/released-orders')
+            .then(response => response.json())
+            .then(data => {
+                const orderSelect = document.getElementById('order-select');
+                data.orders.forEach(order => {
+                    const option = document.createElement('option');
+                    option.value = order.id;
+                    option.textContent = order.product;
+                    orderSelect.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error fetching released orders:', error));
+
+        document.getElementById('order-select').addEventListener('change', function() {
+            const ordername = this.options[this.selectedIndex].textContent;
+            if (ordername === 'Select Order') {
+                return;
+            }
+            fetch(`/api/get-workflow?ordername=${ordername}`)
+                .then(response => response.json())
+                .then(data => {
+                    const workflowOverview = document.getElementById('workflow-overview');
+                    workflowOverview.innerHTML = ''; 
+                    data.forEach((step, index) => {
+                        const stepDiv = document.createElement('div');
+                        stepDiv.className = 'workflow-step-process-instr';
+
+                        const stepText = document.createElement('p');
+                        stepText.textContent = step.option;
+                        stepDiv.appendChild(stepText);
+
+                        const buttonContainer = document.createElement('div');
+                        buttonContainer.className = 'button-container';
+
+                        if (step.action === 'Yes/No') {
+                            const yesButton = document.createElement('button');
+                            yesButton.className = 'button-style-process-instr';
+                            yesButton.textContent = 'Yes';
+                            buttonContainer.appendChild(yesButton);
+
+                            const noButton = document.createElement('button');
+                            noButton.className = 'button-style-process-instr';
+                            noButton.textContent = 'No';
+                            buttonContainer.appendChild(noButton);
+                        } else {
+                            const confirmButton = document.createElement('button');
+                            confirmButton.className = 'button-style-process-instr';
+                            confirmButton.textContent = 'Confirm';
+                            buttonContainer.appendChild(confirmButton);
+                        }
+
+                        stepDiv.appendChild(buttonContainer);
+                        workflowOverview.appendChild(stepDiv);
+
+                        // Mark the current step
+                        let currentStepIndex = localStorage.getItem(`currentStep-${ordername}`);
+                        if (currentStepIndex === null) {
+                            currentStepIndex = 0;
+                            localStorage.setItem(`currentStep-${ordername}`, currentStepIndex);
+                        }
+                        if (currentStepIndex == index) {
+                            stepDiv.classList.add('current-step');
+                        } else {
+                            buttonContainer.querySelectorAll('button').forEach(button => {
+                                button.disabled = true;
+                            });
+                        }
+
+                        // Add event listeners to buttons to update the current step
+                        buttonContainer.querySelectorAll('button').forEach(button => {
+                            button.addEventListener('click', () => {
+                                localStorage.setItem(`currentStep-${ordername}`, index + 1);
+                                document.querySelectorAll('.workflow-step-process-instr').forEach((div, idx) => {
+                                    div.classList.remove('current-step');
+                                    div.querySelectorAll('button').forEach(btn => {
+                                        btn.disabled = idx !== index + 1;
+                                    });
+                                });
+                                if (index + 1 < data.length) {
+                                    document.querySelectorAll('.workflow-step-process-instr')[index + 1].classList.add('current-step');
+                                }
+                            });
+                        });
+                    });
+                })
+                .catch(error => console.error('Error fetching workflow steps:', error));
+        });
+    });
+</script>
 {% endblock %}

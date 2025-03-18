@@ -1,61 +1,17 @@
-.workflow-container {
-    display: flex;
-    justify-content: space-between;
-    margin: 20px 0;
+.order-selection-process-instr {
+    width: 400px;
+    padding: 10px;
+    border: 1px solid var(--dropdown-border);
+    border-radius: 4px;
+    background-color: var(--dropdown-background);
+    font-size: 16px;
+    color: var(--dropdown-textcolor);
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: border-color 0.3s, box-shadow 0.3s;
 }
 
-.workflow-overview {
-    flex: 1;
-    display: flex;
-    flex-direction: column; /* Change to column layout */
-    align-items: center; /* Center align the steps */
-    margin-right: 20px;
-    margin-left: 20px;
-}
-
-.workflow-step {
-    width: 100%; /* Adjust width as needed */
-    padding: 0px;
-    border: 2px solid #ddd;
-    border-radius: 10px;
-    text-align: center;
-    transition: background-color 0.5s, border-color 0.5s;
-    margin-bottom: 20px; /* Add space between steps */
-}
-
-.workflow-step.active {
-    background-color: #28a745;
-    border-color: #ddd;
-    color: white;
-}
-
-.workflow-step.completed {
-    background-color: #004288;
-    border-color: #ddd;
-    color: rgba(224, 224, 224, 0.5);
-}
-
-.workflow-sidebar {
-    width: 20%;
-    padding: 20px;
-    border: 2px solid #ddd;
-    border-radius: 10px;
-    margin-right: 20px;
-    margin-bottom: 20px;
-}
-
-
-
-.workflow-sidebar h3 {
-    margin-top: 0px;
-}
-
-.workflow-sidebar div {
-    margin-bottom: 0px;
-}
-
-
-.button-pi {
+.button-style-process-instr {
     padding: 10px 20px;
     margin: 5px 0;
     border: none;
@@ -67,39 +23,49 @@
     transition: background-color 0.3s, box-shadow 0.3s;
 }
 
-.button-pi:hover {
-    background-color: var(--button-hover-color-view);
-    box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
-}
 
-.button-pi:focus {
-    outline: none;
-}
-
-.button-pi:disabled {
+.button-style-process-instr:disabled {
     background-color: rgba(0, 0, 0, 0.5); 
     color:rgb(224, 224, 224); 
     cursor: not-allowed; 
     opacity: 0.6; 
 }
 
-.dropdown-pi{
-    width: 30%;
-    padding: 10px;
-    border: 1px solid var(--dropdown-border);
-    border-radius: 4px;
-    background-color: var(--dropdown-background-color);
-    font-size: 16px;
-    color: var(--dropdown-text-color);
-    margin-bottom: 10px;
-    cursor: pointer;
+
+.button-style-process-instr:hover {
+    background-color: var(--button-hover-color-view);
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
 }
 
-.dropdown-pi:disabled {
-    background-color: #eee; 
-    color: #666; 
-    cursor: not-allowed; 
-    opacity: 0.6; 
+.button-style-process-instr:focus {
+    outline: none;
 }
 
+.workflow-step-process-instr {
+    border: 1px solid var(--box-border-color);
+    border-radius: 8px;
+    padding: 15px;
+    margin: 10px 0;
+    background-color: var(--box-background-color);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
 
+.workflow-step-process-instr p {
+    margin-bottom: 15px;
+}
+
+.button-container {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    width: 100%;
+}
+
+.workflow-step-process-instr.current-step {
+    border-color: green;
+    box-shadow: 0 0 10px green;
+}

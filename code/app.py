@@ -90,7 +90,6 @@ data_store = {
     'ISPESelectPhase1': [],
     'manufacturing_orders': [],
     'order-management': [],
-    'released_orders': [],
     'workflows': []
 }
 
@@ -330,13 +329,30 @@ def workflow_end():
     return jsonify({'success': True})
 
 
+@app.route('/api/get-workflow', methods=['GET'])
+def get_workflow():
+    ordername = request.args.get('ordername')
+    print(f"Requested Order: {ordername}")
+    order = next((order for order in data_store['manufacturing_orders'] if order['product'] == ordername), None)
+    if not order:
+        return jsonify({'error': 'Order not found'}), 404
+    workflow = order.get('workflow')
+    print(f"Workflow: {workflow}")
+    workflow_path = os.path.join(os.path.dirname(__file__), 'workflows', f'{workflow}.json')
+    if os.path.exists(workflow_path):
+        with open(workflow_path) as workflow_file:
+            workflow_data = json.load(workflow_file)
+        return jsonify(workflow_data)
+    else:
+        return jsonify({'error': 'Workflow not found'}), 404
+
 @app.route('/sampling')
 def sampling():
     return render_template('sampling.html')
 
 @app.route('/process-instructions')
 def processinstructions():
-    return render_template('process-instructions.html')
+    return render_template('process-instructions.html' )
 
 @app.route('/settings')
 def settings():
