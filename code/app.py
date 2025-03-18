@@ -8,6 +8,8 @@ from product_analytics_app import product_analytics_app
 from DesignSpaceApp import design_space_app  # Import the blueprint from the DesignSpaceApp module
 from process_qbd_analysis import process_qbd_analysis  # Import the process QbD analysis blueprint
 from processconfiguration import processconfiguration
+from consumeWorkflows import consumeWorkflows
+
 #from Nexus2PLC import nexus2plc
 #from Chatbot import Chatbot, query_llama  # Import the chatbot blueprint
 
@@ -42,6 +44,7 @@ app.register_blueprint(product_analytics_app)
 app.register_blueprint(design_space_app)
 app.register_blueprint(process_qbd_analysis)
 app.register_blueprint(processconfiguration)
+app.register_blueprint(consumeWorkflows)
 #app.register_blueprint(nexus2plc)
 # def restart_app():
 #     print("App: Restarting application in 5 seconds...", flush=True)
@@ -87,7 +90,8 @@ data_store = {
     'ISPESelectPhase1': [],
     'manufacturing_orders': [],
     'order-management': [],
-    'released_orders': []
+    'released_orders': [],
+    'workflows': []
 }
 
 def consume_messages():
@@ -144,7 +148,7 @@ def trending():
 #Orders route
 @app.route('/manufacturing-orders', methods=['GET', 'POST'])
 def manufacturing_orders():
-    return render_template('manufacturing-orders.html', orders=data_store['manufacturing_orders'])
+    return render_template('manufacturing-orders.html')
 
 @app.route('/order-management', methods=['GET', 'POST'])
 def order_management():
@@ -188,6 +192,7 @@ def submit_order():
     order_number = order_data.get('orderNumber')
     product = order_data.get('product')
     lot_number = order_data.get('lotNumber')
+    workflow = order_data.get('workflow')
 
     if not order_number or not product or not lot_number:
         return jsonify({'error': 'Missing data'}), 400
@@ -201,6 +206,7 @@ def submit_order():
         'orderNumber': order_number,
         'product': product,
         'lotNumber': lot_number,
+        'workflow': workflow,
         'timestamp': datetime.now().isoformat(),
         'status': 'Created'
     }

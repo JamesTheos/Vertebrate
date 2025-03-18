@@ -11,6 +11,7 @@
                 <th>Order Number</th>
                 <th>Product</th>
                 <th>Lot Number</th>
+                <th>Workflow</th>
                 <th>Status</th>
             </tr>
         </thead>
@@ -20,6 +21,7 @@
                         <td class="order-columns-overview">{{ order.orderNumber }}</td>
                         <td class="order-columns-overview">{{ order.product }}</td>
                         <td class="order-columns-overview">{{ order.lotNumber }}</td>
+                        <td class="order-columns-overview">{{ order.workflow }}</td>
                         <td class="order-columns-overview">{{ order.status }}</td>
                     </tr>
             {% endfor %}

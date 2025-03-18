@@ -11,6 +11,7 @@
                 <th>Order Number</th>
                 <th>Product</th>
                 <th>Lot Number</th>
+                <th>Workflow</th>
                 <th>Status</th>
                 <th>Actions</th>
             </tr>
@@ -21,6 +22,7 @@
                     <td class = "order-columns">{{ order.orderNumber }}</td>
                     <td class = "order-columns">{{ order.product }}</td>
                     <td class = "order-columns">{{ order.lotNumber }}</td>
+                    <td class = "order-columns">{{ order.workflow }}</td>
                     <td class = "order-columns">{{ order.status }}</td>
                     <td class="action-buttons">
                         {% if order.status != 'Released' and order.status != 'Started' and order.status != 'Completed' and order.status != 'Aborted'%}

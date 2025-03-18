@@ -25,7 +25,7 @@ producer = Producer(kafka_produce_conf)
 released_workflows = {}
 
 def send_to_kafka(topic, value):
-    producer.produce(topic, key="FromUX", value=json.dumps(value).encode('utf-8'))
+    producer.produce(topic, key="FromWorkflowRelease", value=json.dumps(value).encode('utf-8'))
     producer.flush()
 
 
@@ -88,12 +88,13 @@ def delete_workflow(workflow_name):
 def deactivate_workflow(workflow_name):
     send_to_kafka('workflows', {'workflow_name': workflow_name, 'released': 0})
     released_workflows[workflow_name]['released'] = 0
+    released_workflows['timestamp'] = datetime.now().isoformat()
         
     return jsonify({'success': True, 'message': 'Workflow deactivated successfully.'})
 
 @processconfiguration.route('/release-workflow/<workflow_name>', methods=['POST'])
 def release_workflow(workflow_name):
-    send_to_kafka('workflows', {'workflow_name': workflow_name, 'released': 1})
+    send_to_kafka('workflows', {'workflow_name': workflow_name, 'released': 1, "timestamp": datetime.now().isoformat()})
     released_workflows[workflow_name] = {'released': 1}
     print(released_workflows)
 
