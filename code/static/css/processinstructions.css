@@ -1,3 +1,22 @@
+.order-dropdown-container {
+    width: 100%; 
+    padding-top: 15px;
+    padding-bottom: 15px;
+    border: 1px solid var(--box-border-color);
+    border-radius: 8px;
+    background-color: var(--box-background-color);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.order-dropdown-container.no-order-selected {
+    border-color: green; 
+    box-shadow: 0 0 10px green;
+}
+
 .order-selection-process-instr {
     width: 400px;
     padding: 10px;
@@ -6,10 +25,10 @@
     background-color: var(--dropdown-background);
     font-size: 16px;
     color: var(--dropdown-textcolor);
-    margin-bottom: 10px;
     cursor: pointer;
     transition: border-color 0.3s, box-shadow 0.3s;
 }
+
 
 .button-style-process-instr {
     padding: 10px 20px;
@@ -41,17 +60,51 @@
     outline: none;
 }
 
+
+.workflow-container {
+    display: flex;
+    justify-content: space-between; 
+    align-items: stretch; 
+    margin-top: 10px;
+}
+
+.workflow-sidebar {
+    width: 20%; 
+    padding: 15px;
+    border: 1px solid var(--box-border-color); 
+    border-radius: 8px; 
+    background-color: var(--box-background-color); 
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); 
+    margin-left: 20px; 
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin-bottom: 5px;
+    display: none;
+}
+
+.workflow-overview {
+    flex: 1; 
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    margin-left: 1px;
+    margin-right: 30px;
+}
+
 .workflow-step-process-instr {
     border: 1px solid var(--box-border-color);
     border-radius: 8px;
     padding: 15px;
-    margin: 10px 0;
     background-color: var(--box-background-color);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
+    width: 100%;
+    margin: 0;
+    margin-bottom: 5px;
 }
 
 .workflow-step-process-instr p {
@@ -68,4 +121,13 @@
 .workflow-step-process-instr.current-step {
     border-color: green;
     box-shadow: 0 0 10px green;
+}
+
+.workflow-step-process-instr.completed-step {
+    border-color: blue;
+    box-shadow: 0 0 10px blue;
+}
+
+#workflow-details {
+    text-align: left;
 }

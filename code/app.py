@@ -8,7 +8,7 @@ from product_analytics_app import product_analytics_app
 from DesignSpaceApp import design_space_app  # Import the blueprint from the DesignSpaceApp module
 from process_qbd_analysis import process_qbd_analysis  # Import the process QbD analysis blueprint
 from processconfiguration import processconfiguration
-from consumeWorkflows import consumeWorkflows
+from consumeWorkflows import consumeWorkflows, get_all_workflows
 
 #from Nexus2PLC import nexus2plc
 #from Chatbot import Chatbot, query_llama  # Import the chatbot blueprint
@@ -250,14 +250,14 @@ def designspacerepresentation():
 @app.route('/batch')
 def batch():
     return render_template('batch.html')
-# @app.route('/order-overview')
-# def orderoverview():
-#     return render_template('order-overview.html')
+
 @app.route('/overview') # Define route for the overview page under workflows
 def overview():
+    workflows = get_all_workflows().json
     relStaCom_orders = [order for order in data_store['manufacturing_orders'] if order['status'] == 'Started']
     print(f"Orders: {relStaCom_orders}")
-    return render_template('overview.html', orders=relStaCom_orders)
+    print(f"Workflows: {workflows}")
+    return render_template('overview.html', orders=relStaCom_orders, workflows=workflows)
 
 
 @app.route('/api/released-orders', methods=['GET'])
@@ -342,7 +342,12 @@ def get_workflow():
     if os.path.exists(workflow_path):
         with open(workflow_path) as workflow_file:
             workflow_data = json.load(workflow_file)
-        return jsonify(workflow_data)
+
+        data = {
+            'workflows': workflow_data,
+            'workflow_name': workflow
+        }
+        return jsonify(data)
     else:
         return jsonify({'error': 'Workflow not found'}), 404
 
@@ -427,6 +432,11 @@ def plantconfig():
 @app.route('/processconfig')
 def processconfig():
     return render_template('processconfig.html')
+
+@app.route('/workflow-management')
+def workflow_management():
+    return render_template('workflowmanagement.html')
+
 
 @app.route('/save-plant-config', methods=['POST'])
 def save_plant_config():

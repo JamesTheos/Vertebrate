@@ -1,3 +1,21 @@
+.container-overview {
+    display: flex;
+    justify-content: space-between;
+}
+
+.table-1 {
+    width: 65%;
+}
+.table-2 {
+    width: 35%;
+    margin-left: 20px;
+}
+
+.header-overview{
+    font-weight: bold;
+    padding-bottom: 15px;
+}
+
 .order-table-overview {
     width: 100%;
     border-collapse: collapse;
@@ -5,14 +23,12 @@
     text-align: left;
 }
 
-
 .order-table-overview th, .order-columns-overview {
     padding: 5px 10px; 
     border: 1px solid var(--table-border);
     height: 30px; 
     width: 20%;
 }
-
 
 .order-table-overview th {
     background-color: var(--content-background);

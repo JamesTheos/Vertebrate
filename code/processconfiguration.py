@@ -86,7 +86,7 @@ def delete_workflow(workflow_name):
 
 @processconfiguration.route('/deactivate-workflow/<workflow_name>', methods=['POST'])   
 def deactivate_workflow(workflow_name):
-    send_to_kafka('workflows', {'workflow_name': workflow_name, 'released': 0})
+    send_to_kafka('workflows', {'workflow_name': workflow_name, 'released': 0, "timestamp": datetime.now().isoformat()})
     released_workflows[workflow_name]['released'] = 0
     released_workflows['timestamp'] = datetime.now().isoformat()
         
@@ -96,6 +96,6 @@ def deactivate_workflow(workflow_name):
 def release_workflow(workflow_name):
     send_to_kafka('workflows', {'workflow_name': workflow_name, 'released': 1, "timestamp": datetime.now().isoformat()})
     released_workflows[workflow_name] = {'released': 1}
-    print(released_workflows)
+    released_workflows['timestamp'] = datetime.now().isoformat()
 
     return jsonify({'success': True, 'message': 'Workflow released successfully.'})

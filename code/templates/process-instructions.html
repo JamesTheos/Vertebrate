@@ -4,15 +4,29 @@
 {% block header_title %}Workflow - Process Instructions{% endblock %}
 
 {% block content %}
-<div class="workflow-container">
-    <div class="order-dropdown">
-        <select id="order-select" class="order-selection-process-instr">
-            <option value="">Select Order</option>
-        </select>
+<div>
+    <div class="order-dropdown-container no-order-selected" id="order-dropdown-container">
+        <div class="order-dropdown">
+            <select id="order-select" class="order-selection-process-instr">
+                <option value="">Select Order</option>
+            </select>
+        </div>
     </div>
-    <div class="workflow-overview" id="workflow-overview">
-        <!-- Workflow steps will be dynamically inserted here -->
+    <div class="workflow-container">
+        <div class="workflow-overview" id="workflow-overview">
+            <!-- Workflow steps will be dynamically inserted here -->
+        </div>
+        <div class="workflow-sidebar" id="workflow-sidebar">
+            <h3>Order Details</h3>
+            <div id="workflow-details">
+                <p id="order-name"></p>
+                <p id="workflow-name"></p>
+                <p id="current-step-name"></p>
+            </div>
+            
+        </div>
     </div>
+    
 </div>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -33,13 +47,15 @@
             const ordername = this.options[this.selectedIndex].textContent;
             if (ordername === 'Select Order') {
                 return;
+            } else {
+                document.getElementById('order-dropdown-container').classList.remove('no-order-selected');
             }
             fetch(`/api/get-workflow?ordername=${ordername}`)
                 .then(response => response.json())
-                .then(data => {
+                .then(({ workflows, workflow_name }) => {
                     const workflowOverview = document.getElementById('workflow-overview');
                     workflowOverview.innerHTML = ''; 
-                    data.forEach((step, index) => {
+                    workflows.forEach((step, index) => {
                         const stepDiv = document.createElement('div');
                         stepDiv.className = 'workflow-step-process-instr';
 
@@ -94,12 +110,17 @@
                                         btn.disabled = idx !== index + 1;
                                     });
                                 });
-                                if (index + 1 < data.length) {
+                                if (index + 1 < workflows.length) {
                                     document.querySelectorAll('.workflow-step-process-instr')[index + 1].classList.add('current-step');
                                 }
                             });
                         });
                     });
+                    // Update sidebar details and make it visible
+                    document.getElementById('order-name').textContent = `Product: ${ordername}`;
+                    document.getElementById('workflow-name').textContent = `Workflow: ${workflow_name}`;
+                    document.getElementById('current-step-name').textContent = `Current Step: ${workflows[localStorage.getItem(`currentStep-${ordername}`)].option}`;
+                    document.getElementById('workflow-sidebar').style.display = 'flex';
                 })
                 .catch(error => console.error('Error fetching workflow steps:', error));
         });

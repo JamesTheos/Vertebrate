@@ -1,0 +1,202 @@
+{% extends "basesettings.html" %}
+
+{% block title %}Workflow Management{% endblock %}
+{% block header_title %}Workflow Management{% endblock %}
+
+{% block content %}
+<div class="config-dropdown">
+    <div class="form-group-procconf">
+        <select id="workflow-select" class="input-style-proc">
+            <option>Select Workflow</option>
+        </select>
+    </div class="form-group-procconf">   
+    <div class="preview-container" id="preview-container" style="display: none;">
+        <div id="workflow-preview" class="workflow-preview">
+            <table class="option-table">
+                <thead>
+                    <tr>
+                        <th class="option-columns-text">Option</th>
+                        <th class="option-columns-buttons">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="workflow-preview-body">
+                </tbody>
+            </table>
+        </div>
+        <div class="button-container"></div>
+            <button id="release-workflow" class="button-style-processconfig-save">Release</button>
+            <button id="delete-workflow" class="button-style-processconfig-save">Delete</button>
+            <button id="deactivate-workflow" class="button-style-processconfig-save">Deactivate</button>
+        </div>  
+    </div> 
+</div>
+
+<script>
+     function fetchWorkflows() {
+        fetch('/get-workflows')
+            .then(response => response.json())
+            .then(data => {
+                const workflowSelect = document.getElementById('workflow-select');
+                data.workflows.forEach(workflow => {
+                    const option = document.createElement('option');
+                    option.value = workflow;
+                    option.textContent = workflow;
+                    workflowSelect.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error fetching workflows:', error));
+    }
+
+  // Fetch workflow preview
+  document.getElementById('workflow-select').addEventListener('change', function() {
+        const workflowName = this.value;
+        const previewContainer = document.getElementById('preview-container');
+        const releaseButton = document.getElementById('release-workflow');
+        const deactivateButton = document.getElementById('deactivate-workflow');
+        const deleteButton = document.getElementById('delete-workflow');
+
+        if (workflowName) {
+            fetch(`/get-workflow/${workflowName}`)
+                .then(response => response.json())
+                .then(({ workflows, released_workflows })=> {
+                    const previewBody = document.getElementById('workflow-preview-body');
+                    previewBody.innerHTML = ''; // Clear previous preview
+                    workflows.forEach(option => {
+                        const row = document.createElement('tr');
+                        const optionCell = document.createElement('td');
+                        const actionCell = document.createElement('td');
+                        
+                        optionCell.textContent = option.option; 
+                        actionCell.textContent = option.action;
+                        row.appendChild(optionCell);
+                        row.appendChild(actionCell);
+                        previewBody.appendChild(row);
+                    });
+                    previewContainer.style.display = 'block';
+                    console.log(released_workflows);
+                    updateButtons(workflowName, released_workflows);
+                  
+                        
+                       
+                    
+                    
+                })
+        .catch(error => console.error('Error fetching workflow:', error));
+        } else {
+            document.getElementById('workflow-preview-body').innerHTML = '';
+            previewContainer.style.display = 'none';
+        }
+    });
+
+
+    function updateButtons(workflowName, releasedWorkflows) {
+        const releaseButton = document.getElementById('release-workflow');
+        const deactivateButton = document.getElementById('deactivate-workflow');
+        const deleteButton = document.getElementById('delete-workflow');
+
+        if (releasedWorkflows[workflowName] && releasedWorkflows[workflowName]['released'] === 1)
+        {
+            releaseButton.style.display = 'none';
+            deactivateButton.style.display = 'inline-block';
+            deleteButton.style.display = 'none';
+        }
+        else if (releasedWorkflows[workflowName] && releasedWorkflows[workflowName]['released'] === 0)
+        {
+            releaseButton.style.display = 'none';
+            deactivateButton.style.display = 'none';
+            deleteButton.style.display = 'none';
+        }
+        else
+        {
+            releaseButton.style.display = 'inline-block';
+            deactivateButton.style.display = 'none';
+            deleteButton.style.display = 'inline-block';
+        }
+
+       
+    
+    }
+
+    document.getElementById('release-workflow').addEventListener('click', function() {
+        const workflowName = document.getElementById('workflow-select').value;
+        if (workflowName) {
+            fetch(`/release-workflow/${workflowName}`, {
+                method: 'POST'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const successModal = document.getElementById('successModalProcConf');
+                        document.getElementById('genericMessage').innerHTML = '<strong>Workflow released successfully!</strong>';
+                        successModal.style.display = 'block';
+                        resetDropdownAndPreview();
+                    } else {
+                        alert('Error releasing workflow.');
+                    }
+                })
+                .catch(error => console.error('Error releasing workflow:', error));
+        }
+    });
+    document.getElementById('delete-workflow').addEventListener('click', function() {
+        const workflowName = document.getElementById('workflow-select').value;
+        if (workflowName) {
+            fetch(`/delete-workflow/${workflowName}`, {
+                method: 'POST'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const successModal = document.getElementById('successModalProcConf');
+                        document.getElementById('genericMessage').innerHTML = '<strong>Workflow deleted successfully!</strong>';
+                        successModal.style.display = 'block';
+                        resetDropdownAndPreview();
+                        fetchWorkflows();
+                    } else {
+                        alert('Error deleting workflow.');
+                    }
+                })
+                .catch(error => console.error('Error deleting workflow:', error));
+        }
+    });
+
+    document.getElementById('deactivate-workflow').addEventListener('click', function() {
+        const workflowName = document.getElementById('workflow-select').value;
+        if (workflowName) {
+            fetch(`/deactivate-workflow/${workflowName}`, {
+                method: 'POST'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const successModal = document.getElementById('successModalProcConf');
+                        document.getElementById('genericMessage').innerHTML = '<strong>Workflow deactivated successfully!</strong>';
+                        successModal.style.display = 'block';
+                        resetDropdownAndPreview();
+                    } else {
+                        alert('Error deactivating workflow.');
+                    }
+                })
+                .catch(error => console.error('Error deactivating workflow:', error));
+        }
+    });
+
+    function resetDropdownAndPreview() {
+        const workflowSelect = document.getElementById('workflow-select');
+        workflowSelect.selectedIndex = 0; 
+        const previewBody = document.getElementById('workflow-preview-body');
+        previewBody.innerHTML = ''; // Clear preview
+        const previewContainer = document.getElementById('preview-container');
+        previewContainer.style.display = 'none'; 
+        const releaseButton = document.getElementById('release-workflow');
+        const deactivateButton = document.getElementById('deactivate-workflow');
+        const deleteButton = document.getElementById('delete-workflow');
+        releaseButton.style.display = 'none';
+        deactivateButton.style.display = 'none';
+        deleteButton.style.display = 'none';
+    }
+        
+
+
+    fetchWorkflows();
+</script>
+{% endblock %}

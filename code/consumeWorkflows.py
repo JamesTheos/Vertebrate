@@ -23,6 +23,9 @@ kafka_workflows = {
 workflowsConsumer = Consumer(kafka_workflows)
 
 #local memory to store released workflows
+
+all_workflows = {} # Dictionary to store released and deactivated workflows
+
 released_workflows = {}
 
 consumeWorkflows = Blueprint('consumerWorkflows',__name__)  # Initialize Flask application
@@ -30,6 +33,10 @@ consumeWorkflows = Blueprint('consumerWorkflows',__name__)  # Initialize Flask a
 @consumeWorkflows.route('/get-released-workflows', methods=['GET'])
 def get_released_workflows():
     return jsonify({'workflows': list(released_workflows.keys())})
+
+@consumeWorkflows.route('/get-all-workflows', methods=['GET'])
+def get_all_workflows():
+    return jsonify([{'workflow_name': name, 'state': 'Released' if info['released'] == 1 else 'Deactivated'} for name, info in all_workflows.items()])
 
 def consume_workflows():
     print("Manufacturing Orders: Starting consume_workflows thread \n", flush=True)  # Print message to indicate thread start
@@ -54,17 +61,20 @@ def consume_workflows():
                     logging.error(f"Manufacturing Order: Consumer error: {msg.error()}")  # Log any other errors
                     continue
             workflow = json.loads(msg.value().decode('utf-8'))  # Deserialize the message value
-            workflow_name = workflow['workflow_name']  # Get the workflow name 
+            print(workflow)
+            workflow_name = workflow['workflow_name']  # Get the workflow name  
             state = workflow['released']  # Get the state of the workflow
             timestamp = datetime.fromisoformat(workflow['timestamp'])  # Parse the ISO format timestamp
 
             if state == 1:
                 # Add or update the workflow in the dictionary
+                all_workflows[workflow_name] = {'timestamp': timestamp, 'released': state}
                 released_workflows[workflow_name] = {'timestamp': timestamp}
                 print(f"Manufacturing Order: Workflow {workflow_name} released at {timestamp}", flush=True)
             elif state == 0 and workflow_name in released_workflows:
                 # Remove the workflow if the new message has a newer timestamp
                 if released_workflows[workflow_name]['timestamp'] < timestamp:
+                    all_workflows[workflow_name] = {'timestamp': timestamp, 'released': state}
                     del released_workflows[workflow_name]
                     print(f"Manufacturing Order: Workflow {workflow_name} removed", flush=True)
 

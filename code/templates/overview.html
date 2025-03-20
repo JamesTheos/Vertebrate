@@ -4,19 +4,21 @@
 {% block header_title %}Workflows - Overview{% endblock %}
 
 {% block content %}
-<div class="order-list">
-    <table class="order-table-overview">
-        <thead>
-            <tr>
-                <th>Order Number</th>
-                <th>Product</th>
-                <th>Lot Number</th>
-                <th>Workflow</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for order in orders %}
+<div class="container-overview">
+    <div class="table-1">
+        <div class="header-overview">Running Workflows</div>
+        <table class="order-table-overview">
+            <thead>
+                <tr>
+                    <th>Order Number</th>
+                    <th>Product</th>
+                    <th>Lot Number</th>
+                    <th>Workflow</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in running_orders %}
                     <tr>
                         <td class="order-columns-overview">{{ order.orderNumber }}</td>
                         <td class="order-columns-overview">{{ order.product }}</td>
@@ -24,10 +26,29 @@
                         <td class="order-columns-overview">{{ order.workflow }}</td>
                         <td class="order-columns-overview">{{ order.status }}</td>
                     </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="table-2">
+        <div class="header-overview">Workflow Overview</div>
+        <table class="order-table-overview">
+            <thead>
+                <tr>
+                    <th>Workflow</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for workflow in workflows %}
+                    <tr>
+                        <td class="order-columns-overview">{{ workflow.workflow_name }}</td>
+                        <td class="order-columns-overview">{{ workflow.state }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
+
 {% endblock %}
-
-

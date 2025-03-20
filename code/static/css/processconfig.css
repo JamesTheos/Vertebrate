@@ -8,11 +8,6 @@
     font-weight: bold;
 }
 
-.config-container {
-    display: grid;
-    grid-template-columns: 49% 49%;
-    gap: 2%;
-}
 
 .config-dropdown {
     width: 100%;
@@ -43,17 +38,61 @@
 }
 
 .option-columns-text {
-    width: 70%;
+    width: 32%;
 }
 
 .option-columns-buttons {
-    width: 30%;
+    width: 15%;
     text-align: left; 
     vertical-align: middle; 
     height: 30px;
     white-space: nowrap;
 }
 
+.option-columns-external
+{
+    width: 5%;
+    text-align: center; 
+    vertical-align: middle; 
+    height: 30px;
+}
+
+.external-checkbox {
+    width: 27px;
+    height: 27px;
+    cursor: pointer;
+    accent-color: var(--button-background); 
+    border: 2px solid var(--button-background);
+    border-radius: 4px; 
+    background-color: var(--content-background); 
+}
+
+.option-columns-topic
+{
+    width: 15%;
+    text-align: center; 
+    vertical-align: middle; 
+    height: 30px;
+    
+}
+
+.select-topic-dropdown {
+    width: 100%;
+    padding: 10px;
+    margin: 5px 0;
+    box-sizing: border-box;
+    border: 1px solid var(--dropdown-border);
+    border-radius: 4px;
+    background-color: var(--dropdown-background);
+    font-size: 16px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.select-topic-dropdown:focus {
+    border-color: var(--border-focus-color);
+    box-shadow: 0 0 8px rgba(102, 175, 233, 0.6);
+    outline: none;
+}
 
 
 .save-button-container, .button-container {
