@@ -165,7 +165,6 @@
                     const successModal = document.getElementById('successModalProcConf');
                     document.getElementById('genericMessage').innerHTML = '<strong>Workflow saved successfully!</strong>';
                     successModal.style.display = 'block';
-                    resetDropdownAndPreview();
                     fetchWorkflows();
                     document.querySelectorAll('.button-marked').forEach(button => {
                         button.classList.remove('button-marked');

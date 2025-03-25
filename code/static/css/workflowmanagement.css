@@ -1,0 +1,121 @@
+.form-group-procconf {
+    margin-bottom: 10px;
+}
+
+.form-group-procconf label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+
+.config-dropdown {
+    width: 100%;
+}
+
+#workflow-select {
+    width: 400px;
+    height: 40px;
+}
+
+
+
+.option-table {
+    width: 100%;
+    margin: 0px 0;
+    text-align: left;
+    border-collapse: collapse;
+}
+
+.option-table th, .option-table td {
+    height: 30px;
+    padding: 5px 10px; 
+    border: 1px solid var(--table-border);
+}
+
+.option-table th {
+    background-color: var(--content-background);
+}
+
+.option-columns-text {
+    width: 32%;
+}
+
+.option-columns-buttons {
+    width: 15%;
+    text-align: left; 
+    vertical-align: middle; 
+    height: 30px;
+    white-space: nowrap;
+}
+
+
+
+
+.save-button-container, .button-container {
+    margin-top: 20px; 
+}
+
+
+.button-style-processconfig, .button-style-processconfig-save, .button-style-processconfig-close {
+    padding: 5px 20px;
+    margin: 0px 5px;
+    width: 100px;
+    border: none;
+    border-radius: 4px;
+    background-color: var(--button-background);
+    color: var(--button-text-color);
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s, box-shadow 0.3s;
+}
+
+.button-style-processconfig-save
+{
+    padding: 10px 20px;
+    margin: 5px 0px;
+    width: auto;
+    margin-right: 10px;
+}
+
+
+
+.button-style-processconfig-close
+{
+    
+    padding: 10px 20px;
+    margin: 5px 0px;
+    width: auto;
+    margin-top: 15px;
+}
+
+.button-style-processconfig:hover, .button-style-processconfig-save:hover, .button-marked, .button-style-processconfig-close:hover {
+    background-color: var(--button-hover-color-view);
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+}
+
+.button-style-processconfig:focus, .button-style-processconfig-save:focus, .button-style-processconfig-close:focus {
+    outline: none;
+}
+
+
+.input-style-proc {
+    width: 400px;
+    padding: 10px;
+    margin: 5px 0;
+    box-sizing: border-box;
+    border: 1px solid var(--dropdown-border);
+    border-radius: 4px;
+    background-color: var(--dropdown-background);
+    font-size: 16px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+
+
+.input-style-proc:focus, .option-input:focus {
+    border-color: var(--border-focus-color);
+    box-shadow: 0 0 8px rgba(102, 175, 233, 0.6);
+    outline: none;
+}
+
