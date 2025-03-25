@@ -32,15 +32,15 @@
                         <button class="button-style-processconfig">Confirm</button>
                     </td>
                     <td class="option-columns-external">
-                        <input type="checkbox" class="external-checkbox">
+                        <input type="checkbox" onclick="toggleVisibility(this)" class="external-checkbox">
                     </td>
                     <td class="option-columns-topic">
-                        <select class="select-topic-dropdown" >
+                        <select class="select-topic-dropdown hidden" >
                             <option value="">Select Topic</option>
                         </select>
                     </td>
                     <td class="option-columns-text">
-                        <input type="text" value="" placeholder="Enter External Action" class="option-input">
+                        <input type="text" value="" placeholder="Enter External Action" class="option-input-add hidden">
                     </td>
                 </tr>
             </tbody></td>
@@ -72,15 +72,40 @@
         const newRow = table.insertRow();
         newRow.innerHTML = `
             <tr>
-                    <td class="option-columns-text">
-                        <input type="text" value="" placeholder="Enter Option" class="option-input"></td>
-                    </td>
-                    <td class="option-columns-buttons">
-                        <button class="button-style-processconfig">Yes/No</button>
-                        <button class="button-style-processconfig">Confirm</button>
-                    </td>
-                </tr>
+                <td class="option-columns-text">
+                    <input type="text" value="" placeholder="Enter Option" class="option-input">
+                </td>
+                <td class="option-columns-buttons">
+                    <button class="button-style-processconfig">Yes/No</button>
+                    <button class="button-style-processconfig">Confirm</button>
+                </td>
+                <td class="option-columns-external">
+                    <input type="checkbox" class="external-checkbox" onclick="toggleVisibility(this)">
+                </td>
+                <td class="option-columns-topic">
+                    <select class="select-topic-dropdown hidden">
+                        <option value="">Select Topic</option>
+                    </select>
+                </td>
+                <td class="option-columns-text">
+                    <input type="text" value="" placeholder="Enter External Action" class="option-input-add hidden">
+                </td>
+            </tr>
         `;
+    }
+
+    function toggleVisibility(checkbox) {
+        const row = checkbox.closest('tr');
+        const topicDropdown = row.querySelector('.select-topic-dropdown');
+        const externalActionInput = row.querySelector('.option-input-add');
+
+        if (checkbox.checked) {
+            topicDropdown.classList.remove('hidden');
+            externalActionInput.classList.remove('hidden');
+        } else {
+            topicDropdown.classList.add('hidden');
+            externalActionInput.classList.add('hidden');
+        }
     }
 
 

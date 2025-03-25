@@ -76,10 +76,15 @@
     
 }
 
+.hidden {
+    display: none;
+}
+
 .select-topic-dropdown {
     width: 100%;
     padding: 10px;
-    margin: 5px 0;
+    height: 40px;
+    margin: 0px 0;
     box-sizing: border-box;
     border: 1px solid var(--dropdown-border);
     border-radius: 4px;
@@ -152,7 +157,7 @@
     transition: border-color 0.3s, box-shadow 0.3s;
 }
 
-.option-input{
+.option-input, .option-input-add{
     width: 100%;
     padding: 10px;
     margin: 0px 0;
