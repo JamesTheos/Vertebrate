@@ -25,6 +25,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/design-space-definition.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chatbot.css') }}">
     <style>
         :root {
             --background-color: {{ appconfig.SidebarColor }};
@@ -315,14 +316,22 @@
     ********************************************************************************************************************
      -->
 
-    <!-- <div id="chatbot-container">
-        <h2>Chat with our bot</h2>
-        <div id="chatbot">
-            <input type="text" id="chatbot-input" placeholder="Ask a question...">
-            <button onclick="askChatbot()">Send</button>
-            <div id="chatbot-response"></div>
+     <div id="chatbot-container">
+        <div id="chatbot-button">
+            <img src="{{ url_for('static', filename='images/icons/robot_2.svg') }}" alt="Chatbot Icon">
         </div>
-    </div> -->
+        <div id="chatbox">
+            <div id="chat-header">
+                <span>Chatbot</span>
+                <button id="close-chat">&times;</button>
+            </div>
+            <div id="chat-content"></div>
+            <div id="chat-input">
+                <input type="text" id="user-input" placeholder="Type a message...">
+                <button id="send-btn">Send</button>
+            </div>
+        </div>
+    </div>
 
     <script>
     function updateDateTime() {
