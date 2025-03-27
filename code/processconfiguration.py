@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify , request # Import Flask and related modules for web server and request handling
-from confluent_kafka import KafkaException, Consumer, Producer, OFFSET_BEGINNING  # Import Kafka modules for consuming messages
+from confluent_kafka import KafkaException, Consumer, Producer  # Import Kafka modules for consuming messages
+from confluent_kafka.admin import AdminClient  # Import Kafka Admin module for managing Kafka topics
 import json  # Import JSON module for data serialization
 from datetime import datetime  # Import datetime module for date and time handling
 import os
@@ -30,6 +31,20 @@ def send_to_kafka(topic, value):
 
 
 processconfiguration = Blueprint('processconfiguration',__name__)  # Initialize Flask application
+
+
+
+#Function to fetch all topics
+def get_all_topics(bootstrap_servers):
+    admin_client = AdminClient({'bootstrap.servers': bootstrap_servers})
+    try:
+        cluster_metadata = admin_client.list_topics(timeout=10)
+        topics = list(cluster_metadata.topics.keys())
+        return topics
+    except Exception as e:
+        print(f"Error retrieving topics: {e}")
+        return []
+
 
 
 
@@ -99,3 +114,9 @@ def release_workflow(workflow_name):
     released_workflows['timestamp'] = datetime.now().isoformat()
 
     return jsonify({'success': True, 'message': 'Workflow released successfully.'})
+
+@processconfiguration.route('/api/get-all-topics', methods=['GET'])
+def get_topics():
+    topics = get_all_topics(Kafkaserver)
+    return jsonify({'topics': topics})
+

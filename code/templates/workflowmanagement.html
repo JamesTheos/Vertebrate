@@ -4,19 +4,22 @@
 {% block header_title %}Workflow Management{% endblock %}
 
 {% block content %}
-<div class="config-dropdown">
-    <div class="form-group-procconf">
-        <select id="workflow-select" class="input-style-proc">
+<div class="config-dropdown-WorkflowMan">
+    <div class="form-group-WorkflowMan">
+        <select id="workflow-select-WorkflowMan" class="input-style-WorkflowMan">
             <option>Select Workflow</option>
         </select>
-    </div class="form-group-procconf">   
+    </div class="form-group-WorkflowMan">   
     <div class="preview-container" id="preview-container" style="display: none;">
         <div id="workflow-preview" class="workflow-preview">
-            <table class="option-table">
+            <table class="option-table-WorkflowMan">
                 <thead>
                     <tr>
-                        <th class="option-columns-text">Option</th>
-                        <th class="option-columns-buttons">Actions</th>
+                        <th class="option-columns-text-WorkflowMan">Option</th>
+                        <th class="option-columns-buttons-WorkflowMan">Actions</th>
+                        <th class="option-columns-external-WorkflowMan">External</th>
+                        <th class="option-columns-topics-WorkflowMan">Topic</th>
+                        <th class="option-columns-text-WorkflowMan">External Action</th>
                     </tr>
                 </thead>
                 <tbody id="workflow-preview-body">
@@ -24,11 +27,20 @@
             </table>
         </div>
         <div class="button-container"></div>
-            <button id="release-workflow" class="button-style-processconfig-save">Release</button>
-            <button id="delete-workflow" class="button-style-processconfig-save">Delete</button>
-            <button id="deactivate-workflow" class="button-style-processconfig-save">Deactivate</button>
+            <button id="release-workflow" class="button-style-WorkflowMan-save">Release</button>
+            <button id="delete-workflow" class="button-style-WorkflowMan-save">Delete</button>
+            <button id="deactivate-workflow" class="button-style-WorkflowMan-save">Deactivate</button>
         </div>  
     </div> 
+
+    <div id="successModalWorkflowMan" class="modal-WorkflowMan">
+        <div class="modal-content-WorkflowMan">
+            <div id="genericMessageWorkflowMan"></div>
+            <button class="button-style-WorkflowMan-close WorkflowMan-button">Close</button>
+        </div>
+    </div>
+    
+
 </div>
 
 <script>
@@ -36,7 +48,7 @@
         fetch('/get-workflows')
             .then(response => response.json())
             .then(data => {
-                const workflowSelect = document.getElementById('workflow-select');
+                const workflowSelect = document.getElementById('workflow-select-WorkflowMan');
                 data.workflows.forEach(workflow => {
                     const option = document.createElement('option');
                     option.value = workflow;
@@ -48,7 +60,7 @@
     }
 
   // Fetch workflow preview
-  document.getElementById('workflow-select').addEventListener('change', function() {
+  document.getElementById('workflow-select-WorkflowMan').addEventListener('change', function() {
         const workflowName = this.value;
         const previewContainer = document.getElementById('preview-container');
         const releaseButton = document.getElementById('release-workflow');
@@ -65,11 +77,20 @@
                         const row = document.createElement('tr');
                         const optionCell = document.createElement('td');
                         const actionCell = document.createElement('td');
+                        const externalCell = document.createElement('td');
+                        const topicCell = document.createElement('td');
+                        const externalActionCell = document.createElement('td');
                         
                         optionCell.textContent = option.option; 
                         actionCell.textContent = option.action;
+                        externalCell.textContent = option.external;
+                        topicCell.textContent = option.topic;
+                        externalActionCell.textContent = option.externalAction;
                         row.appendChild(optionCell);
                         row.appendChild(actionCell);
+                        row.appendChild(externalCell);
+                        row.appendChild(topicCell);
+                        row.appendChild(externalActionCell);
                         previewBody.appendChild(row);
                     });
                     previewContainer.style.display = 'block';
@@ -117,7 +138,7 @@
     }
 
     document.getElementById('release-workflow').addEventListener('click', function() {
-        const workflowName = document.getElementById('workflow-select').value;
+        const workflowName = document.getElementById('workflow-select-WorkflowMan').value;
         if (workflowName) {
             fetch(`/release-workflow/${workflowName}`, {
                 method: 'POST'
@@ -125,8 +146,8 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        const successModal = document.getElementById('successModalProcConf');
-                        document.getElementById('genericMessage').innerHTML = '<strong>Workflow released successfully!</strong>';
+                        const successModal = document.getElementById('successModalWorkflowMan');
+                        document.getElementById('genericMessageWorkflowMan').innerHTML = '<strong>Workflow released successfully!</strong>';
                         successModal.style.display = 'block';
                         resetDropdownAndPreview();
                     } else {
@@ -137,7 +158,7 @@
         }
     });
     document.getElementById('delete-workflow').addEventListener('click', function() {
-        const workflowName = document.getElementById('workflow-select').value;
+        const workflowName = document.getElementById('workflow-select-WorkflowMan').value;
         if (workflowName) {
             fetch(`/delete-workflow/${workflowName}`, {
                 method: 'POST'
@@ -145,8 +166,8 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        const successModal = document.getElementById('successModalProcConf');
-                        document.getElementById('genericMessage').innerHTML = '<strong>Workflow deleted successfully!</strong>';
+                        const successModal = document.getElementById('successModalWorkflowMan');
+                        document.getElementById('genericMessageWorkflowMan').innerHTML = '<strong>Workflow deleted successfully!</strong>';
                         successModal.style.display = 'block';
                         resetDropdownAndPreview();
                         fetchWorkflows();
@@ -159,7 +180,7 @@
     });
 
     document.getElementById('deactivate-workflow').addEventListener('click', function() {
-        const workflowName = document.getElementById('workflow-select').value;
+        const workflowName = document.getElementById('workflow-select-WorkflowMan').value;
         if (workflowName) {
             fetch(`/deactivate-workflow/${workflowName}`, {
                 method: 'POST'
@@ -167,8 +188,8 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        const successModal = document.getElementById('successModalProcConf');
-                        document.getElementById('genericMessage').innerHTML = '<strong>Workflow deactivated successfully!</strong>';
+                        const successModal = document.getElementById('successModalWorkflowMan');
+                        document.getElementById('genericMessageWorkflowMan').innerHTML = '<strong>Workflow deactivated successfully!</strong>';
                         successModal.style.display = 'block';
                         resetDropdownAndPreview();
                     } else {
@@ -179,8 +200,22 @@
         }
     });
 
+    window.addEventListener('click', function(event) {
+        const modal1 = document.getElementById('successModalWorkflowMan'); 
+        if (event.target == modal1) {
+            modal.style.display = 'none';
+        }
+    });
+
+    document.querySelectorAll('.WorkflowMan-button').forEach(button => {
+        button.addEventListener('click', function() {
+            const successModal = document.getElementById('successModalWorkflowMan');
+            successModal.style.display = 'none';
+        });
+    });
+
     function resetDropdownAndPreview() {
-        const workflowSelect = document.getElementById('workflow-select');
+        const workflowSelect = document.getElementById('workflow-select-WorkflowMan');
         workflowSelect.selectedIndex = 0; 
         const previewBody = document.getElementById('workflow-preview-body');
         previewBody.innerHTML = ''; // Clear preview
@@ -192,6 +227,7 @@
         releaseButton.style.display = 'none';
         deactivateButton.style.display = 'none';
         deleteButton.style.display = 'none';
+        console.log('reset');
     }
         
 

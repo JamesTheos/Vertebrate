@@ -1,48 +1,59 @@
-.form-group-procconf {
+.form-group-WorkflowMan {
     margin-bottom: 10px;
 }
 
-.form-group-procconf label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-}
-
-
-.config-dropdown {
+.config-dropdown-WorkflowMan {
     width: 100%;
 }
 
-#workflow-select {
+#workflow-select-WorkflowMan {
     width: 400px;
     height: 40px;
 }
 
 
 
-.option-table {
+.option-table-WorkflowMan {
     width: 100%;
     margin: 0px 0;
     text-align: left;
     border-collapse: collapse;
 }
 
-.option-table th, .option-table td {
+.option-table-WorkflowMan th, .option-table-WorkflowMan td {
     height: 30px;
     padding: 5px 10px; 
     border: 1px solid var(--table-border);
 }
 
-.option-table th {
+.option-table-WorkflowMan th {
     background-color: var(--content-background);
 }
 
-.option-columns-text {
-    width: 32%;
+.option-columns-text-WorkflowMan {
+    width: 30%;
 }
 
-.option-columns-buttons {
+.option-columns-buttons-WorkflowMan {
     width: 15%;
+    text-align: left; 
+    vertical-align: middle; 
+    height: 30px;
+    white-space: nowrap;
+}
+
+.option-columns-topics-WorkflowMan
+{
+    width: 20%;
+    text-align: left; 
+    vertical-align: middle; 
+    height: 30px;
+    white-space: nowrap;
+}
+
+.option-columns-external-WorkflowMan
+{
+    width: 5%;
     text-align: left; 
     vertical-align: middle; 
     height: 30px;
@@ -51,13 +62,12 @@
 
 
 
-
 .save-button-container, .button-container {
     margin-top: 20px; 
 }
 
 
-.button-style-processconfig, .button-style-processconfig-save, .button-style-processconfig-close {
+.button-style-WorkflowMan, .button-style-WorkflowMan-save, .button-style-WorkflowMan-close {
     padding: 5px 20px;
     margin: 0px 5px;
     width: 100px;
@@ -70,7 +80,7 @@
     transition: background-color 0.3s, box-shadow 0.3s;
 }
 
-.button-style-processconfig-save
+.button-style-WorkflowMan-save
 {
     padding: 10px 20px;
     margin: 5px 0px;
@@ -80,26 +90,25 @@
 
 
 
-.button-style-processconfig-close
+.button-style-WorkflowMan-close
 {
-    
     padding: 10px 20px;
     margin: 5px 0px;
     width: auto;
     margin-top: 15px;
 }
 
-.button-style-processconfig:hover, .button-style-processconfig-save:hover, .button-marked, .button-style-processconfig-close:hover {
+.button-style-WorkflowMan:hover, .button-style-WorkflowMan-save:hover, .button-marked, .button-style-WorkflowMan-close:hover {
     background-color: var(--button-hover-color-view);
     box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
 }
 
-.button-style-processconfig:focus, .button-style-processconfig-save:focus, .button-style-processconfig-close:focus {
+.button-style-WorkflowMan:focus, .button-style-WorkflowMan-save:focus, .button-style-WorkflowMan-close:focus {
     outline: none;
 }
 
 
-.input-style-proc {
+.input-style-WorkflowMan {
     width: 400px;
     padding: 10px;
     margin: 5px 0;
@@ -113,9 +122,29 @@
 
 
 
-.input-style-proc:focus, .option-input:focus {
+.input-style-WorkflowMan:focus {
     border-color: var(--border-focus-color);
     box-shadow: 0 0 8px rgba(102, 175, 233, 0.6);
     outline: none;
 }
 
+.modal-WorkflowMan {
+    display: none; 
+    position: fixed; 
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%; 
+    height: 100%; 
+    overflow: auto; 
+    background-color: rgba(0,0,0,0.4); 
+}
+
+.modal-content-WorkflowMan {
+    background-color: var(--content-background);
+    margin: 15% auto; 
+    padding: 20px;
+    border: 1px solid var(--table-border);
+    width: 80%; 
+    border-radius: 4px;
+}

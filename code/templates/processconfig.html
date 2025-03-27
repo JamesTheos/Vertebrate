@@ -5,9 +5,6 @@
 
 {% block content %}
 
-
-
-
     <div class="config-table">
         <div class="form-group-procconf">
             <input type="text" class="input-style-proc" id="workflow-name" placeholder="Workflow Name" required>
@@ -35,12 +32,12 @@
                         <input type="checkbox" onclick="toggleVisibility(this)" class="external-checkbox">
                     </td>
                     <td class="option-columns-topic">
-                        <select class="select-topic-dropdown hidden" >
+                        <select class="select-topic-dropdown hidden" required>
                             <option value="">Select Topic</option>
                         </select>
                     </td>
                     <td class="option-columns-text">
-                        <input type="text" value="" placeholder="Enter External Action" class="option-input-add hidden">
+                        <input type="text" value="" placeholder="Enter External Action" class="option-input-add hidden" required>
                     </td>
                 </tr>
             </tbody></td>
@@ -83,12 +80,12 @@
                     <input type="checkbox" class="external-checkbox" onclick="toggleVisibility(this)">
                 </td>
                 <td class="option-columns-topic">
-                    <select class="select-topic-dropdown hidden">
+                    <select class="select-topic-dropdown hidden" required>
                         <option value="">Select Topic</option>
                     </select>
                 </td>
                 <td class="option-columns-text">
-                    <input type="text" value="" placeholder="Enter External Action" class="option-input-add hidden">
+                    <input type="text" value="" placeholder="Enter External Action" class="option-input-add hidden" required>
                 </td>
             </tr>
         `;
@@ -102,6 +99,7 @@
         if (checkbox.checked) {
             topicDropdown.classList.remove('hidden');
             externalActionInput.classList.remove('hidden');
+            loadTopics();
         } else {
             topicDropdown.classList.add('hidden');
             externalActionInput.classList.add('hidden');
@@ -137,52 +135,81 @@
         }
 
 
-        if(workflowName){
+        if (workflowName) {
             const selectedOptions = [];
             document.querySelectorAll('.button-marked').forEach(button => {
-            const optionText = button.closest('tr').querySelector('.option-input').value.trim();
+            const row = button.closest('tr');
+            const optionText = row.querySelector('.option-input').value.trim();
             const buttonText = button.textContent.trim();
+            const isExternalChecked = row.querySelector('.external-checkbox').checked;
+            const topicValue = isExternalChecked ? row.querySelector('.select-topic-dropdown').value : null;
+            const externalActionValue = isExternalChecked ? row.querySelector('.option-input-add').value.trim() : null;
+            if (isExternalChecked && (topicValue === "Select Topic" || externalActionValue === "")) {
+                const noNameModal = document.getElementById('successModalProcConf');
+                document.getElementById('genericMessage').innerHTML = '<strong>Please enter a topic and external action!</strong>';
+                noNameModal.style.display = 'block';
+                return;
+            }
+
+
             if (optionText) {
-                selectedOptions.push({ option: optionText, action: buttonText });
+                selectedOptions.push({
+                option: optionText,
+                action: buttonText,
+                external: isExternalChecked,
+                topic: topicValue,
+                externalAction: externalActionValue
+                });
             }
             });
 
             const data = {
-                workflowName: workflowName,
-                selectedOptions: selectedOptions
+            workflowName: workflowName,
+            selectedOptions: selectedOptions
             };
 
             fetch('/save-workflow', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
             })
             .then(response => response.json())
             .then(result => {
-                if (result.success) {
-                    const successModal = document.getElementById('successModalProcConf');
-                    document.getElementById('genericMessage').innerHTML = '<strong>Workflow saved successfully!</strong>';
-                    successModal.style.display = 'block';
-                    document.querySelectorAll('.button-marked').forEach(button => {
-                        button.classList.remove('button-marked');
-                    });
+            if (result.success) {
+                const successModal = document.getElementById('successModalProcConf');
+                document.getElementById('genericMessage').innerHTML = '<strong>Workflow saved successfully!</strong>';
+                successModal.style.display = 'block';
+                document.querySelectorAll('.button-marked').forEach(button => {
+                button.classList.remove('button-marked');
+                });
 
-                    document.getElementById('workflow-name').value = '';
-                    document.querySelectorAll('.option-input').forEach(input => {
-                        input.value = '';
-                    });
-                } else {
-                    alert('Error saving workflow.');
-                }
+                document.getElementById('workflow-name').value = '';
+                document.querySelectorAll('.option-input').forEach(input => {
+                input.value = '';
+                });
+                document.querySelectorAll('.external-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+                });
+                document.querySelectorAll('.select-topic-dropdown').forEach(dropdown => {
+                dropdown.value = '';
+                dropdown.classList.add('hidden');
+                });
+                document.querySelectorAll('.option-input-add').forEach(input => {
+                input.value = '';
+                input.classList.add('hidden');
+                });
+            } else {
+                alert('Error saving workflow.');
+            }
             })
             .catch(error => {
-                console.error('Error:', error);
-                alert('Error saving workflow.234');
+            console.error('Error:', error);
+            alert('Error saving workflow.');
             });
         }
-    });
+        });
 
     window.addEventListener('click', function(event) {
         const modal1 = document.getElementById('successModalProcConf'); 
@@ -198,7 +225,31 @@
         });
     });
 
+
+    function loadTopics() {
+    fetch('/api/get-all-topics')
+        .then(response => response.json())
+        .then(data => {
+            if (data.topics) {
+                document.querySelectorAll('.select-topic-dropdown').forEach(dropdown => {
+                    dropdown.innerHTML = '<option value="">Select Topic</option>'; // Reset Dropdown
+                    data.topics.forEach(topic => {
+                        const option = document.createElement('option');
+                        option.value = topic;
+                        option.textContent = topic;
+                        dropdown.appendChild(option);
+                    });
+                });
+            } else {
+                console.error('Error fetching topics:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
       
+    document.addEventListener('DOMContentLoaded', loadTopics);
    
 </script>
 {% endblock %}
