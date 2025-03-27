@@ -19,7 +19,7 @@
         <div class="workflow-sidebar" id="workflow-sidebar">
             <h3>Order Details</h3>
             <div id="workflow-details">
-                <p id="order-name"></p>
+                <p id="order-number"></p>
                 <p id="workflow-name"></p>
                 <p id="current-step-name"></p>
             </div>
@@ -36,21 +36,22 @@
                 const orderSelect = document.getElementById('order-select');
                 data.orders.forEach(order => {
                     const option = document.createElement('option');
-                    option.value = order.id;
-                    option.textContent = order.product;
+                    option.value = order.orderNumber;
+                    option.textContent = order.orderNumber;
+                    const product = order.product;
                     orderSelect.appendChild(option);
                 });
             })
             .catch(error => console.error('Error fetching released orders:', error));
 
         document.getElementById('order-select').addEventListener('change', function() {
-            const ordername = this.options[this.selectedIndex].textContent;
-            if (ordername === 'Select Order') {
+            const orderNumber = this.options[this.selectedIndex].textContent;
+            if (orderNumber === 'Select Order') {
                 return;
             } else {
                 document.getElementById('order-dropdown-container').classList.remove('no-order-selected');
             }
-            fetch(`/api/get-workflow?ordername=${ordername}`)
+            fetch(`/api/get-workflow?orderNumber=${orderNumber}`)
                 .then(response => response.json())
                 .then(({ workflows, workflow_name }) => {
                     const workflowOverview = document.getElementById('workflow-overview');
@@ -87,10 +88,10 @@
                         workflowOverview.appendChild(stepDiv);
 
                         // Mark the current step
-                        let currentStepIndex = localStorage.getItem(`currentStep-${ordername}`);
+                        let currentStepIndex = localStorage.getItem(`currentStep-${orderNumber}`);
                         if (currentStepIndex === null) {
                             currentStepIndex = 0;
-                            localStorage.setItem(`currentStep-${ordername}`, currentStepIndex);
+                            localStorage.setItem(`currentStep-${orderNumber}`, currentStepIndex);
                         }
                         if (currentStepIndex == index) {
                             stepDiv.classList.add('current-step');
@@ -103,7 +104,27 @@
                         // Add event listeners to buttons to update the current step
                         buttonContainer.querySelectorAll('button').forEach(button => {
                             button.addEventListener('click', () => {
-                                localStorage.setItem(`currentStep-${ordername}`, index + 1);
+                                localStorage.setItem(`currentStep-${orderNumber}`, index + 1);
+                                fetch('/api/workflows', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify({
+                                        workflow_name: workflow_name,
+                                        orderNumber: orderNumber,
+                                        currentStep: index + 1,
+                                    }),
+                                })
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        if (data.error) {
+                                            console.error('Error from API:', data.error);
+                                        } else {
+                                            console.log('API response:', data.message);
+                                        }
+                                    })
+                                    .catch(error => console.error('Error calling API:', error));
                                 document.querySelectorAll('.workflow-step-process-instr').forEach((div, idx) => {
                                     div.classList.remove('current-step');
                                     div.querySelectorAll('button').forEach(btn => {
@@ -117,9 +138,9 @@
                         });
                     });
                     // Update sidebar details and make it visible
-                    document.getElementById('order-name').textContent = `Product: ${ordername}`;
+                    document.getElementById('order-number').textContent = `Order Number: ${orderNumber}`;
                     document.getElementById('workflow-name').textContent = `Workflow: ${workflow_name}`;
-                    document.getElementById('current-step-name').textContent = `Current Step: ${workflows[localStorage.getItem(`currentStep-${ordername}`)].option}`;
+                    document.getElementById('current-step-name').textContent = `Current Step: ${workflows[localStorage.getItem(`currentStep-${orderNumber}`)].option}`;
                     document.getElementById('workflow-sidebar').style.display = 'flex';
                 })
                 .catch(error => console.error('Error fetching workflow steps:', error));
