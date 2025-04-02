@@ -41,18 +41,58 @@ document.addEventListener("DOMContentLoaded", function() {
     // Function to send message
     function sendMessage() {
         const message = userInput.value.trim();
-        if (message === "") return;
-
         // Display user message
         displayMessage(message, "user");
         saveMessage(message, "user");
 
+        if (message === "A confirmed order is going to be delivered soon. Put it to highest priority.") 
+        {
+                setTimeout(() => {
+                const botReply = "Thank you for providing this information. As this order is highest priority, it will be scheduled first";
+                displayMessage(botReply, "bot");
+                saveMessage(botReply, "bot");
+                }, 1000);
+        }
+        if (message === "Can you please create and release the following order with the following information: order number is 67800, product name is ITXFG302, lot number is 4, and add it to the ISPEWorkflow."){
+            //Creating and releasing order code from manufacturing-orders.html
+            document.getElementById('order-form').addEventListener('submit', async function(event) {
+                              
+                const response = await fetch('/submit-order', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        orderNumber: 67800,
+                        product: ITXFG302,
+                        lotNumber: 4,
+                        workflow: ISPEWorkflow
+                    })
+                });
+    
+                if (response.ok) {
+                const modal = document.getElementById('successModal');
+                modal.style.display = 'block';
+            } else {
+                alert('Failed to submit order.');
+            }
+        });
+        }
+        else{
+            setTimeout(() => {
+                const botReply = "I am sorry, I didnt understand your message.";
+                displayMessage(botReply, "bot");
+                saveMessage(botReply, "bot");
+            }, 1000)
+        }
+        
         // Simulate chatbot response
-        setTimeout(() => {
+       /* setTimeout(() => {
             const botReply = "How can I help you?";
             displayMessage(botReply, "bot");
             saveMessage(botReply, "bot");
         }, 1000);
+            */
 
         // Clear input field
         userInput.value = "";
