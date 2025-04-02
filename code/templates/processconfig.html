@@ -99,7 +99,26 @@
         if (checkbox.checked) {
             topicDropdown.classList.remove('hidden');
             externalActionInput.classList.remove('hidden');
-            loadTopics();
+            const dropdown = row.querySelector('.select-topic-dropdown');
+            dropdown.innerHTML = '<option value="">Select Topic</option>'; 
+            fetch('/api/get-all-topics')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.topics) {
+                        data.topics.forEach(topic => {
+                            const option = document.createElement('option');
+                            option.value = topic;
+                            option.textContent = topic;
+                            dropdown.appendChild(option);
+                        });
+                    } else {
+                        console.error('Error fetching topics:', data.error);
+                    }
+                })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+           
         } else {
             topicDropdown.classList.add('hidden');
             externalActionInput.classList.add('hidden');
@@ -226,30 +245,7 @@
     });
 
 
-    function loadTopics() {
-    fetch('/api/get-all-topics')
-        .then(response => response.json())
-        .then(data => {
-            if (data.topics) {
-                document.querySelectorAll('.select-topic-dropdown').forEach(dropdown => {
-                    dropdown.innerHTML = '<option value="">Select Topic</option>'; // Reset Dropdown
-                    data.topics.forEach(topic => {
-                        const option = document.createElement('option');
-                        option.value = topic;
-                        option.textContent = topic;
-                        dropdown.appendChild(option);
-                    });
-                });
-            } else {
-                console.error('Error fetching topics:', data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-        });
-    }
-      
-    document.addEventListener('DOMContentLoaded', loadTopics);
+
    
 </script>
 {% endblock %}
