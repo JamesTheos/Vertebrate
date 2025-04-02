@@ -1,9 +1,9 @@
 {
-    "enterprise": "ISPE",
-    "site": "Rome",
-    "area": "Manufacturing_Area_A",
-    "process_cell": "Filling_Line_1",
-    "unit": "Filling_MachineA",
-    "Kafkaserver": "172.19.23.116:9092",
-    "clusterid" : "upax9iYxSRmB_76stmbiAQ"
+    "enterprise": "dfgdfg",
+    "site": "dfgd",
+    "area": "gdg",
+    "process_cell": "dfgdfg",
+    "unit": "dfg",
+    "Kafkaserver": "192.168.178.52:9092",
+    "clusterid": "giwALt3RQUuJSICOP0YRfw"
 }

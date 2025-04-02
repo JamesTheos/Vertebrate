@@ -1,0 +1,23 @@
+[
+    {
+        "option": "Process started?",
+        "action": "Confirm",
+        "external": true,
+        "topic": "ISPEStartPhase1",
+        "externalAction": "True"
+    },
+    {
+        "option": "Select Scene1",
+        "action": "Confirm",
+        "external": true,
+        "topic": "ISPEScene1",
+        "externalAction": "True"
+    },
+    {
+        "option": "Complete Process",
+        "action": "Confirm",
+        "external": false,
+        "topic": null,
+        "externalAction": null
+    }
+]

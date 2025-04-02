@@ -39,7 +39,7 @@ def get_all_topics(bootstrap_servers):
     admin_client = AdminClient({'bootstrap.servers': bootstrap_servers})
     try:
         cluster_metadata = admin_client.list_topics(timeout=10)
-        topics = list(cluster_metadata.topics.keys())
+        topics = sorted([topic for topic in cluster_metadata.topics.keys() if topic != '__consumer_offsets'])
         return topics
     except Exception as e:
         print(f"Error retrieving topics: {e}")

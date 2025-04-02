@@ -1,7 +1,8 @@
 from flask import Flask, render_template, jsonify, request
 from confluent_kafka import Consumer, Producer, KafkaException
-from LLM_Consumer import get_kafka_data
-from Neo4j import get_neo4j_data
+from confluent_kafka.admin import AdminClient, NewTopic
+#from LLM_Consumer import get_kafka_data
+#from Neo4j import get_neo4j_data
 from datetime import datetime
 ## Import the blueprints from the other modules
 from product_analytics_app import product_analytics_app
@@ -9,6 +10,7 @@ from DesignSpaceApp import design_space_app  # Import the blueprint from the Des
 from process_qbd_analysis import process_qbd_analysis  # Import the process QbD analysis blueprint
 from processconfiguration import processconfiguration
 from consumeWorkflows import consumeWorkflows, get_all_workflows
+from colorsettings import colorsettings
 
 #from Nexus2PLC import nexus2plc
 #from Chatbot import Chatbot, query_llama  # Import the chatbot blueprint
@@ -45,17 +47,9 @@ app.register_blueprint(design_space_app)
 app.register_blueprint(process_qbd_analysis)
 app.register_blueprint(processconfiguration)
 app.register_blueprint(consumeWorkflows)
+app.register_blueprint(colorsettings)
 #app.register_blueprint(nexus2plc)
-# def restart_app():
-#     print("App: Restarting application in 5 seconds...", flush=True)
-#     time.sleep(5)
-#     os.execv(sys.executable, ['python'] + sys.argv)
 
-# @app.errorhandler(Exception)
-# def handle_exception(e):
-#     print(f"App: Exception occurred: {e}", flush=True)
-#     restart_app()
-#     return "An error occurred, restarting the application...", 500
 
 #app.register_blueprint(Chatbot)
 
@@ -120,6 +114,27 @@ def consume_messages():
        # print("Current data store message above me", flush=True)  # Debugging log
 
 
+
+#Add topics if they dont exist
+def create_topics_if_not_exist(bootstrap_servers, topics):
+    admin_client = AdminClient({'bootstrap.servers': bootstrap_servers})
+    existing_topics = admin_client.list_topics(timeout=10).topics.keys()
+
+    # Erstellen Sie nur Topics, die noch nicht existieren
+    new_topics = [NewTopic(topic, num_partitions=1, replication_factor=1) for topic in topics if topic not in existing_topics]
+
+    if new_topics:
+        futures = admin_client.create_topics(new_topics)
+        for topic, future in futures.items():
+            try:
+                future.result()  
+                print(f"Topic '{topic}' created.")
+            except Exception as e:
+                print(f"Error when creating Topic: '{topic}': {e}")
+    else:
+        print("All topics registered.")
+
+create_topics_if_not_exist(Kafkaserver, data_store.keys())
 
 
 @app.context_processor
@@ -278,14 +293,7 @@ def workflow_select():
             send_to_kafka('ISPESelectPhase1', {'value': True, 'timestamp': timestamp, **order})
     return jsonify({'success': True})
 
-# @app.route('/workflow/select', methods=['POST'])
-# def workflow_select():
-#     order_id = request.json.get('data')
-#     for order in data_store['manufacturing_orders']:
-#         if order['orderNumber'] == order_id:
-#             timestamp = datetime.utcnow().isoformat()
-#             send_to_kafka('ISPESelectPhase1', {'value': True, 'timestamp': timestamp, **order})
-#     return jsonify({'success': True})
+
 
 @app.route('/workflow/start', methods=['POST'])
 def workflow_start():
@@ -441,62 +449,6 @@ def processinstructions():
 @app.route('/settings')
 def settings():
     return render_template('settings.html')
-
-
-
-# API Call to save the colors
-@app.route('/api/colors', methods=['POST'])
-def save_colors():
-    new_colors = request.json
-    
-    # Update the colors in the config file
-    config_path = os.path.join(os.path.dirname(__file__), 'appconfig.json')
-    with open(config_path) as config_file:
-        config = json.load(config_file)
-    
-    # Overwrite current color values with new values
-    config['TextColor'] = new_colors['textColor']
-    config['BackgroundColor'] = new_colors['bgColor']
-    config['SidebarTextColor'] = new_colors['sbTColor']
-    config['SidebarColor'] = new_colors['sbColor']
-
-    with open(config_path, 'w') as config_file:
-        json.dump(config, config_file, indent=4)
-    
-    return jsonify(success=True)
-
-@app.route('/api/colors', methods=['GET'])
-def get_colors():
-    config_path = os.path.join(os.path.dirname(__file__), 'appconfig.json')
-    with open(config_path) as config_file:
-        config = json.load(config_file)
-        
-    colors = {
-            'textColor': config.get('TextColor'),
-            'bgColor': config.get('BackgroundColor'),
-            'sbTColor': config.get('SidebarTextColor'),
-            'sbColor': config.get('SidebarColor')
-    }
-        
-    return jsonify(colors)
-
-@app.route('/api/colors/reset', methods=['POST'])
-def reset_colors():
-    config_path = os.path.join(os.path.dirname(__file__), 'appconfig.json')
-    with open(config_path) as config_file:
-        config = json.load(config_file)
-    
-    # Overwrite current color values with default values
-    config['TextColor'] = config['defaultTextColor']
-    config['BackgroundColor'] = config['defaultBackgroundColor']
-    config['SidebarTextColor'] = config['defaultSidebarTextColor']
-    config['SidebarColor'] = config['defaultSidebarColor']
-
-    with open(config_path, 'w') as config_file:
-        json.dump(config, config_file, indent=4)
-
-    return jsonify(success=True)
-
 
 
 
