@@ -1,5 +1,6 @@
-from flask import Blueprint, jsonify  # Import Flask and related modules for web server and request handling
-from confluent_kafka import KafkaException, Consumer, OFFSET_BEGINNING  # Import Kafka modules for consuming messages
+from flask import Blueprint, jsonify, request  # Import Flask and related modules for web server and request handling
+from confluent_kafka import KafkaException, Consumer, Producer ,OFFSET_BEGINNING  # Import Kafka modules for consuming messages
+from confluent_kafka.admin import AdminClient  # Import Kafka Admin module for managing Kafka topics
 import json  # Import JSON module for data serialization
 import logging  # Import logging module for logging
 import threading  # Import threading module for running background tasks
@@ -13,7 +14,17 @@ with open(config_path) as config_file:
     
 Kafkaserver= config['Kafkaserver']
 clusterid= config['clusterid']
+enterprise = config['enterprise']
+site = config['site']
+area = config['area']
+process_cell = config['process_cell']
+unit= config['unit'] 
 
+all_workflows = {} # Dictionary to store released and deactivated workflows
+
+released_workflows = {}
+
+#Consumer
 kafka_workflows = {
     'bootstrap.servers': Kafkaserver,
     'group.id': 'manufacturing_orders-workflows-released',
@@ -24,11 +35,119 @@ workflowsConsumer = Consumer(kafka_workflows)
 
 #local memory to store released workflows
 
-all_workflows = {} # Dictionary to store released and deactivated workflows
 
-released_workflows = {}
 
 consumeWorkflows = Blueprint('consumerWorkflows',__name__)  # Initialize Flask application
+
+# ************************ 
+
+# Producer
+
+# ************************
+kafka_produce_conf = {
+    'bootstrap.servers': Kafkaserver
+}
+producer = Producer(kafka_produce_conf)
+
+
+
+def send_to_kafka(topic, value):
+    producer.produce(topic, key="FromWorkflowRelease", value=json.dumps(value).encode('utf-8'))
+    producer.flush()
+
+
+
+#Function to fetch all topics
+def get_all_topics(bootstrap_servers):
+    admin_client = AdminClient({'bootstrap.servers': bootstrap_servers})
+    try:
+        cluster_metadata = admin_client.list_topics(timeout=10)
+        topics = sorted([topic for topic in cluster_metadata.topics.keys() if topic != '__consumer_offsets'])
+        return topics
+    except Exception as e:
+        print(f"Error retrieving topics: {e}")
+        return []
+
+
+@consumeWorkflows.route('/save-workflow', methods=['POST'])
+def save_workflow():
+    data = request.json
+    workflow_name = data.get('workflowName')
+    
+    save_path = os.path.join(os.path.dirname(__file__), 'workflows')
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+
+    file_path = os.path.join(save_path, f'{workflow_name}.json')
+    with open(file_path, 'w') as json_file:
+        json.dump(data.get('selectedOptions'), json_file, indent=4)
+
+    return jsonify({'success': True, 'message': 'Workflow saved successfully.'})
+
+@consumeWorkflows.route('/get-workflows', methods=['GET'])
+def get_workflows():
+    save_path = os.path.join(os.path.dirname(__file__), 'workflows')
+    if not os.path.exists(save_path):
+        return jsonify({'workflows': []})
+
+    workflows = [f.split('.')[0] for f in os.listdir(save_path) if f.endswith('.json')]
+    return jsonify({'workflows': workflows})
+
+
+@consumeWorkflows.route('/get-workflow/<workflow_name>', methods=['GET'])
+def get_workflow(workflow_name):
+    file_path = os.path.join(os.path.dirname(__file__), 'workflows', f'{workflow_name}.json')
+    if not os.path.exists(file_path):
+        return jsonify({'error': 'Workflow not found'}), 404
+
+    with open(file_path, 'r') as json_file:
+        workflows = json.load(json_file)
+        
+    data = {
+        'workflows': workflows,
+        'released_workflows': released_workflows
+    }
+    return jsonify(data)
+
+@consumeWorkflows.route('/delete-workflow/<workflow_name>', methods=['POST'])
+def delete_workflow(workflow_name):
+    file_path = os.path.join(os.path.dirname(__file__), 'workflows', f'{workflow_name}.json')
+    if not os.path.exists(file_path):
+        return jsonify({'error': 'Workflow not found'}), 404
+
+    os.remove(file_path)
+    return jsonify({'success': True, 'message': 'Workflow deleted successfully.'})
+
+@consumeWorkflows.route('/deactivate-workflow/<workflow_name>', methods=['POST'])   
+def deactivate_workflow(workflow_name):
+    send_to_kafka('workflows', {'workflow_name': workflow_name, 'released': 0, "timestamp": datetime.now().isoformat()})
+        
+    return jsonify({'success': True, 'message': 'Workflow deactivated successfully.'})
+
+@consumeWorkflows.route('/release-workflow/<workflow_name>', methods=['POST'])
+def release_workflow(workflow_name):
+    send_to_kafka('workflows', {'workflow_name': workflow_name, 'released': 1, "timestamp": datetime.now().isoformat()})
+
+    return jsonify({'success': True, 'message': 'Workflow released successfully.'})
+
+@consumeWorkflows.route('/api/get-all-topics', methods=['GET'])
+def get_topics():
+    topics = get_all_topics(Kafkaserver)
+    return jsonify({'topics': topics})
+
+
+
+# ************************ 
+
+# Consumer
+
+# ************************
+
+
+
+
+
+
 
 @consumeWorkflows.route('/get-released-workflows', methods=['GET'])
 def get_released_workflows():
