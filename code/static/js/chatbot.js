@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     // Function to send message
-    function sendMessage() {
+    async function sendMessage() {
         const message = userInput.value.trim();
         // Display user message
         displayMessage(message, "user");
@@ -53,39 +53,34 @@ document.addEventListener("DOMContentLoaded", function() {
                 saveMessage(botReply, "bot");
                 }, 1000);
         }
-        if (message === "Can you please create and release the following order with the following information: order number is 67800, product name is ITXFG302, lot number is 4, and add it to the ISPEWorkflow."){
-            //Creating and releasing order code from manufacturing-orders.html
-            document.getElementById('order-form').addEventListener('submit', async function(event) {
-                              
-                const response = await fetch('/submit-order', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        orderNumber: 67800,
-                        product: ITXFG302,
-                        lotNumber: 4,
-                        workflow: ISPEWorkflow
-                    })
-                });
-    
-                if (response.ok) {
-                const modal = document.getElementById('successModal');
-                modal.style.display = 'block';
+        if (message === "Can you please create and release the following order with the following information: order number is 67800, product name is ITXFG302, lot number is 4, and add it to the ISPEWorkflow.") {
+            // Creating and releasing order code from manufacturing-orders.html
+            const response = await fetch('/submit-order', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                orderNumber: 67800,
+                product: "ITXFG302",
+                lotNumber: 4,
+                workflow: "ISPEWorkflow"
+            })
+            });
+
+            if (response.ok) {
+            const modal = document.getElementById('successModal');
+            modal.style.display = 'block';
             } else {
-                alert('Failed to submit order.');
+            alert('Failed to submit order.');
             }
-        });
-        }
-        else{
+        } else {
             setTimeout(() => {
-                const botReply = "I am sorry, I didnt understand your message.";
-                displayMessage(botReply, "bot");
-                saveMessage(botReply, "bot");
-            }, 1000)
+            const botReply = "I am sorry, I didn't understand your message.";
+            displayMessage(botReply, "bot");
+            saveMessage(botReply, "bot");
+            }, 1000);
         }
-        
         // Simulate chatbot response
        /* setTimeout(() => {
             const botReply = "How can I help you?";
