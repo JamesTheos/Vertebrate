@@ -53,7 +53,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 saveMessage(botReply, "bot");
                 }, 1000);
         }
-        if (message === "Can you please create and release the following order with the following information: order number is 67800, product name is ITXFG302, lot number is 4, and add it to the ISPEWorkflow.") {
+        if (message === "Can you please create and release the following order with the following information: order number is 67802, product name is ITXFG302, lot number is 4, and add it to the ISPEWorkflow.") {
             // Creating and releasing order code from manufacturing-orders.html
             setTimeout(() => {
                 const botReply = "Processing..";
@@ -66,7 +66,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                orderNumber: "67800",
+                orderNumber: "67802",
                 product: "ITXFG302",
                 lotNumber: "4",
                 workflow: "ISPEWorkflow"
@@ -99,7 +99,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         },
                         body: JSON.stringify({
                             action: "release", // Specify the action as 'release'
-                            order_id: '67800'  // Pass the order ID
+                            order_id: '67802'  // Pass the order ID
                         })
                     });
             
@@ -127,14 +127,14 @@ document.addEventListener("DOMContentLoaded", function() {
                 }
               } 
 
-        if (message === "Can you follow the release status of order number 67800?") {
+        if (message === "Can you follow the release status of order number 67802?") {
                 fetch('/api/released-orders')
                     .then(response => response.json())
                     .then(data => {
-                        const order = data.orders.find(order => order.orderNumber === "67800");
+                        const order = data.orders.find(order => order.orderNumber === "67802");
                         setTimeout(() => {
                         if (order) {
-                            const botReply = `The release status of order number 67800 is: ${order.status}.`;
+                            const botReply = `The release status of order number 67802 is: ${order.status}.`;
                             displayMessage(botReply, "bot");
                             saveMessage(botReply, "bot");
                         } else {
@@ -165,6 +165,39 @@ document.addEventListener("DOMContentLoaded", function() {
                 saveMessage(botReply, "bot");
                 }, 1000);
         }
+    if(message === "Analyse the incoming information"){
+        fetch('/kafka-data') // Replace with your actual endpoint to fetch Kafka data
+  .then(response => response.json())
+  .then(data => {
+    
+    // Filter values that exceed limits
+    const alerts = data.filter(item => item.value < -2 || item.value > 13);
+    //console.log("alerts length = ", alerts.length);
+    if(alerts.length == 0){
+        setTimeout(() => { const botReply = "No alerts found. All values are within the limits.";
+        displayMessage(botReply, "bot");
+        saveMessage(botReply, "bot");
+        }, 1000);}
+    
+    if(alerts.length> 0){setTimeout(() => {
+        const botReply = "The following order numbers and their respective values exceed the limits: " + alerts.map(item => `Order Number: ${item.orderNumber}, Value: ${item.value}, Timestamp:${item.timestamp}, Producertime: ${item.Producertimestamp}`).join(", ");
+        displayMessage(botReply, "bot");
+        saveMessage(botReply, "bot");
+        }, 1000);
+    
+    // Optionally, update UI or send alerts somewhere
+  }})
+    .catch(error =>  setTimeout(() => {
+        const botReply = "Error fetching Kafka data: ";
+        displayMessage(botReply, "bot");
+        saveMessage(botReply, "bot");
+        }, 1000));
+    //then(error => console.error('Error fetching Kafka data:', error));
+  
+  
+  
+    
+    }
         /*else {
             setTimeout(() => {
             const botReply = "I am sorry, I didn't understand your message.";
