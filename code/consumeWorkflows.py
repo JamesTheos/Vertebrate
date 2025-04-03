@@ -73,14 +73,27 @@ def get_all_topics(bootstrap_servers):
 def save_workflow():
     data = request.json
     workflow_name = data.get('workflowName')
-    
+    options = data.get('options', [])
+
+ 
+    if not workflow_name:
+        return jsonify({'success': False, 'message': 'Workflow name is required.'}), 400
+
+    if not options:
+        return jsonify({'success': False, 'message': 'No options provided for the workflow.'}), 400
+
     save_path = os.path.join(os.path.dirname(__file__), 'workflows')
     if not os.path.exists(save_path):
         os.makedirs(save_path)
 
+    workflow_data = {
+        "workflowName": workflow_name,
+        "options": options
+    }
+
     file_path = os.path.join(save_path, f'{workflow_name}.json')
     with open(file_path, 'w') as json_file:
-        json.dump(data.get('selectedOptions'), json_file, indent=4)
+        json.dump(workflow_data, json_file, indent=4)
 
     return jsonify({'success': True, 'message': 'Workflow saved successfully.'})
 
@@ -94,16 +107,16 @@ def get_workflows():
     return jsonify({'workflows': workflows})
 
 
+
 @consumeWorkflows.route('/get-workflow/<workflow_name>', methods=['GET'])
-def get_workflow2(workflow_name):
+def get_workflow(workflow_name):
     file_path = os.path.join(os.path.dirname(__file__), 'workflows', f'{workflow_name}.json')
     if not os.path.exists(file_path):
         return jsonify({'error': 'Workflow not found'}), 404
 
     with open(file_path, 'r') as json_file:
         workflows = json.load(json_file)
-
-   
+        
     data = {
         'workflows': workflows,
         'released_workflows': all_workflows

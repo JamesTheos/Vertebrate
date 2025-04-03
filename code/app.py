@@ -351,71 +351,80 @@ def get_orderOverview():
 
 @app.route('/api/workflows', methods=['POST'])
 def workflow_steps():
-    data = request.json
-    workflow_name = data.get('workflow_name')
-    order_number = data.get('orderNumber')
-    current_step_index = data.get('currentStep')
+    try:
+        data = request.json
+        workflow_name = data.get('workflow_name')
+        order_number = data.get('orderNumber')
+        current_step_index = data.get('currentStep')
+        button_pressed = data.get('action')
 
-    # Load the workflow data from the JSON file
-    workflow_path = os.path.join(os.path.dirname(__file__), 'workflows', f'{workflow_name}.json')
-    if not os.path.exists(workflow_path):
-        return jsonify({'error': 'Workflow not found'}), 404
+        if not workflow_name or not order_number or current_step_index is None or not button_pressed:
+            return jsonify({'error': 'Missing required fields'}), 400
 
-    with open(workflow_path) as workflow_file:
-        workflow_data = json.load(workflow_file)
+        # Load the workflow data from the JSON file
+        workflow_path = os.path.join(os.path.dirname(__file__), 'workflows', f'{workflow_name}.json')
+        if not os.path.exists(workflow_path):
+            return jsonify({'error': 'Workflow not found'}), 404
 
-    # Index each step in the workflow starting from 0
-    for index, step in enumerate(workflow_data):
-        step['stepIndex'] = index + 1
-    total_steps = len(workflow_data)  
-    print(f"Total steps in the workflow: {total_steps}")
+        with open(workflow_path) as workflow_file:
+            workflow_data = json.load(workflow_file)
 
-    print(step)
-    # Handle the first step of the workflow
-    if current_step_index == 1 and total_steps > 1:
-        for order in data_store['manufacturing_orders']:
-            if order['orderNumber'] == order_number:
-                order['status'] = 'Started'
-                order['timestamp'] = datetime.utcnow().isoformat()
+        # Index each step in the workflow starting from 0
+        for index, step in enumerate(workflow_data.get('options', [])):
+            step['stepIndex'] = index + 1
 
-                if workflow_data[0].get('external'):
-                    step_0_topic = workflow_data[0].get('topic')
-                    action_0 = workflow_data[0].get('externalAction')
-                    send_to_kafka(step_0_topic, {'value': action_0, **order})
-                send_to_kafka('manufacturing_orders', {**order})
+        total_steps = len(workflow_data.get('options', []))
+        if total_steps == 0:
+            return jsonify({'error': 'No steps found in the workflow'}), 400
 
-    if current_step_index < total_steps:
-         for order in data_store['manufacturing_orders']:
-            if order['orderNumber'] == order_number:
-                order['timestamp'] = datetime.utcnow().isoformat()
+        # Handle the first step of the workflow
+        if current_step_index == 1 and total_steps > 1:
+            for order in data_store['manufacturing_orders']:
+                if order['orderNumber'] == order_number:
+                    order['status'] = 'Started'
+                    order['timestamp'] = datetime.utcnow().isoformat()
+                    for actions in workflow_data['options'][0].get('actions', []):
+                        if actions.get('action') == button_pressed:
+                            if actions.get('external'):
+                                topic = actions.get('topic')
+                                external_action = actions.get('externalAction')
+                                send_to_kafka(topic, {'value': external_action, **order})
+                                break
+                    send_to_kafka('manufacturing_orders', {**order})
 
-                if workflow_data[current_step_index-1].get('external'):
-                    step_current_topic = workflow_data[current_step_index-1].get('topic')
-                    action_current = workflow_data[current_step_index-1].get('externalAction')
-                    send_to_kafka(step_current_topic, {'value': action_current, **order})
+        if current_step_index < total_steps and current_step_index > 1:
+            for order in data_store['manufacturing_orders']:
+                if order['orderNumber'] == order_number:
+                    order['timestamp'] = datetime.utcnow().isoformat()
 
+                    for option in workflow_data['options'][current_step_index - 1].get('actions', []):
+                        if option.get('action') == button_pressed:
+                            if option.get('external'):
+                                step_current_topic = option.get('topic')
+                                action_current = option.get('externalAction')
+                                send_to_kafka(step_current_topic, {'value': action_current, **order})
 
-    if current_step_index == total_steps:
-        for order in data_store['manufacturing_orders']:
-            if order['orderNumber'] == order_number:
-                order['status'] = 'Completed'
-                order['timestamp'] = datetime.utcnow().isoformat()
+        if current_step_index == total_steps:
+            for order in data_store['manufacturing_orders']:
+                if order['orderNumber'] == order_number:
+                    order['status'] = 'Completed'
+                    order['timestamp'] = datetime.utcnow().isoformat()
 
-                if workflow_data[current_step_index-1].get('external'):
-                    step_current_topic = workflow_data[current_step_index-1].get('topic')
-                    action_current = workflow_data[current_step_index-1].get('externalAction')
-                    send_to_kafka(step_current_topic, {'value': action_current, **order})
-                send_to_kafka('manufacturing_orders', {**order})
-
-               
-                for step in workflow_data:
-                    if step.get('external'):
-                        reset_topic = step.get('topic')
-                        send_to_kafka(reset_topic, {'value': False, **order})
-
-
-    return jsonify({'success': True})
+                    for actions in workflow_data['options'][current_step_index - 1].get('actions', []):
         
+                        if actions.get('action') == button_pressed:
+                            if actions.get('external'):
+                                topic = actions.get('topic')
+                                external_action = actions.get('externalAction')
+                                send_to_kafka(topic, {'value': external_action, **order})
+                                break
+                    send_to_kafka('manufacturing_orders', {**order})
+
+        return jsonify({'success': True})
+
+    except Exception as e:
+        print(f"Error in /api/workflows: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
    
 
 
@@ -436,8 +445,8 @@ def get_workflow():
             workflow_data = json.load(workflow_file)
 
         data = {
-            'workflows': workflow_data,
-            'workflow_name': workflow
+            'workflows': workflow_data.get('options'),
+            'workflow_name': workflow_data.get('workflowName'),
         }
         return jsonify(data)
     else:

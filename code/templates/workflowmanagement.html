@@ -59,57 +59,70 @@
             .catch(error => console.error('Error fetching workflows:', error));
     }
 
-  // Fetch workflow preview
-  document.getElementById('workflow-select-WorkflowMan').addEventListener('change', function() {
-        const workflowName = this.value;
-        const previewContainer = document.getElementById('preview-container');
-        const releaseButton = document.getElementById('release-workflow');
-        const deactivateButton = document.getElementById('deactivate-workflow');
-        const deleteButton = document.getElementById('delete-workflow');
+    document.getElementById('workflow-select-WorkflowMan').addEventListener('change', function () {
+    const workflowName = this.value;
+    const previewContainer = document.getElementById('preview-container');
 
-        if (workflowName) {
-            fetch(`/get-workflow/${workflowName}`)
-                .then(response => response.json())
-                .then(({ workflows, released_workflows })=> {
-                    const previewBody = document.getElementById('workflow-preview-body');
-                    previewBody.innerHTML = ''; // Clear previous preview
-                    workflows.forEach(option => {
+    if (workflowName) {
+        fetch(`/get-workflow/${workflowName}`)
+            .then(response => response.json())
+            .then(({ workflows, released_workflows }) => {
+                if (!workflows) {
+                    console.error('Error: Workflow data is missing.');
+                    return;
+                }
+
+                const previewBody = document.getElementById('workflow-preview-body');
+                previewBody.innerHTML = ''; 
+
+                workflows.options.forEach(option => {
+                    let isFirstAction = true;
+
+                    option.actions.forEach(action => {
                         const row = document.createElement('tr');
-                        const optionCell = document.createElement('td');
-                        const actionCell = document.createElement('td');
-                        const externalCell = document.createElement('td');
-                        const topicCell = document.createElement('td');
-                        const externalActionCell = document.createElement('td');
+
                         
-                        optionCell.textContent = option.option; 
-                        actionCell.textContent = option.action;
-                        externalCell.textContent = option.external;
-                        topicCell.textContent = option.topic;
-                        externalActionCell.textContent = option.externalAction;
+                        const optionCell = document.createElement('td');
+                        if (isFirstAction) {
+                            optionCell.textContent = option.option || '';
+                            isFirstAction = false; 
+                        } else {
+                            optionCell.textContent = ''; 
+                        }
+
+                        const actionCell = document.createElement('td');
+                        actionCell.textContent = action.action || 'N/A';
+
+                        const externalCell = document.createElement('td');
+                        externalCell.textContent = action.external ? 'Yes' : 'No';
+
+                        const topicCell = document.createElement('td');
+                        topicCell.textContent = action.topic || 'N/A';
+
+                        const externalActionCell = document.createElement('td');
+                        externalActionCell.textContent = action.externalAction || 'N/A';
+
                         row.appendChild(optionCell);
                         row.appendChild(actionCell);
                         row.appendChild(externalCell);
                         row.appendChild(topicCell);
                         row.appendChild(externalActionCell);
+
                         previewBody.appendChild(row);
+                        updateButtons(workflowName, released_workflows);
                     });
-                    previewContainer.style.display = 'block';
-                    updateButtons(workflowName, released_workflows);
-                  
-                        
-                       
-                    
-                    
-                })
-        .catch(error => console.error('Error fetching workflow:', error));
-        } else {
-            document.getElementById('workflow-preview-body').innerHTML = '';
-            previewContainer.style.display = 'none';
-        }
-    });
+                });
 
+                previewContainer.style.display = 'block';
+            })
+            .catch(error => console.error('Error fetching workflow:', error));
+    } else {
+        document.getElementById('workflow-preview-body').innerHTML = '';
+        previewContainer.style.display = 'none';
+    }
+});
 
-    function updateButtons(workflowName, releasedWorkflows) {
+function updateButtons(workflowName, releasedWorkflows) {
         const releaseButton = document.getElementById('release-workflow');
         const deactivateButton = document.getElementById('deactivate-workflow');
         const deleteButton = document.getElementById('delete-workflow');

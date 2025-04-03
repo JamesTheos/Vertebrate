@@ -25,8 +25,7 @@
                         <input type="text" value="" placeholder="Enter Option" class="option-input">
                     </td>
                     <td class="option-columns-buttons">
-                        <button class="button-style-processconfig">Setpoints</button>
-                        <button class="button-style-processconfig">Confirm</button>
+                        <input type="text" value="" placeholder="Enter Action" class="action-input" required>
                     </td>
                     <td class="option-columns-external">
                         <input type="checkbox" onclick="toggleVisibility(this)" class="external-checkbox">
@@ -45,6 +44,8 @@
         <div class="save-button-container">
             <button type="submit" class="button-style-processconfig-save" id="savebutton">Save Workflow</button>
             <button class="button-style-processconfig-save" onclick="addRow()">Add row</button>
+            <button class="button-style-processconfig-save" onclick="addAction()">Add Action</button>
+            <button class="button-style-processconfig-save" onclick="deleteRow()">Delete Row</button>
         </div>
     </div>
     
@@ -64,6 +65,70 @@
 
 
 <script>
+
+function deleteRow() {
+    const table = document.getElementById('workflow-configurator').getElementsByTagName('tbody')[0];
+    const lastRow = table.querySelector('tr:last-child');
+
+    if (!lastRow) {
+        const noRowModal = document.getElementById('successModalProcConf');
+        document.getElementById('genericMessage').innerHTML = '<strong>No row available to delete!</strong>';
+        noRowModal.style.display = 'block';
+        return;
+    }
+
+    table.deleteRow(lastRow.rowIndex - 1);
+}
+
+  function addAction() {
+    const table = document.getElementById('workflow-configurator').getElementsByTagName('tbody')[0];
+    const lastRow = table.querySelector('tr:last-child');
+
+    if (!lastRow) {
+        const noRowModal = document.getElementById('successModalProcConf');
+        document.getElementById('genericMessage').innerHTML = '<strong>No row available to add an action!</strong>';
+        noRowModal.style.display = 'block';
+        return;
+    }
+
+    // Abrufen der Option, zu der die zusätzliche Aktion gehört
+    const optionInput = lastRow.querySelector('.option-input');
+    const optionValue = optionInput ? optionInput.value.trim() : lastRow.getAttribute('data-option-id');
+
+    if (!optionValue) {
+        const noRowModal = document.getElementById('successModalProcConf');
+        document.getElementById('genericMessage').innerHTML = '<strong>Please enter an option before adding an action!</strong>';
+        noRowModal.style.display = 'block';
+        return;
+    }
+
+    // Neue Zeile hinzufügen
+    const newRow = table.insertRow();
+    newRow.setAttribute('data-option-id', optionValue); // Verknüpfen der neuen Zeile mit der Option
+    newRow.innerHTML = `
+        <tr>
+            <td class="option-columns-text">
+                <!-- Leeres Feld für zusätzliche Aktionen -->
+            </td>
+            <td class="option-columns-buttons">
+                <input type="text" value="" placeholder="Enter Action" class="action-input" required>
+            </td>
+            <td class="option-columns-external">
+                <input type="checkbox" class="external-checkbox" onclick="toggleVisibility(this)">
+            </td>
+            <td class="option-columns-topic">
+                <select class="select-topic-dropdown hidden" required>
+                    <option value="">Select Topic</option>
+                </select>
+            </td>
+            <td class="option-columns-text">
+                <input type="text" value="" placeholder="Enter External Action" class="option-input-add hidden" required>
+            </td>
+        </tr>
+    `;
+}
+
+
      function addRow() {
         const table = document.getElementById('workflow-configurator').getElementsByTagName('tbody')[0];
         const newRow = table.insertRow();
@@ -73,8 +138,7 @@
                     <input type="text" value="" placeholder="Enter Option" class="option-input">
                 </td>
                 <td class="option-columns-buttons">
-                    <button class="button-style-processconfig">Setpoints</button>
-                    <button class="button-style-processconfig">Confirm</button>
+                <input type="text" value="" placeholder="Enter Action" class="action-input" required>
                 </td>
                 <td class="option-columns-external">
                     <input type="checkbox" class="external-checkbox" onclick="toggleVisibility(this)">
@@ -142,98 +206,89 @@
         }
     });
 
-
     document.getElementById('savebutton').addEventListener('click', function(event) {
-        event.preventDefault();
-        
-        const workflowName = document.getElementById('workflow-name').value.trim();
-        if (!workflowName) {
-            const noNameModal = document.getElementById('successModalProcConf');
-            document.getElementById('genericMessage').innerHTML = '<strong>Please enter a workflow name!</strong>';
-            noNameModal.style.display = 'block';
+    event.preventDefault();
+
+    const workflowName = document.getElementById('workflow-name').value.trim();
+    if (!workflowName) {
+        const noNameModal = document.getElementById('successModalProcConf');
+        document.getElementById('genericMessage').innerHTML = '<strong>Please enter a workflow name!</strong>';
+        noNameModal.style.display = 'block';
+        return;
+    }
+
+    const optionsMap = new Map();
+
+    document.querySelectorAll('tbody tr').forEach(row => {
+        const optionInput = row.querySelector('.option-input');
+        const optionId = optionInput ? optionInput.value.trim() : row.getAttribute('data-option-id');
+        const actionInput = row.querySelector('.action-input');
+        const isExternalChecked = row.querySelector('.external-checkbox')?.checked;
+        const topicValue = isExternalChecked ? row.querySelector('.select-topic-dropdown')?.value : null;
+        let externalActionInput = isExternalChecked ? row.querySelector('.option-input-add')?.value.trim().toLowerCase() : null;
+        if (externalActionInput === 'True') {
+            externalActionInput = true;
+        } else if (externalActionInput === 'False') {
+            externalActionInput = false;
         }
 
+        const actionValue = actionInput ? actionInput.value.trim() : null;
 
-        if (workflowName) {
-            const selectedOptions = [];
-            document.querySelectorAll('.button-marked').forEach(button => {
-            const row = button.closest('tr');
-            const optionText = row.querySelector('.option-input').value.trim();
-            const buttonText = button.textContent.trim();
-            const isExternalChecked = row.querySelector('.external-checkbox').checked;
-            const topicValue = isExternalChecked ? row.querySelector('.select-topic-dropdown').value : null;
-            let externalActionValue = isExternalChecked ? row.querySelector('.option-input-add').value.trim() : null;
-            if (externalActionValue === "True") {
-                externalActionValue = true;
-            } else if (externalActionValue === "False") {
-                externalActionValue = false;
-            }
-            if (isExternalChecked && (topicValue === "Select Topic" || externalActionValue === "")) {
-                const noNameModal = document.getElementById('successModalProcConf');
-                document.getElementById('genericMessage').innerHTML = '<strong>Please enter a topic and external action!</strong>';
-                noNameModal.style.display = 'block';
-                return;
+        if (isExternalChecked && (!topicValue || !externalActionInput)) {
+            const noNameModal = document.getElementById('successModalProcConf');
+            document.getElementById('genericMessage').innerHTML = '<strong>Please enter a topic and external action!</strong>';
+            noNameModal.style.display = 'block';
+            return;
+        }
+
+        if (actionValue) {
+            // Wenn die Option noch nicht in der Map ist, füge sie hinzu
+            if (!optionsMap.has(optionId)) {
+                optionsMap.set(optionId, {
+                    option: optionId || null, // Option kann null sein
+                    actions: []
+                });
             }
 
-
-            if (optionText) {
-                selectedOptions.push({
-                option: optionText,
-                action: buttonText,
+            // Füge die Aktion zur Liste der Aktionen hinzu
+            optionsMap.get(optionId).actions.push({
+                action: actionValue,
                 external: isExternalChecked,
                 topic: topicValue,
-                externalAction: externalActionValue
-                });
-            }
-            });
-
-            const data = {
-            workflowName: workflowName,
-            selectedOptions: selectedOptions
-            };
-
-            fetch('/save-workflow', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-            })
-            .then(response => response.json())
-            .then(result => {
-            if (result.success) {
-                const successModal = document.getElementById('successModalProcConf');
-                document.getElementById('genericMessage').innerHTML = '<strong>Workflow saved successfully!</strong>';
-                successModal.style.display = 'block';
-                document.querySelectorAll('.button-marked').forEach(button => {
-                button.classList.remove('button-marked');
-                });
-
-                document.getElementById('workflow-name').value = '';
-                document.querySelectorAll('.option-input').forEach(input => {
-                input.value = '';
-                });
-                document.querySelectorAll('.external-checkbox').forEach(checkbox => {
-                checkbox.checked = false;
-                });
-                document.querySelectorAll('.select-topic-dropdown').forEach(dropdown => {
-                dropdown.value = '';
-                dropdown.classList.add('hidden');
-                });
-                document.querySelectorAll('.option-input-add').forEach(input => {
-                input.value = '';
-                input.classList.add('hidden');
-                });
-            } else {
-                alert('Error saving workflow.');
-            }
-            })
-            .catch(error => {
-            console.error('Error:', error);
-            alert('Error saving workflow.');
+                externalAction: externalActionInput
             });
         }
-        });
+    });
+
+    const selectedOptions = Array.from(optionsMap.values());
+
+    const data = {
+        workflowName: workflowName,
+        options: selectedOptions
+    };
+
+    fetch('/save-workflow', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            const successModal = document.getElementById('successModalProcConf');
+            document.getElementById('genericMessage').innerHTML = '<strong>Workflow saved successfully!</strong>';
+            successModal.style.display = 'block';
+        } else {
+            alert('Error saving workflow.');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error saving workflow.');
+    });
+});
 
     window.addEventListener('click', function(event) {
         const modal1 = document.getElementById('successModalProcConf'); 
