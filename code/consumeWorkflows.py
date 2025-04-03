@@ -95,17 +95,18 @@ def get_workflows():
 
 
 @consumeWorkflows.route('/get-workflow/<workflow_name>', methods=['GET'])
-def get_workflow(workflow_name):
+def get_workflow2(workflow_name):
     file_path = os.path.join(os.path.dirname(__file__), 'workflows', f'{workflow_name}.json')
     if not os.path.exists(file_path):
         return jsonify({'error': 'Workflow not found'}), 404
 
     with open(file_path, 'r') as json_file:
         workflows = json.load(json_file)
-        
+
+   
     data = {
         'workflows': workflows,
-        'released_workflows': released_workflows
+        'released_workflows': all_workflows
     }
     return jsonify(data)
 
