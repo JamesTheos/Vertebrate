@@ -162,7 +162,12 @@
             const buttonText = button.textContent.trim();
             const isExternalChecked = row.querySelector('.external-checkbox').checked;
             const topicValue = isExternalChecked ? row.querySelector('.select-topic-dropdown').value : null;
-            const externalActionValue = isExternalChecked ? row.querySelector('.option-input-add').value.trim() : null;
+            let externalActionValue = isExternalChecked ? row.querySelector('.option-input-add').value.trim() : null;
+            if (externalActionValue === "True") {
+                externalActionValue = true;
+            } else if (externalActionValue === "False") {
+                externalActionValue = false;
+            }
             if (isExternalChecked && (topicValue === "Select Topic" || externalActionValue === "")) {
                 const noNameModal = document.getElementById('successModalProcConf');
                 document.getElementById('genericMessage').innerHTML = '<strong>Please enter a topic and external action!</strong>';

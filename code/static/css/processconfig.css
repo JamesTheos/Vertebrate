@@ -108,7 +108,7 @@
 .button-style-processconfig, .button-style-processconfig-save, .button-style-processconfig-close {
     padding: 5px 20px;
     margin: 0px 5px;
-    width: 100px;
+    width: 120px;
     border: none;
     border-radius: 4px;
     background-color: var(--button-background);
