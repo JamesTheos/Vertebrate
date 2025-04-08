@@ -4,6 +4,6 @@
     "area": "gdg",
     "process_cell": "dfgdfg",
     "unit": "dfg",
-    "Kafkaserver": "192.168.178.52:9092",
-    "clusterid": "giwALt3RQUuJSICOP0YRfw"
+    "Kafkaserver": "10.168.10.32:9092",
+    "clusterid": "VsmRKr2TTmiVgnp37cNmPQ"
 }

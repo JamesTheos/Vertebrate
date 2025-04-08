@@ -43,7 +43,7 @@
         </table>
         <div class="save-button-container">
             <button type="submit" class="button-style-processconfig-save" id="savebutton">Save Workflow</button>
-            <button class="button-style-processconfig-save" onclick="addRow()">Add row</button>
+            <button class="button-style-processconfig-save" onclick="addRow()">Add Row</button>
             <button class="button-style-processconfig-save" onclick="addAction()">Add Action</button>
             <button class="button-style-processconfig-save" onclick="deleteRow()">Delete Row</button>
         </div>
@@ -226,15 +226,18 @@ function deleteRow() {
         const isExternalChecked = row.querySelector('.external-checkbox')?.checked;
         const topicValue = isExternalChecked ? row.querySelector('.select-topic-dropdown')?.value : null;
         let externalActionInput = isExternalChecked ? row.querySelector('.option-input-add')?.value.trim().toLowerCase() : null;
-        if (externalActionInput === 'True') {
-            externalActionInput = true;
-        } else if (externalActionInput === 'False') {
-            externalActionInput = false;
-        }
+        console.log('externalActionInput:', externalActionInput); // Debugging output
+        
+            if (externalActionInput === 'false') {
+                externalActionInput = false;
+            } else if (externalActionInput === 'true') {
+                externalActionInput = true;
+            }
+        
 
         const actionValue = actionInput ? actionInput.value.trim() : null;
 
-        if (isExternalChecked && (!topicValue || !externalActionInput)) {
+        if (isExternalChecked && (!topicValue || (!externalActionInput && externalActionInput !== false))) {
             const noNameModal = document.getElementById('successModalProcConf');
             document.getElementById('genericMessage').innerHTML = '<strong>Please enter a topic and external action!</strong>';
             noNameModal.style.display = 'block';
@@ -280,14 +283,9 @@ function deleteRow() {
             const successModal = document.getElementById('successModalProcConf');
             document.getElementById('genericMessage').innerHTML = '<strong>Workflow saved successfully!</strong>';
             successModal.style.display = 'block';
-        } else {
-            alert('Error saving workflow.');
-        }
+        } 
     })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error saving workflow.');
-    });
+
 });
 
     window.addEventListener('click', function(event) {

@@ -97,10 +97,10 @@
                         externalCell.textContent = action.external ? 'Yes' : 'No';
 
                         const topicCell = document.createElement('td');
-                        topicCell.textContent = action.topic || 'N/A';
+                        topicCell.textContent = action.topic;
 
                         const externalActionCell = document.createElement('td');
-                        externalActionCell.textContent = action.externalAction || 'N/A';
+                        externalActionCell.textContent = action.externalAction;
 
                         row.appendChild(optionCell);
                         row.appendChild(actionCell);
