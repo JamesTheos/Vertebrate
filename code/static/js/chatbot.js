@@ -45,6 +45,13 @@ document.addEventListener("DOMContentLoaded", function() {
         displayMessage(message, "user");
         saveMessage(message, "user");
 
+        // Pattern to match the values from the sentence
+        const pattern = /order number is (\d+), product name is ([A-Z0-9]+), lot number is (\d+), and add it to the ([\w]+)/i;
+
+        const match = message.match(pattern);
+        // If the message matches the pattern, extract the values
+        let orderNumber, productName, lotNumber, workflow
+
         if (message === "A confirmed order is going to be delivered soon. Put it to highest priority.") 
         {
                 setTimeout(() => {
@@ -53,7 +60,11 @@ document.addEventListener("DOMContentLoaded", function() {
                 saveMessage(botReply, "bot");
                 }, 1000);
         }
-        if (message === "Can you please create and release the following order with the following information: order number is 67802, product name is ITXFG302, lot number is 4, and add it to the ISPEWorkflow.") {
+        if (match) {
+            orderNumber = match[1];
+            productName = match[2];
+            lotNumber = match[3];
+            workflow = match[4];
             // Creating and releasing order code from manufacturing-orders.html
             setTimeout(() => {
                 const botReply = "Processing..";
@@ -66,10 +77,10 @@ document.addEventListener("DOMContentLoaded", function() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                orderNumber: "67802",
-                product: "ITXFG302",
-                lotNumber: "4",
-                workflow: "ISPEWorkflow"
+                orderNumber: orderNumber,
+                product: productName,
+                lotNumber: lotNumber,
+                workflow: workflow
                 
             })
             });
@@ -99,7 +110,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         },
                         body: JSON.stringify({
                             action: "release", // Specify the action as 'release'
-                            order_id: '67802'  // Pass the order ID
+                            order_id: orderNumber  // Pass the order ID
                         })
                     });
             
@@ -126,19 +137,24 @@ document.addEventListener("DOMContentLoaded", function() {
                         }, 1000);
                 }
               } 
+        
+        const pattern2 = /Can you follow the release status of order number (\d+)?/i;
+        const match2 = message.match(pattern2);
+        let orderNumber2;      
 
-        if (message === "Can you follow the release status of order number 67802?") {
+        if (match2) {
+            orderNumber2 = match2[1];
                 fetch('/api/released-orders')
                     .then(response => response.json())
                     .then(data => {
-                        const order = data.orders.find(order => order.orderNumber === "67802");
+                        const order = data.orders.find(order => order.orderNumber === orderNumber2);
                         setTimeout(() => {
                         if (order) {
                             const botReply = `The release status of order number 67802 is: ${order.status}.`;
                             displayMessage(botReply, "bot");
                             saveMessage(botReply, "bot");
                         } else {
-                            const botReply = "Order number 67800 was not found in the released orders.";
+                            const botReply = `Order number ${orderNumber2} was not found in the released orders.`;
                             displayMessage(botReply, "bot");
                             saveMessage(botReply, "bot");
                         }}, 1000);
@@ -165,13 +181,17 @@ document.addEventListener("DOMContentLoaded", function() {
                 saveMessage(botReply, "bot");
                 }, 1000);
         }
-    if(message === "Analyse the incoming information"){
+    const pattern3 = /Analyse the incoming information of order Number (\d+)?/i;
+    const match3 = message.match(pattern3);
+    let orderNumber3;
+    if(match3){
+        orderNumber3 = match3[1];
         fetch('/kafka-data') // Replace with your actual endpoint to fetch Kafka data
   .then(response => response.json())
   .then(data => {
     
     // Filter values that exceed limits
-    const alerts = data.filter(item => item.value < -2 || item.value > 13);
+    const alerts = data.filter(item => item.orderNumber = orderNumber3 && (item.value < -2 || item.value > 13));
     //console.log("alerts length = ", alerts.length);
     if(alerts.length == 0){
         setTimeout(() => { const botReply = "No alerts found. All values are within the limits.";
