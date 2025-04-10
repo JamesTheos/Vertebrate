@@ -46,7 +46,7 @@ document.addEventListener("DOMContentLoaded", function() {
         saveMessage(message, "user");
 
         // Pattern to match the values from the sentence
-        const pattern = /order number is (\d+), product name is ([A-Z0-9]+), lot number is (\d+), and add it to the ([\w]+)/i;
+        const pattern = /order number is (\d+), product name is ([A-Z0-9]+), lot number is (\d+), and add it to the Workflow ([\w]+)/i;
 
         const match = message.match(pattern);
         // If the message matches the pattern, extract the values
@@ -89,7 +89,7 @@ document.addEventListener("DOMContentLoaded", function() {
             const modal = document.getElementById('successModal');
             //modal.style.display = 'block';
             setTimeout(() => {
-                const botReply = "Order has been created successfully and added to the ISPEWorkflow.";
+                const botReply = `Order has been created successfully and added to the Workflow: ${workflow}.`;
                 displayMessage(botReply, "bot");
                 saveMessage(botReply, "bot");
                 }, 1000);
@@ -151,7 +151,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         const order = data.orders.find(order => order.orderNumber === orderNumber2);
                         setTimeout(() => {
                         if (order) {
-                            const botReply = `The release status of order number 67802 is: ${order.status}.`;
+                            const botReply = `The release status of order number ${orderNumber2} is: ${order.status}.`;
                             displayMessage(botReply, "bot");
                             saveMessage(botReply, "bot");
                         } else {
