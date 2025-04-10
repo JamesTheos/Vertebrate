@@ -105,7 +105,7 @@
                 <tr>
                     <td><input type="number" class="ispespeed" required></td>
                     <td><input type="number" class="ispetemp" required></td>
-                    <td><button type="button" onclick="removeRow(this)">Remove</button></td>
+                    <td><button type="button" class= "button-dsd-row" onclick="removeRow(this)">Remove</button></td>
                 </tr>
             `;
             return;
@@ -125,7 +125,7 @@
                     newRow.innerHTML = `
                         <td><input type="number" class="ispespeed" value="${value.ispespeed}" required></td>
                         <td><input type="number" class="ispetemp" value="${value.ispetemp}" required></td>
-                        <td><button type="button" onclick="removeRow(this)">Remove</button></td>
+                        <td><button type="button" class= "button-dsd-row" onclick="removeRow(this)">Remove</button></td>
                     `;
                 });
             })

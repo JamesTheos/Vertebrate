@@ -63,7 +63,7 @@
     box-sizing: border-box;
     border: 1px solid var(--table-border);
     border-radius: 4px;
-    background-color: var(--content-background);
+    background-color: var(--dropdown-background);
     font-size: 16px;
     transition: border-color 0.3s, box-shadow 0.3s;
 }
