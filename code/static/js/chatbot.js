@@ -110,7 +110,8 @@ document.addEventListener("DOMContentLoaded", function() {
                         },
                         body: JSON.stringify({
                             action: "release", // Specify the action as 'release'
-                            order_id: orderNumber  // Pass the order ID
+                            order_id: orderNumber,  // Pass the order ID
+                            workflowName: workflow
                         })
                     });
             
