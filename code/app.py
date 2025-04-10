@@ -172,8 +172,20 @@ def order_management():
     if request.method == 'POST':
         action = request.json.get('action')
         order_id = request.json.get('order_id')
-        if not action or not order_id:
-            return jsonify({'error': 'Missing action or order_id'}), 400
+        workflow_name = request.json.get('workflowName')
+
+
+        if not workflow_name or not order_id or not action:
+            return jsonify({'error': 'Missing required fields'}), 400
+
+        # Load the workflow data from the JSON file
+        workflow_path = os.path.join(os.path.dirname(__file__), 'workflows', f'{workflow_name}.json')
+        if not os.path.exists(workflow_path):
+            return jsonify({'error': 'Workflow not found'}), 404
+
+        with open(workflow_path) as workflow_file:
+            workflow_data = json.load(workflow_file)
+
         
         order_found = False
         for order in data_store['manufacturing_orders']:
@@ -183,9 +195,13 @@ def order_management():
                     order['status'] = 'Released'
                 elif action == 'abort':
                     order['status'] = 'Aborted'
-                    send_to_kafka('ISPEScene1', {'value': False, **order})
-                    send_to_kafka('ISPEScene2', {'value': False, **order})
-                    send_to_kafka('ISPEStartPhase1', {'value': False, **order})
+
+                    # Reset all values to null for all external topics
+                    for step in workflow_data['options']:
+                        for action in step.get('actions', []):
+                            if action.get('external'):
+                                topic = action.get('topic')
+                                send_to_kafka(topic, {'value': None, **order})
                 else:
                     return jsonify({'error': 'Invalid action'}), 400
                 producer.produce('manufacturing_orders', key="FromOrderManagement", value=json.dumps(order).encode('utf-8'))
@@ -419,6 +435,13 @@ def workflow_steps():
                                 send_to_kafka(topic, {'value': external_action, **order})
                                 break
                     send_to_kafka('manufacturing_orders', {**order})
+
+                    # Reset all values to null for all external topics
+                    for step in workflow_data['options']:
+                        for action in step.get('actions', []):
+                            if action.get('external'):
+                                topic = action.get('topic')
+                                send_to_kafka(topic, {'value': None, **order})
 
         return jsonify({'success': True})
 

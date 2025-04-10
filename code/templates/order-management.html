@@ -63,13 +63,31 @@
                         localStorage.removeItem('selectedOrder');
                     }
                     
+                    fetch(`/api/get-workflow?orderNumber=${orderId}`)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Failed to fetch workflow');
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (data.workflow_name) {
+                                workflowName = data.workflow_name;
+                            } else {
+                                console.error('Workflow name not found in response');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error fetching workflow:', error);
+                        });
 
+                        
                     fetch('/order-management', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ action, order_id: orderId })
+                        body: JSON.stringify({ action, order_id: orderId , workflowName})
                     })
         
                     
