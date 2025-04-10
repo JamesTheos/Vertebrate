@@ -5,8 +5,8 @@
 
 {% block content %}
 <!-- Dropdown to select different sets -->
-<select id="set-select" class="dropdown-dsr" " loadSet(this.value)">
-    <option value="">Select a set</option>
+<select id="set-select" class="dropdown-dsr" onchange="loadSet(this.value)"></select>
+    <option value="Select a set"></option>
 </select>
 
 

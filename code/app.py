@@ -6,9 +6,8 @@ from confluent_kafka.admin import AdminClient, NewTopic
 from datetime import datetime
 ## Import the blueprints from the other modules
 from product_analytics_app import product_analytics_app
-#from DesignSpaceApp import design_space_app  # Import the blueprint from the DesignSpaceApp module
+from DesignSpaceApp import design_space_app  # Import the blueprint from the DesignSpaceApp module
 from process_qbd_analysis import process_qbd_analysis  # Import the process QbD analysis blueprint
-# from processconfiguration import processconfiguration
 from consumeWorkflows import consumeWorkflows, get_all_workflows
 from colorsettings import colorsettings
 from consumeWorkflows import get_released_workflows
@@ -45,9 +44,8 @@ app = Flask(__name__)
 
 # Register the blueprints
 app.register_blueprint(product_analytics_app)
-#app.register_blueprint(design_space_app)
+app.register_blueprint(design_space_app)
 app.register_blueprint(process_qbd_analysis)
-# app.register_blueprint(processconfiguration)
 app.register_blueprint(consumeWorkflows)
 app.register_blueprint(colorsettings)
 #app.register_blueprint(nexus2plc)
