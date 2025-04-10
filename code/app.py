@@ -201,7 +201,7 @@ def order_management():
                         for action in step.get('actions', []):
                             if action.get('external'):
                                 topic = action.get('topic')
-                                send_to_kafka(topic, {'value': None, **order})
+                                send_to_kafka(topic, {'value': False, **order})
                 else:
                     return jsonify({'error': 'Invalid action'}), 400
                 producer.produce('manufacturing_orders', key="FromOrderManagement", value=json.dumps(order).encode('utf-8'))
@@ -441,7 +441,7 @@ def workflow_steps():
                         for action in step.get('actions', []):
                             if action.get('external'):
                                 topic = action.get('topic')
-                                send_to_kafka(topic, {'value': None, **order})
+                                send_to_kafka(topic, {'value': False, **order})
 
         return jsonify({'success': True})
 

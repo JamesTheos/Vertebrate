@@ -148,10 +148,10 @@
             const latestValue2 = data2.length > 0 ? data2[data2.length - 1].value : 'N/A';
             const latestValue3 = data3.length > 0 ? data3[data3.length - 1].value : 'N/A';
             const latestValue4 = data4.length > 0 ? data4[data4.length - 1].value : 'N/A';
-            document.getElementById('ISPEAmbTempvalue').textContent = `${latestValue1}`;
-            document.getElementById('ISPESpeedvalue').textContent = `${latestValue2}`;
-            document.getElementById('ISPEPressurevalue').textContent = `${latestValue3}`;
-            document.getElementById('ISPEMTempvalue').textContent = `${latestValue4}`;
+            document.getElementById('ISPEAmbTempvalue').textContent = `${parseFloat(latestValue1).toFixed(2)}`;
+            document.getElementById('ISPESpeedvalue').textContent = `${parseFloat(latestValue2).toFixed(2)}`;
+            document.getElementById('ISPEPressurevalue').textContent = `${parseFloat(latestValue3).toFixed(2)}`;
+            document.getElementById('ISPEMTempvalue').textContent = `${parseFloat(latestValue4).toFixed(2)}`;
         }
 
         // Initial load
