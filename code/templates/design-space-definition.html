@@ -32,7 +32,34 @@
 <span style="display:inline-block; width: 20px;"></span>
 <button type="button" class="button-dsd" onclick="saveSet()">Save Set</button>
 
+<div id="successModalSet" class="modal-Set">
+    <div class="modal-content-Set">
+        <input type="text" id="setNameInput" class="input-Set" placeholder="Enter a name for this set" required>
+        <br>
+        <button class="button-style-Set-save save-Set-button" onclick="returnName()">Save Set</button>
+        <button class="button-style-Set-close close-Set-button" onclick="closeModal()">Cancel</button>
+    </div>
+</div>
+
 <script>
+    function returnName() {
+        const setName = document.getElementById('setNameInput').value;
+        if (!setName) {
+            alert('Set name cannot be empty.');
+            return;
+        }
+        saveSetAPI(setName);
+        closeModal();
+    }
+
+    function closeModal() {
+        document.getElementById('successModalSet').style.display = 'none';
+    }
+
+    function openModal() {
+        document.getElementById('successModalSet').style.display = 'block';
+    }
+
     // Add an event listener to the document that will run the function when the DOM is fully loaded
     document.addEventListener('DOMContentLoaded', function() {
         // Fetch data from the '/get-sets' endpoint
@@ -71,17 +98,18 @@
     }
 
     function saveSet() {
+        openModal()
+    }
+
+    function saveSetAPI(name)
+    {
         const rows = document.querySelectorAll('#value-pairs-table tbody tr');
         const values = Array.from(rows).map(row => ({
             ispespeed: row.querySelector('.ispespeed').value,
             ispetemp: row.querySelector('.ispetemp').value
         }));
-
-        const setName = prompt('Enter a name for this set:');
-        if (!setName) return;
-
         const setId = document.getElementById('set-select').value || null;
-
+        setName = name;
         fetch('/save-set', {
             method: 'POST',
             headers: {
@@ -90,13 +118,14 @@
             body: JSON.stringify({ id: setId, name: setName, values })
         }).then(response => {
             if (response.ok) {
-                alert('Set saved successfully!');
+                closeModal();
                 location.reload();
             } else {
                 alert('Failed to save set.');
             }
         });
     }
+    
 
     function loadSet(setId) {
         if (!setId) {
