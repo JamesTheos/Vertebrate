@@ -14,36 +14,33 @@ with open(config_path) as config_file:
 Kafkaserver = config['Kafkaserver']
 
 # Kafka Consumer Configuration
-kafka_workflows = {
+kafka_temp = {
     'bootstrap.servers': Kafkaserver,
     'group.id': 'demo_test-workflows-released',
     'auto.offset.reset': 'earliest'
 }
 
-workflowsConsumer = Consumer(kafka_workflows)
+tempConsumer = Consumer(kafka_temp)
 
-# Local memory to store released workflows and Kafka messages
-released_workflows = {}
-all_workflows = {}
 kafka_data_store = []  # Store Kafka messages
 
-Workflows_for_demo = Blueprint('demo_consumer', __name__)
+tempConsumerChatbot = Blueprint('temp_consumer_chatbot', __name__)
 
 
 # New Endpoint to Get Kafka Data
-@Workflows_for_demo.route('/kafka-data', methods=['GET'])
+@tempConsumerChatbot.route('/kafka-data', methods=['GET'])
 def get_kafka_data():
     return jsonify(kafka_data_store)
 
 # Kafka Consumer Function
-def consume_workflows_for_demo():
+def consume_temp_data_chatbot():
     print("Starting Kafka consumer thread", flush=True)
     
-    workflowsConsumer.subscribe(['ISPEMTemp'])  # Ensure you're listening to the right topic
+    tempConsumer.subscribe(['ISPEMTemp'])  # Ensure you're listening to the right topic
 
     try:
         while True:
-            msgs = workflowsConsumer.consume(5, timeout=1.0)  # Fetch messages
+            msgs = tempConsumer.consume(5, timeout=1.0)  # Fetch messages
             
             if not msgs:
                 continue  
@@ -56,13 +53,13 @@ def consume_workflows_for_demo():
                         logging.error(f"Kafka Consumer Error: {msg.error()}")
                         continue
                 
-                workflow = json.loads(msg.value().decode('utf-8'))  # Decode JSON message
+                data = json.loads(msg.value().decode('utf-8'))  # Decode JSON message
                 
                 # Extract relevant data
-                order_number = workflow.get("orderNumber")
-                value = workflow.get("value")
-                timestamp = datetime.fromisoformat(workflow.get("timestamp")).strftime("%Y-%m-%d %H:%M")
-                Producertime = datetime.fromisoformat(workflow.get("Producertimestamp")).strftime("%Y-%m-%d %H:%M")
+                order_number = data.get("orderNumber")
+                value = data.get("value")
+                timestamp = datetime.fromisoformat(data.get("timestamp")).strftime("%Y-%m-%d %H:%M")
+                Producertime = datetime.fromisoformat(data.get("Producertimestamp")).strftime("%Y-%m-%d %H:%M")
                 
 
                 # Store Kafka data in memory
@@ -74,8 +71,8 @@ def consume_workflows_for_demo():
     except KeyboardInterrupt:
         pass
     finally:
-        workflowsConsumer.close()
+        tempConsumer.close()
 
 
 # Start Kafka consumer in a separate thread
-threading.Thread(target=consume_workflows_for_demo, daemon=True).start()
+threading.Thread(target=consume_temp_data_chatbot, daemon=True).start()

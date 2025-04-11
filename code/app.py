@@ -11,7 +11,7 @@ from process_qbd_analysis import process_qbd_analysis  # Import the process QbD 
 from consumeWorkflows import consumeWorkflows, get_all_workflows
 from colorsettings import colorsettings
 from consumeWorkflows import get_released_workflows
-from demo_consumer import Workflows_for_demo
+from demo_consumer import tempConsumerChatbot
 
 #from Nexus2PLC import nexus2plc
 #from Chatbot import Chatbot, query_llama  # Import the chatbot blueprint
@@ -49,7 +49,7 @@ app.register_blueprint(process_qbd_analysis)
 app.register_blueprint(consumeWorkflows)
 app.register_blueprint(colorsettings)
 #app.register_blueprint(nexus2plc)
-app.register_blueprint(Workflows_for_demo)
+app.register_blueprint(tempConsumerChatbot)
 
 
 #app.register_blueprint(Chatbot)
