@@ -1,0 +1,61 @@
+{
+    "workflowName": "FluVaccineISPE",
+    "options": [
+        {
+            "option": "Start",
+            "actions": [
+                {
+                    "action": "Start",
+                    "external": true,
+                    "topic": "ISPEStartPhase1",
+                    "externalAction": true
+                }
+            ]
+        },
+        {
+            "option": "Start Scene1",
+            "actions": [
+                {
+                    "action": "Scene1",
+                    "external": true,
+                    "topic": "ISPEScene1",
+                    "externalAction": true
+                },
+                {
+                    "action": "Scene2",
+                    "external": true,
+                    "topic": "ISPEScene2",
+                    "externalAction": true
+                }
+            ]
+        },
+        {
+            "option": "End Scene",
+            "actions": [
+                {
+                    "action": "Scene1",
+                    "external": true,
+                    "topic": "ISPEScene1",
+                    "externalAction": false
+                },
+                {
+                    "action": "Scene2",
+                    "external": true,
+                    "topic": "ISPEScene2",
+                    "externalAction": false
+                }
+            ]
+        },
+        {
+            "option": "End",
+            "actions": [
+                {
+                    "action": "Complete",
+                    "external": true,
+                    "topic": "ISPEStartPhase1",
+                    "externalAction": false
+                }
+            ]
+        }
+    ]
+}

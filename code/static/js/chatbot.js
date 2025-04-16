@@ -46,46 +46,75 @@ document.addEventListener("DOMContentLoaded", function() {
         saveMessage(message, "user");
 
         // Pattern to match the values from the sentence
-        const pattern = /order number is (\d+), product name is ([A-Z0-9]+), lot number is (\d+), and add it to the Workflow ([\w]+)/i;
+        const pattern = /A new order of product ([A-Z0-9]+) is arriving to lot number (\d+). Add it to the Workflow/i;
 
         const match = message.match(pattern);
         // If the message matches the pattern, extract the values
-        let orderNumber, productName, lotNumber, workflow
+        let OrderNumber, productName, lotNumber, workflow = "FluVaccineISPE";
 
-        if (message === "A confirmed order is going to be delivered soon. Put it to highest priority.") 
-        {
-                setTimeout(() => {
-                const botReply = "Thank you for providing this information. As this order is highest priority, it will be scheduled first";
-                displayMessage(botReply, "bot");
-                saveMessage(botReply, "bot");
-                }, 1000);
-        }
         if (match) {
-            orderNumber = match[1];
-            productName = match[2];
-            lotNumber = match[3];
-            workflow = match[4];
+            productName = match[1];
+            lotNumber = match[2];
             // Creating and releasing order code from manufacturing-orders.html
             setTimeout(() => {
                 const botReply = "Processing..";
                 displayMessage(botReply, "bot");
                 saveMessage(botReply, "bot");
                 }, 1000);
-            const response = await fetch('/submit-order', {
+            const response = await fetch('/manufacturing-orders-data',{
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    productName : productName
+                })
+            });
+            console.log(response.ok);
+            async function fetchOrderNumber() {
+                if (response.ok) {
+                    let res;
+                    try {
+                        res = await fetch('/manufacturing-orders-data');
+                        if (!res.ok) {
+                            throw new Error(`Server error: ${res.status} ${res.statusText}`);
+                        }
+                    } catch (error) {
+                        console.error('Error fetching manufacturing orders data:', error);
+                        const botReply = "Failed to fetch manufacturing orders data. Please try again later.";
+                        displayMessage(botReply, "bot");
+                        saveMessage(botReply, "bot");
+                        return;
+                    }
+                    const data = await res.json();
+                    OrderNumber = data.orderNumber;
+                    console.log("Order Number: ", OrderNumber);
+                }
+            }
+            
+            // Später aufrufen:
+            await fetchOrderNumber(); // orderNumber ist danach verfügbar
+            console.log("Global Order Number: ", OrderNumber);
+            console.log("Lot Number: ", lotNumber);
+            const response1 = await fetch('/submit-order', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                orderNumber: orderNumber,
-                product: productName,
-                lotNumber: lotNumber,
-                workflow: workflow
-                
+                orderNumber: String(OrderNumber || ""),
+                product: productName || "",
+                lotNumber: lotNumber || "",
+                workflow: workflow || ""
             })
             });
 
-            if (response.ok) {
+            if (!response1.ok) {
+                const errorData = await response1.json();
+                console.error('Error details:', errorData);
+            }
+
+            if (response1.ok) {
             const modal = document.getElementById('successModal');
             //modal.style.display = 'block';
             setTimeout(() => {
@@ -110,7 +139,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         },
                         body: JSON.stringify({
                             action: "release", // Specify the action as 'release'
-                            order_id: orderNumber,  // Pass the order ID
+                            order_id: OrderNumber,  // Pass the order ID
                             workflowName: workflow
                         })
                     });
@@ -187,7 +216,7 @@ document.addEventListener("DOMContentLoaded", function() {
     let orderNumber3;
     if(match3){
         orderNumber3 = match3[1];
-        fetch('/kafka-data') // Replace with your actual endpoint to fetch Kafka data
+        fetch('/IMPEMTemp-data') // Replace with your actual endpoint to fetch Kafka data
   .then(response => response.json())
   .then(data => {
     
