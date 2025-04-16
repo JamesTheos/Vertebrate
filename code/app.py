@@ -403,6 +403,19 @@ def workflow_steps():
                                 topic = actions.get('topic')
                                 external_action = actions.get('externalAction')
                                 send_to_kafka(topic, {'value': external_action, **order})
+
+                                #Demo adaptation to add second action
+                                if topic == 'ISPEScene1':
+                                    if external_action == True:
+                                        send_to_kafka('ISPEScene2', {'value': False, **order})
+                                    elif external_action == False:   
+                                        send_to_kafka('ISPEScene2', {'value': True, **order})
+
+                                elif topic == 'ISPEScene2':
+                                    if external_action == True:
+                                        send_to_kafka('ISPEScene1', {'value': False, **order})
+                                    elif external_action == False:   
+                                        send_to_kafka('ISPEScene1', {'value': True, **order})
                                 break
                     send_to_kafka('manufacturing_orders', {**order})
 
@@ -418,6 +431,19 @@ def workflow_steps():
                                 action_current = option.get('externalAction')
                                 send_to_kafka(step_current_topic, {'value': action_current, **order})
 
+                                #Demo adaptation to add second action
+                                if step_current_topic == 'ISPEScene1':
+                                    if action_current == True:
+                                        send_to_kafka('ISPEScene2', {'value': False, **order})
+                                    elif action_current == False:   
+                                        send_to_kafka('ISPEScene2', {'value': True, **order})
+
+                                elif step_current_topic == 'ISPEScene2':
+                                    if action_current == True:
+                                        send_to_kafka('ISPEScene1', {'value': False, **order})
+                                    elif action_current == False:   
+                                        send_to_kafka('ISPEScene1', {'value': True, **order})
+
         if current_step_index == total_steps:
             for order in data_store['manufacturing_orders']:
                 if order['orderNumber'] == order_number:
@@ -431,6 +457,21 @@ def workflow_steps():
                                 topic = actions.get('topic')
                                 external_action = actions.get('externalAction')
                                 send_to_kafka(topic, {'value': external_action, **order})
+
+                                #Demo adaptation to add second action
+                                if topic == 'ISPEScene1':
+                                    if external_action == True:
+                                        send_to_kafka('ISPEScene2', {'value': False, **order})
+                                    elif external_action == False:   
+                                        send_to_kafka('ISPEScene2', {'value': True, **order})
+
+                                elif topic == 'ISPEScene2':
+                                    if external_action == True:
+                                        send_to_kafka('ISPEScene1', {'value': False, **order})
+                                    elif external_action == False:   
+                                        send_to_kafka('ISPEScene1', {'value': True, **order})
+
+
                                 break
                     send_to_kafka('manufacturing_orders', {**order})
 

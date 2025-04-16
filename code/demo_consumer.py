@@ -127,7 +127,7 @@ def consume_man_orders():
             partition.offset = OFFSET_BEGINNING
         consumer.assign(partitions)
 
-    temp_man_order_consumer.subscribe(['manufacturing_orders'], on_assign=temp_on_assign())  # Ensure you're listening to the right topic
+    temp_man_order_consumer.subscribe(['manufacturing_orders'], on_assign=temp_on_assign)  # Ensure you're listening to the right topic
 
     try:
         while True:
