@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     productName : productName
                 })
             });
-            console.log(response.ok);
+            //console.log(response.ok);
             async function fetchOrderNumber() {
                 if (response.ok) {
                     let res;
@@ -80,7 +80,7 @@ document.addEventListener("DOMContentLoaded", function() {
                             throw new Error(`Server error: ${res.status} ${res.statusText}`);
                         }
                     } catch (error) {
-                        console.error('Error fetching manufacturing orders data:', error);
+                       // console.error('Error fetching manufacturing orders data:', error);
                         const botReply = "Failed to fetch manufacturing orders data. Please try again later.";
                         displayMessage(botReply, "bot");
                         saveMessage(botReply, "bot");
@@ -88,14 +88,14 @@ document.addEventListener("DOMContentLoaded", function() {
                     }
                     const data = await res.json();
                     OrderNumber = data.orderNumber;
-                    console.log("Order Number: ", OrderNumber);
+                    //console.log("Order Number: ", OrderNumber);
                 }
             }
             
             // Später aufrufen:
             await fetchOrderNumber(); // orderNumber ist danach verfügbar
-            console.log("Global Order Number: ", OrderNumber);
-            console.log("Lot Number: ", lotNumber);
+            //console.log("Global Order Number: ", OrderNumber);
+            //console.log("Lot Number: ", lotNumber);
             const response1 = await fetch('/submit-order', {
             method: 'POST',
             headers: {
@@ -111,7 +111,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
             if (!response1.ok) {
                 const errorData = await response1.json();
-                console.error('Error details:', errorData);
+                //console.error('Error details:', errorData);
             }
 
             if (response1.ok) {
@@ -128,45 +128,8 @@ document.addEventListener("DOMContentLoaded", function() {
                     displayMessage(botReply, "bot");
                     saveMessage(botReply, "bot");
                     }, 1000);;
-            }
-                           
-                try {
-                    console.log('Releasing order...');
-                    const response2 = await fetch('/order-management', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            action: "release", // Specify the action as 'release'
-                            order_id: OrderNumber,  // Pass the order ID
-                            workflowName: workflow
-                        })
-                    });
-            
-                    if (response2.ok) {
-                        const data = await response2.json();
-                        setTimeout(() => {
-                            const botReply = "Order has been successfully released.";
-                            displayMessage(botReply, "bot");
-                            saveMessage(botReply, "bot");
-                            }, 1000);
-                    } else {
-                        const errorData = await response2.json();
-                        setTimeout(() => {
-                            const botReply = "Failed to release the order. Please check the details and try again.";
-                            displayMessage(botReply, "bot");
-                            saveMessage(botReply, "bot");
-                            }, 1000);
-                    }
-                } catch (error) {
-                    setTimeout(() => {
-                        const botReply = "Error occurred while releasing the order. Please try again later." + error.message;
-                        displayMessage(botReply, "bot");
-                        saveMessage(botReply, "bot");
-                        }, 1000);
-                }
-              } 
+            }  
+        } 
         
         const pattern2 = /Can you follow the release status of order number (\d+)?/i;
         const match2 = message.match(pattern2);

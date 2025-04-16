@@ -35,10 +35,7 @@ temp_man_order_consumer = Consumer(man_order_temp)
 
 order_number_dict = {}  # Store manufacturing order numbers
 productName = None  # Initialize productName variable
-product_file = os.path.join(os.path.dirname(__file__), 'product_name.txt')
-if os.path.exists(product_file):
-    with open(product_file, 'r') as f:
-        productName = f.read().strip()
+
 
 tempConsumerChatbot = Blueprint('temp_consumer_chatbot', __name__)
 
@@ -58,16 +55,13 @@ def get_manufacturing_orders_data():
         if not productName:
             return jsonify({"error": "productName is required"}), 400
         else:
-            with open(product_file, 'w') as f:
-                f.write(productName)
-            return jsonify({"message": "Product name set successfully"}), 200 
-           
+            return jsonify({"message": "Product name set successfully"}), 200    
     elif request.method == 'GET':
         if productName not in order_number_dict.keys():
             order_number_dict[productName] = 0  # Initialize order number for the product if not already present
-        print("All tracked order numbers:", order_number_dict[productName], flush=True)
+        #print("All tracked order numbers:", order_number_dict[productName], flush=True)
         submitted_order_number = order_number_dict[productName] + 1
-        print(f"Sent Order Number: {submitted_order_number}", flush=True)	
+        #print(f"Sent Order Number: {submitted_order_number}", flush=True)	
         return jsonify({"orderNumber": submitted_order_number})
 
 
@@ -119,7 +113,6 @@ def consume_temp_data_chatbot():
 #Manfucaturing Orders Consumer Function
 
 def consume_man_orders():
-    global productName  # Declare productName as global to modify it
     print("Starting Manufacturing orders consumer thread", flush=True)
 
     def temp_on_assign(consumer, partitions):
