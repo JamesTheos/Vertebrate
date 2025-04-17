@@ -45,7 +45,7 @@ document.addEventListener("DOMContentLoaded", function() {
         displayMessage(message, "user");
         saveMessage(message, "user");
 
-        // Pattern to match the values from the sentence
+        //First Prompt
         const pattern = /A new order of product ([A-Z0-9]+) is arriving to lot number (\d+). Add it to the Workflow/i;
 
         const match = message.match(pattern);
@@ -130,24 +130,25 @@ document.addEventListener("DOMContentLoaded", function() {
                     }, 1000);;
             }  
         } 
-        
-        const pattern2 = /Can you follow the release status of order number (\d+)?/i;
+        //Second Prompt
+        const pattern2 = /Can you follow the release status of order number (\d+) of product ([A-Z0-9]+)?/i;
         const match2 = message.match(pattern2);
         let orderNumber2;      
 
         if (match2) {
             orderNumber2 = match2[1];
+            product_name2 = match2[2];
                 fetch('/api/released-orders')
                     .then(response => response.json())
                     .then(data => {
-                        const order = data.orders.find(order => order.orderNumber === orderNumber2);
+                        const order = data.orders.find(order => (order.orderNumber === orderNumber2) && (order.product === product_name2));
                         setTimeout(() => {
                         if (order) {
-                            const botReply = `The release status of order number ${orderNumber2} is: ${order.status}.`;
+                            const botReply = `The release status of order number ${orderNumber2} of ${product_name2} is: ${order.status}.`;
                             displayMessage(botReply, "bot");
                             saveMessage(botReply, "bot");
                         } else {
-                            const botReply = `Order number ${orderNumber2} was not found in the released orders.`;
+                            const botReply = `Order number ${orderNumber2} of product ${product_name2} was not found in the released orders.`;
                             displayMessage(botReply, "bot");
                             saveMessage(botReply, "bot");
                         }}, 1000);
@@ -161,56 +162,81 @@ document.addEventListener("DOMContentLoaded", function() {
                 
             
         }
+        //Third Prompt
         if(message === "Can you check if the needed equipment is free? If not can you free the equipment up from the current task and move that task to a different place?"){
             setTimeout(() => {
                 const botReply = "The needed equipment is not free. The current task has been moved to a different place and the equipment has been freed up.";
                 displayMessage(botReply, "bot");
                 saveMessage(botReply, "bot");
                 }, 1000);
-        }if(message === "Can you also check if the needed ressources are enough?"){
+        }
+        //Fourth Prompt
+        if(message === "Can you also check if the needed ressources are enough?"){
             setTimeout(() => {
                 const botReply = "The needed ressources are enough for the current task.";
                 displayMessage(botReply, "bot");
                 saveMessage(botReply, "bot");
                 }, 1000);
         }
-    const pattern3 = /Analyse the incoming information of order Number (\d+)?/i;
-    const match3 = message.match(pattern3);
-    let orderNumber3;
-    if(match3){
-        orderNumber3 = match3[1];
-        fetch('/IMPEMTemp-data') // Replace with your actual endpoint to fetch Kafka data
-  .then(response => response.json())
-  .then(data => {
+        //Fifth Prompt
     
-    // Filter values that exceed limits
-    const alerts = data.filter(item => item.orderNumber = orderNumber3 && (item.value < -2 || item.value > 13));
-    //console.log("alerts length = ", alerts.length);
-    if(alerts.length == 0){
-        setTimeout(() => { const botReply = "No alerts found. All values are within the limits.";
-        displayMessage(botReply, "bot");
-        saveMessage(botReply, "bot");
-        }, 1000);}
-    
-    if(alerts.length> 0){setTimeout(() => {
-        const botReply = "The following order numbers and their respective values exceed the limits: " + alerts.map(item => `Order Number: ${item.orderNumber}, Value: ${item.value}, Timestamp:${item.timestamp}, Producertime: ${item.Producertimestamp}`).join(", ");
-        displayMessage(botReply, "bot");
-        saveMessage(botReply, "bot");
-        }, 1000);
-    
-    // Optionally, update UI or send alerts somewhere
-  }})
-    .catch(error =>  setTimeout(() => {
-        const botReply = "Error fetching Kafka data: ";
-        displayMessage(botReply, "bot");
-        saveMessage(botReply, "bot");
-        }, 1000));
-    //then(error => console.error('Error fetching Kafka data:', error));
-  
-  
-  
-    
-    }
+    //const pattern3 = /Analyse the incoming information of order Number (\d+)?/i;
+   // const match3 = message.match(pattern3);
+    //let orderNumber3;
+    let borderpoints = [];
+let ispetemp, ispespeed;
+
+// Ray-casting algorithm
+function isPointInPolygon(point, polygon) {
+  const [x, y] = point;
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const [xi, yi] = polygon[i];
+    const [xj, yj] = polygon[j];
+    const intersect = ((yi > y) !== (yj > y)) &&
+                      (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+// Step 1: Get border points
+if (message === "Analyse the incoming information") {
+  fetch(`/get-set/${localStorage.getItem('selectedSetId')}`)
+    .then(response => response.json())
+    .then(data => {
+      console.log("Found:", data);
+      // Convert values to points
+      borderpoints = data.values.map(v => [
+        parseFloat(v.ispespeed),
+        parseFloat(v.ispetemp)
+      ]);
+
+      // Step 2: Start polling values once we have the borderpoints
+      pollLatestValues();
+    });
+}
+
+// Step 2: Polling function to keep fetching values
+function pollLatestValues() {
+  setInterval(() => {
+    fetch('/get-latest-values')
+      .then(response => response.json())
+      .then(data => {
+        ispespeed = parseFloat(data.ispespeed);
+        ispetemp = parseFloat(data.ispetemp);
+
+        const point = [ispespeed, ispetemp];
+        const inside = isPointInPolygon(point, borderpoints);
+
+        console.log(`Point (${ispespeed}, ${ispetemp}) is ${inside ? 'INSIDE' : 'OUTSIDE'} the polygon`);
+        
+        // You can add your custom logic here:
+        // e.g., alert(), UI update, color change, etc.
+      });
+  }, 1000); // adjust polling rate as needed
+}
+
         /*else {
             setTimeout(() => {
             const botReply = "I am sorry, I didn't understand your message.";
