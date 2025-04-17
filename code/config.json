@@ -4,6 +4,6 @@
     "area": "Manufacturing Area A",
     "process_cell": "Filling Line 1",
     "unit": "Filling Machine A",
-    "Kafkaserver": "192.168.2.104:9092",
-    "clusterid": "pjQWLjU7QBaa8ihRvvjqIA"
+    "Kafkaserver": "10.168.10.32:9092",
+    "clusterid": "N888528RQYq_Df0EWSDavQ"
 }
