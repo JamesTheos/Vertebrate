@@ -24,12 +24,18 @@
             .then(response => response.json())
             .then(data => {
                 const select = document.getElementById('set-select');
+                const option = document.createElement('option');
+                option.value = 0;
+                option.textContent = "Select Set";
+                select.appendChild(option);
+                
                 data.forEach(set => {
                     const option = document.createElement('option');
                     option.value = set.id;
                     option.textContent = set.name;
                     select.appendChild(option);
                 });
+                
             });
 
         // Start polling for the latest values
