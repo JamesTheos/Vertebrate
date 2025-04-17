@@ -173,16 +173,4 @@ def get_latest_values():
         print(f"DesignSpace:Error fetching latest values: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
     
-    ################################################################################################
-def load_existing_sets():
-    while not consumer.assignment():
-        consumer.poll(timeout_ms=1000)
-    partitions = consumer.assignment()
-    consumer.seek_to_beginning(*partitions)
-    while True:
-        raw_msgs = consumer.poll(timeout_ms=1000)
-        if not raw_msgs:
-            break
-        for tp, msgs in raw_msgs.items():
-            for message in msgs:
-                sets_storage[message.value['id']] = message.value
+  

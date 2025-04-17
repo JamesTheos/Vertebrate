@@ -443,6 +443,7 @@ def workflow_steps():
                                         send_to_kafka('ISPEScene1', {'value': False, **order})
                                     elif action_current == False:   
                                         send_to_kafka('ISPEScene1', {'value': True, **order})
+                                break
 
         if current_step_index == total_steps:
             for order in data_store['manufacturing_orders']:
@@ -470,15 +471,14 @@ def workflow_steps():
                                         send_to_kafka('ISPEScene1', {'value': False, **order})
                                     elif external_action == False:   
                                         send_to_kafka('ISPEScene1', {'value': True, **order})
-
-
                                 break
+
                     send_to_kafka('manufacturing_orders', {**order})
 
                     # Reset all values to null for all external topics
                     for step in workflow_data['options']:
-                        for action in step.get('actions', []):
-                            if action.get('external'):
+                        for action in step.get('actions'):
+                            if action.get('external') == True:
                                 topic = action.get('topic')
                                 send_to_kafka(topic, {'value': False, **order})
 

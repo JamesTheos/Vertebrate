@@ -125,7 +125,6 @@ def consume_man_orders():
     try:
         while True:
             msgs = temp_man_order_consumer.consume(5, timeout=1.0)  # Fetch messages
-            print(f"Received messages: {msgs}", flush=True)  # Debugging line
             
             if not msgs:
                 continue  

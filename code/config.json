@@ -1,9 +1,8 @@
 {
-    "enterprise": "dfgdfg",
-    "site": "dfgd",
-    "area": "gdg",
-    "process_cell": "dfgdfg",
-    "unit": "dfg",
+    "enterprise": "ISPE",
+    "site": "Boston",
+    "area": "Manufacturing Area A",
+    "process_cell": "Filling Line 1",
+    "unit": "Filling Machine A",
     "Kafkaserver": "10.168.10.32:9092",
-    "clusterid": "VsmRKr2TTmiVgnp37cNmPQ"
 }
