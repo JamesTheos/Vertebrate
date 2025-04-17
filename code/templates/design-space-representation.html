@@ -46,6 +46,9 @@
         if (!setId) {
             return;
         }
+        
+        // Save the selected setId to localStorage
+        localStorage.setItem('selectedSetId', setId);
 
         fetch(`/get-set/${setId}`)
             .then(response => response.json())

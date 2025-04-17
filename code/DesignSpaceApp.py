@@ -113,7 +113,13 @@ def get_set(set_id):
     try:
         set_data = sets_storage.get(set_id)
         if set_data:
-            return jsonify(set_data)
+            print(f"DesignSpace:Fetched set with ID {set_id}: {set_data}")
+            border_points = [
+                [float(point['ispespeed']), float(point['ispetemp'])]
+                for point in set_data['values']
+                            ]
+            print(f"DesignSpace:Border points for set {set_id}: {border_points}")
+            return jsonify(border_points)
         return jsonify({'status': 'error', 'message': 'Set not found'}), 404
     except Exception as e:
         logging.error(f"Error fetching set: {e}")
@@ -124,7 +130,7 @@ def get_set(set_id):
 @design_space_app.route('/get-latest-values', methods=['GET'])
 def get_latest_values():
     try:
-        print("DesignSpace:Assigning partitions and getting end offsets")
+        #print("DesignSpace:Assigning partitions and getting end offsets")
         # Assign partitions
         temp_partition = TopicPartition('ISPEMTemp', 0)
         speed_partition = TopicPartition('ISPESpeed', 0)
@@ -135,13 +141,13 @@ def get_latest_values():
         # Get end offsets
         temp_end_offset = temp_consumer.end_offsets([temp_partition])[temp_partition]
         speed_end_offset = speed_consumer.end_offsets([speed_partition])[speed_partition]
-        print(f"DesignSpace:End offsets - ISPEMTemp: {temp_end_offset}, ISPESpeed: {speed_end_offset}")
+        #print(f"DesignSpace:End offsets - ISPEMTemp: {temp_end_offset}, ISPESpeed: {speed_end_offset}")
             
         # Seek to the latest message
         temp_consumer.seek(temp_partition, temp_end_offset - 1)
         speed_consumer.seek(speed_partition, speed_end_offset - 1)
         
-        print("DesignSpace:Polling for the latest messages")
+        #print("DesignSpace:Polling for the latest messages")
         # Poll for the latest messages
         temp_records = temp_consumer.poll(timeout_ms=1000)
         speed_records = speed_consumer.poll(timeout_ms=1000)
@@ -149,28 +155,28 @@ def get_latest_values():
         latest_temp = None
         latest_speed = None
         
-        print("DesignSpace:Processing messages from ISPEMTemp")
+        #print("DesignSpace:Processing messages from ISPEMTemp")
         # Get the latest message from ISPEMTemp
         for tp, messages in temp_records.items():
             for message in messages:
                 latest_temp = message.value['value']
-                print(f"Value for ISPEMTemp: {latest_temp}")
+                #print(f"Value for ISPEMTemp: {latest_temp}")
 
-        print("DesignSpace:Processing messages from ISPESpeed")
+        #print("DesignSpace:Processing messages from ISPESpeed")
         # Get the latest message from ISPESpeed
         for tp, messages in speed_records.items():
             for message in messages:
                 latest_speed = message.value['value']
-                print(f"Value for ISPESpeed: {latest_speed}")
+                #print(f"Value for ISPESpeed: {latest_speed}")
         
         if latest_temp is None or latest_speed is None:
-            print("DesignSpace:No data available from ISPEMTemp or ISPESpeed topics")
+            #print("DesignSpace:No data available from ISPEMTemp or ISPESpeed topics")
             return jsonify({'status': 'error', 'message': 'No data available'}), 404
         
-        print(f"DesignSpace:Returning latest values: ISPESpeed={latest_speed}, ISPEMTemp={latest_temp}")
+        #print(f"DesignSpace:Returning latest values: ISPESpeed={latest_speed}, ISPEMTemp={latest_temp}")
         return jsonify({'ispespeed': latest_speed, 'ispetemp': latest_temp})
     except Exception as e:
-        print(f"DesignSpace:Error fetching latest values: {e}")
+        #print(f"DesignSpace:Error fetching latest values: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
     
   
