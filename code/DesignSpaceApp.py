@@ -113,13 +113,13 @@ def get_set(set_id):
     try:
         set_data = sets_storage.get(set_id)
         if set_data:
-            print(f"DesignSpace:Fetched set with ID {set_id}: {set_data}")
-            border_points = [
-                [float(point['ispespeed']), float(point['ispetemp'])]
-                for point in set_data['values']
-                            ]
-            print(f"DesignSpace:Border points for set {set_id}: {border_points}")
-            return jsonify(border_points)
+            # print(f"DesignSpace:Fetched set with ID {set_id}: {set_data}")
+            # border_points = [
+            #     [float(point['ispespeed']), float(point['ispetemp'])]
+            #     for point in set_data['values']
+            #                 ]
+            # print(f"DesignSpace:Border points for set {set_id}: {border_points}")
+            return jsonify(set_data),200
         return jsonify({'status': 'error', 'message': 'Set not found'}), 404
     except Exception as e:
         logging.error(f"Error fetching set: {e}")

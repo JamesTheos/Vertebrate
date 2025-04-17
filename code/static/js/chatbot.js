@@ -211,7 +211,8 @@ if (message === "Analyse the incoming information") {
         parseFloat(v.ispespeed),
         parseFloat(v.ispetemp)
       ]);
-
+      print("Borderpoints: ", borderpoints);
+      console.log("Borderpoints: ", borderpoints);
       // Step 2: Start polling values once we have the borderpoints
       pollLatestValues();
     });
