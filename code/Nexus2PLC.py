@@ -1,4 +1,4 @@
-from flask import Blueprint
+
 from confluent_kafka import Consumer    # Import the Kafka consumer class
 import threading
 import json
@@ -15,8 +15,7 @@ with open(config_path) as config_file:
 Kafkaserver= config['Kafkaserver']
 clusterid= config['clusterid']
 
-# Create a blueprint
-nexus2plc = Blueprint('nexus2plc', __name__)
+
 
 
 # Kafka consumer configuration
@@ -42,11 +41,7 @@ node_topic_mapping = {
 # Dictionary to store previous values
 previous_values = {}
 
-###################### Route ############################
-@nexus2plc.route('/start-consumer', methods=['POST'])
-def start_consumer():
-    consume_messages()
-    return "Consumer started"
+
 
 ###################### Functions ############################
 
@@ -56,7 +51,7 @@ def update_opcua_node(node_id, value):
     node.set_value(bool(value))  # Ensure the value is written as a boolean
     print(f"N2P Updated OPC UA node {node_id} with value {value}")
 
-def consume_messages():
+def consume_messagesN2P():
     num_messages = 10
 
     try:
@@ -94,7 +89,6 @@ def consume_messages():
         opcua_client.disconnect()
         consumer.close()
 
-# Start the consumer thread
-threading.Thread(target=consume_messages, daemon=True).start()
+
 
 

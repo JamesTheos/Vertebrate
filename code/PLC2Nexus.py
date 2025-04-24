@@ -1,9 +1,8 @@
-from flask import Flask
 from opcua import Client, ua
 from opcua.common.subscription import Subscription
 from confluent_kafka import Producer, Consumer, KafkaException, OFFSET_BEGINNING
 import json
-#import time
+import threading
 from datetime import datetime
 import os
 
@@ -66,7 +65,7 @@ consumer = Consumer(Consumer_conf)
 consumer.subscribe(['manufacturing_orders'])
 
 # Function to consume messages from Kafka
-def consume_messages():
+def consume_messagesP2N():
     global orderNumber, lotNumber, product, latest_msg
     oldorderNumber = None
     
@@ -148,14 +147,18 @@ for node_id in node_topic_mapping.keys():
     node = opcua_client.get_node(node_id)
     subscription.subscribe_data_change(node)
 
-try:
-    consume_messages()
-    
+def thread_function():
+    try:
+        print("PLC2Nexus thread started", flush=True)
+        consume_messagesP2N()
 
-except KeyboardInterrupt:
-    pass
-finally:
-    subscription.delete()
-    opcua_client.disconnect()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        subscription.delete()
+        opcua_client.disconnect()
+
+
+
 
 

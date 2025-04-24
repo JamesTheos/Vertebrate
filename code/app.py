@@ -13,7 +13,10 @@ from colorsettings import colorsettings
 from consumeWorkflows import get_released_workflows
 from demo_consumer import tempConsumerChatbot
 
-#from Nexus2PLC import nexus2plc
+
+
+from Nexus2PLC import consume_messagesN2P
+from PLC2Nexus import thread_function
 #from Chatbot import Chatbot, query_llama  # Import the chatbot blueprint
 
 import threading
@@ -48,8 +51,9 @@ app.register_blueprint(design_space_app)
 app.register_blueprint(process_qbd_analysis)
 app.register_blueprint(consumeWorkflows)
 app.register_blueprint(colorsettings)
-#app.register_blueprint(nexus2plc)
 app.register_blueprint(tempConsumerChatbot)
+
+
 
 
 #app.register_blueprint(Chatbot)
@@ -615,4 +619,9 @@ def login():
 
 if __name__ == '__main__':
     threading.Thread(target=consume_messages, daemon=True).start()
+    # Start the consumer thread in nexus2plc
+    threading.Thread(target=consume_messagesN2P, daemon=True).start()
+    #Start the consumer thread in plc2nexus
+    threading.Thread(target=thread_function, daemon=True).start()  # Start the workflow consumption thread
+
     app.run(debug=True, use_reloader=False,port=5001)
