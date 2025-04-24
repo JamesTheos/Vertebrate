@@ -164,7 +164,9 @@ function updateButtons(workflowName, releasedWorkflows) {
                         successModal.style.display = 'block';
                         resetDropdownAndPreview();
                     } else {
-                        alert('Error releasing workflow.');
+                        const errorModal = document.getElementById('successModalWorkflowMan');
+                        document.getElementById('genericMessageWorkflowMan').innerHTML = '<strong>Error releasing Workflow!</strong>';
+                        errorModal.style.display = 'block';
                     }
                 })
                 .catch(error => console.error('Error releasing workflow:', error));
@@ -185,7 +187,9 @@ function updateButtons(workflowName, releasedWorkflows) {
                         resetDropdownAndPreview();
                         fetchWorkflows();
                     } else {
-                        alert('Error deleting workflow.');
+                        const errorModal = document.getElementById('successModalWorkflowMan');
+                        document.getElementById('genericMessageWorkflowMan').innerHTML = '<strong>Error deleting Workflow!</strong>';
+                        errorModal.style.display = 'block';
                     }
                 })
                 .catch(error => console.error('Error deleting workflow:', error));
@@ -206,7 +210,9 @@ function updateButtons(workflowName, releasedWorkflows) {
                         successModal.style.display = 'block';
                         resetDropdownAndPreview();
                     } else {
-                        alert('Error deactivating workflow.');
+                        const errorModal = document.getElementById('successModalWorkflowMan');
+                        document.getElementById('genericMessageWorkflowMan').innerHTML = '<strong>Error deactivating workflow!</strong>';
+                        errorModal.style.display = 'block';
                     }
                 })
                 .catch(error => console.error('Error deactivating workflow:', error));

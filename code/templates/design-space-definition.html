@@ -41,11 +41,20 @@
     </div>
 </div>
 
+<div id="errorModalSet" class="modal-Set">
+    <div class="modal-content-Set">
+        <div id="genericMessageDSD"></div>
+        <button class="button-style-Set-close close-Set-button" onclick="closeModal2()">Close</button>
+    </div>
+</div>
+
 <script>
     function returnName() {
         const setName = document.getElementById('setNameInput').value;
         if (!setName) {
-            alert('Set name cannot be empty.');
+            const modal = document.getElementById('errorModalSet');
+            document.getElementById('genericMessageDSD').innerHTML = '<strong>Set name cannot be empty!</strong>';
+            modal.style.display = 'block';
             return;
         }
         saveSetAPI(setName);
@@ -54,6 +63,10 @@
 
     function closeModal() {
         document.getElementById('successModalSet').style.display = 'none';
+    }
+
+    function closeModal2() {
+        document.getElementById('errorModalSet').style.display = 'none';
     }
 
     function openModal() {
@@ -121,7 +134,9 @@
                 closeModal();
                 location.reload();
             } else {
-                alert('Failed to save set.');
+                const modal = document.getElementById('errorModalSet');
+                document.getElementById('genericMessageDSD').innerHTML = '<strong>Failed to save set!</strong>';
+                modal.style.display = 'block';
             }
         });
     }
@@ -159,8 +174,9 @@
                 });
             })
             .catch(error => {
-                console.error('Error loading set:', error);
-                alert('Failed to load set.');
+                const modal = document.getElementById('errorModalSet');
+                document.getElementById('genericMessageDSD').innerHTML = '<strong>Failed to load set!</strong>';
+                modal.style.display = 'block';
             });
     }
 </script>

@@ -29,7 +29,7 @@
 
 <div id="successModal" class="modal">
     <div class="modal-content">
-        <div><strong>Order submitted successfully!</strong></div>
+        <div id="genericMessageManOrder"></div>
         <button class="button-style-mo close-button">Close</button>
     </div>
 </div>
@@ -57,9 +57,12 @@
 
             if (response.ok) {
             const modal = document.getElementById('successModal');
+            document.getElementById('genericMessageManOrder').innerHTML = '<strong>Order submitted successfully!</strong>';
             modal.style.display = 'block';
         } else {
-            alert('Failed to submit order.');
+            const modal = document.getElementById('successModal');
+            document.getElementById('genericMessageManOrder').innerHTML = '<strong>Failed to submit order!</strong>';
+            modal.style.display = 'block';
         }
     });
 
@@ -77,7 +80,9 @@
                 workflowSelect.appendChild(option);
             });
         } else {
-            alert('Failed to fetch released workflows.');
+            const modal = document.getElementById('successModal');
+            document.getElementById('genericMessageManOrder').innerHTML = '<strong>Failed to fetch released workflows!</strong>';
+            modal.style.display = 'block';
         }
     }
 

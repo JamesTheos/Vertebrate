@@ -30,7 +30,7 @@
 
 <div id="successModal" class="modal-pc">
     <div class="modal-content-pc">
-        <div><strong>Configuration saved successfully!</strong></div>
+        <div id="genericMessageplantconfig"></div>
         <button class="button-style-pc close-button">Close</button>
     </div>
 </div>
@@ -60,9 +60,12 @@
 
         if (response.ok) {
             const modal = document.getElementById('successModal');
+            document.getElementById('genericMessageplantconfig').innerHTML = '<strong>Configuration saved successfully!</strong>';
             modal.style.display = 'block';
         } else {
-            alert('Failed to save configuration.');
+            const modal = document.getElementById('successModal');
+            document.getElementById('genericMessageplantconfig').innerHTML = '<strong>Error saving configuration!</strong>';
+            modal.style.display = 'block';
         }
     });
 
