@@ -180,105 +180,112 @@ document.addEventListener("DOMContentLoaded", function() {
         }
 
         //Fifth Prompt
-    
-    //const pattern3 = /Analyse the incoming information of order Number (\d+)?/i;
-   // const match3 = message.match(pattern3);
-    //let orderNumber3;
-    let borderpoints = [];
-let ispetemp, ispespeed;
-
-// Ray-casting algorithm
-function isPointInPolygon(point, polygon) {
-  const [x, y] = point;
-  let inside = false;
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const [xi, yi] = polygon[i];
-    const [xj, yj] = polygon[j];
-    const intersect = ((yi > y) !== (yj > y)) &&
-                      (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi);
-    if (intersect) inside = !inside;
-  }
-  return inside;
-}
-
-// Calculate cross product of two vectors
-function cross(o, a, b) {
-    return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
-  }
-  
-  // Compute convex hull using Graham Scan
-  function convexHull(points) {
-    if (points.length <= 3) {
-      return points.slice(); // Hull is just the points if 3 or fewer
-    }
-  
-    // Sort the points lexicographically (by x first, then y)
-    points.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-  
-    const lower = [];
-    for (const p of points) {
-      while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) {
-        lower.pop();
-      }
-      lower.push(p);
-    }
-  
-    const upper = [];
-    for (let i = points.length - 1; i >= 0; i--) {
-      const p = points[i];
-      while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) {
-        upper.pop();
-      }
-      upper.push(p);
-    }
-  
-    // Remove last point of each half because it's repeated
-    upper.pop();
-    lower.pop();
-  
-    // Concatenate lower and upper hull to get full hull
-    return lower.concat(upper);
-  }
-  
-
-// Step 1: Get border points
-if (message === "Analyse the incoming information") {
-  fetch(`/get-set/${localStorage.getItem('selectedSetId')}`)
-    .then(response => response.json())
-    .then(data => {
-      console.log("Found:", data);
-      // Convert values to points
-      borderpoints = data.values.map(v => [
-        parseFloat(v.ispespeed),
-        parseFloat(v.ispetemp)
-      ]);
-      borderpoints = convexHull(borderpoints);
-      print("Borderpoints: ", borderpoints);
-      console.log("Borderpoints: ", borderpoints);
-      // Step 2: Start polling values once we have the borderpoints
-      pollLatestValues();
-    });
-}
-
-// Step 2: Polling function to keep fetching values
-function pollLatestValues() {
-  setInterval(() => {
-    fetch('/get-latest-values')
-      .then(response => response.json())
-      .then(data => {
-        ispespeed = parseFloat(data.ispespeed);
-        ispetemp = parseFloat(data.ispetemp);
-
-        const point = [ispespeed, ispetemp];
-        const inside = isPointInPolygon(point, borderpoints);
-
-        console.log(`Point (${ispespeed}, ${ispetemp}) is ${inside ? 'INSIDE' : 'OUTSIDE'} the polygon`);
+        let borderpoints = [];
+        let ispespeed, ispetemp;
+        let lastInside = true; // Starten wir so, als wären wir "drin" (du kannst auch false setzen)
         
-        // You can add your custom logic here:
-        // e.g., alert(), UI update, color change, etc.
-      });
-  }, 1000); // adjust polling rate as needed
-}
+        // --- Ray Casting Algorithm to check if a point is inside the polygon
+        function isPointInPolygon(point, polygon) {
+          const [x, y] = point;
+          let inside = false;
+          for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+            const [xi, yi] = polygon[i];
+            const [xj, yj] = polygon[j];
+            const intersect = ((yi > y) !== (yj > y)) &&
+                              (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi);
+            if (intersect) inside = !inside;
+          }
+          return inside;
+        }
+        
+        // --- Cross product helper for convex hull
+        function cross(o, a, b) {
+          return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+        }
+        
+        // --- Convex Hull Algorithm (Graham Scan)
+        function convexHull(points) {
+          if (points.length <= 3) {
+            return points.slice();
+          }
+        
+          points.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+        
+          const lower = [];
+          for (const p of points) {
+            while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) {
+              lower.pop();
+            }
+            lower.push(p);
+          }
+        
+          const upper = [];
+          for (let i = points.length - 1; i >= 0; i--) {
+            const p = points[i];
+            while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) {
+              upper.pop();
+            }
+            upper.push(p);
+          }
+        
+          upper.pop();
+          lower.pop();
+          return lower.concat(upper);
+        }
+        
+        // --- Polling for latest values continuously
+        function pollLatestValues() {
+          setInterval(() => {
+            fetch('/get-latest-values')
+              .then(response => response.json())
+              .then(data => {
+                ispespeed = parseFloat(data.ispespeed);
+                ispetemp = parseFloat(data.ispetemp);
+        
+                const point = [ispespeed, ispetemp];
+                const inside = isPointInPolygon(point, borderpoints);
+                               
+                if (!inside && lastInside) {
+                  // Übergang: drinnen → draußen
+                  alertOutside();
+                }
+        
+                // Update Zustand
+                lastInside = inside;
+        
+              })
+              .catch(error => console.error('Error fetching latest values:', error));
+          }, 1000); // Poll alle 1 Sekunde
+        }
+        
+        // --- Funktion zum Anzeigen der Benachrichtigung
+        function alertOutside() {
+          console.log("Achtung! Punkt ist außerhalb des Bereichs!");
+          // Optional: alert("Achtung! Punkt außerhalb des Bereichs!");
+        }
+        
+        // --- Initialize when message arrives
+        if (message === "Analyse the incoming information") {
+          fetch(`/get-set/${localStorage.getItem('selectedSetId')}`)
+            .then(response => response.json())
+            .then(data => {
+              console.log("Found set:", data);
+        
+              borderpoints = data.values.map(v => [
+                parseFloat(v.ispespeed),
+                parseFloat(v.ispetemp)
+              ]);
+        
+              borderpoints = convexHull(borderpoints);
+        
+              console.log("Using borderpoints:", borderpoints);
+        
+              pollLatestValues();
+            })
+            .catch(error => console.error('Error fetching set:', error));
+        }
+        
+   
         userInput.value = "";
     }
 
