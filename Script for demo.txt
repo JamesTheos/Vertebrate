@@ -1,0 +1,26 @@
+First prompt:
+
+A new order of product Corona is arriving to lot number 1. Add it to the Workflow
+
+Second prompt:
+
+Can you follow the release status of order number 1 of product Corona?
+
+Third prompt:
+
+Can you check if the needed equipment is free? If not can you free the equipment up from the current task and move that task to a different place?
+
+Fourth prompt: 
+
+Can you also check if the needed resources are enough?
+
+Fifth prompt:
+
+Analyse the incoming information
+
+
+
+Note:
+Analysis only works if PLC is connected as it automatically tries to get values. If no connection exists, console will show loop of the same GET error.
+Please release Order and create a QBD analysis set before analysis.
+Before entering last prompt, make sure the correct QBD analysis set has been chosesn.

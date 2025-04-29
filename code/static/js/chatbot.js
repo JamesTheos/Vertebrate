@@ -172,7 +172,7 @@ document.addEventListener("DOMContentLoaded", function () {
             }, 1000);
         }
         //Fourth Prompt
-        if (message === "Can you also check if the needed ressources are enough?") {
+        if (message === "Can you also check if the needed resources are enough?") {
             setTimeout(() => {
                 const botReply = "The needed ressources are enough for the current task.";
                 displayMessage(botReply, "bot");
@@ -252,7 +252,6 @@ document.addEventListener("DOMContentLoaded", function () {
                         ispetemp = parseFloat(data.ispetemp);
 
                         const point = [ispespeed, ispetemp];
-                        console.log("Latest point:", point);
                         if ((point.length === 2 && Number.isNaN(point[0]) && Number.isNaN(point[1])) || point.length !== 2) {
                             stateofpoint = false;
                             return;
