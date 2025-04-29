@@ -95,7 +95,6 @@
     padding: 10px 20px;
     margin: 5px 0px;
     width: auto;
-    margin-top: 15px;
 }
 
 .button-style-WorkflowMan:hover, .button-style-WorkflowMan-save:hover, .button-marked, .button-style-WorkflowMan-close:hover {
@@ -147,4 +146,9 @@
     border: 1px solid var(--table-border);
     width: 80%; 
     border-radius: 4px;
+}
+
+
+.WorkflowMan-button{
+    margin-top: 20px;
 }

@@ -10,11 +10,23 @@
     cursor: pointer;
 }
 
-.table-dsd{
-    width: 60%;
+.table-dsd {
+    width: 45%;
     margin: 0px 0;
     text-align: left;
     border-collapse: collapse;
+}
+
+.table-dsd th:nth-child(1), .table-dsd td:nth-child(1) {
+    width: 43%; /* First column width */
+}
+
+.table-dsd th:nth-child(2), .table-dsd td:nth-child(2) {
+    width: 43%; /* Second column width */
+}
+
+.table-dsd th:nth-child(3), .table-dsd td:nth-child(3) {
+    width: 14%; /* Third column width */
 }
 
 .table-dsd th, .table-dsd td {
@@ -28,9 +40,11 @@
 }
 
 
+
 .button-dsd, .button-dsd-row {
     padding: 10px 20px;
-    margin: 5px 0;
+    margin: 5px 0px;
+    margin-right: 10px;
     border: none;
     border-radius: 4px;
     background-color: var(--button-background);
@@ -42,8 +56,8 @@
 
 .button-dsd-row {
     display: block;
-    margin-left: auto;
-    margin-right: auto;
+    margin-left: 0;
+    margin-right: 0;
 }
 
 .button-dsd:hover, .button-dsd-row:hover{
@@ -75,8 +89,8 @@
 }
 
 .button-style-Set-save, .button-style-Set-close {
-    padding: 5px 20px;
-    margin: 0px 5px;
+    padding: 10px 20px;
+    margin: 5px 0px;
     width: 100px;
     border: none;
     border-radius: 4px;
@@ -89,8 +103,7 @@
 
 .button-style-Set-save, .button-style-Set-close
 {
-    padding: 10px 20px;
-    margin: 5px 0px;
+    margin-top: 10px;
     width: auto;
     margin-right: 10px;
 }

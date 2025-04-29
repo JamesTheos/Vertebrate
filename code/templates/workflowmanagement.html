@@ -44,11 +44,12 @@
 </div>
 
 <script>
-     function fetchWorkflows() {
+    function fetchWorkflows() {
+        const workflowSelect = document.getElementById('workflow-select-WorkflowMan');
+        workflowSelect.innerHTML = '<option>Select Workflow</option>'; // Clear existing options
         fetch('/get-workflows')
             .then(response => response.json())
             .then(data => {
-                const workflowSelect = document.getElementById('workflow-select-WorkflowMan');
                 data.workflows.forEach(workflow => {
                     const option = document.createElement('option');
                     option.value = workflow;
@@ -186,6 +187,7 @@ function updateButtons(workflowName, releasedWorkflows) {
                         successModal.style.display = 'block';
                         resetDropdownAndPreview();
                         fetchWorkflows();
+                        
                     } else {
                         const errorModal = document.getElementById('successModalWorkflowMan');
                         document.getElementById('genericMessageWorkflowMan').innerHTML = '<strong>Error deleting Workflow!</strong>';

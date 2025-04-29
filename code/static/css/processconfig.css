@@ -139,7 +139,10 @@
     padding: 10px 20px;
     margin: 5px 0px;
     width: auto;
-    margin-top: 15px;
+}
+
+.close-button {
+    margin-top: 20px;
 }
 
 .button-style-processconfig:hover, .button-style-processconfig-save:hover, .button-style-processconfig-close:hover {

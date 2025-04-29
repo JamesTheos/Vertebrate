@@ -15,8 +15,6 @@ from demo_consumer import tempConsumerChatbot
 
 
 
-#from Chatbot import Chatbot, query_llama  # Import the chatbot blueprint
-
 import threading
 import json
 import os
@@ -53,8 +51,6 @@ app.register_blueprint(tempConsumerChatbot)
 #app.register_blueprint(nexus2plc)
 
 
-
-#app.register_blueprint(Chatbot)
 
 # Kafka consumer configuration
 kafka_cons_conf = {
@@ -131,9 +127,7 @@ def consume_messages():
             else:
                 data_store[topic].append(data)
         #print(f"New data for {topic}: {data['value']} at {timestamp}", flush=True)  # Debugging log
-        #print("Current data store message to follow", flush=True)  # Debugging log
-       # print(f"Current data store: {data_store}", flush=True)  # Debugging log
-       # print("Current data store message above me", flush=True)  # Debugging log
+      
 
 
 
@@ -265,9 +259,6 @@ def submit_order():
     print(f"Order Submitted: {message}")
     producer.produce('manufacturing_orders', key="FromOrderCreation", value=json.dumps(message).encode('utf-8'))
     producer.flush()
-
-    # Store the order in the data_store for order management
-    #data_store['manufacturing_orders'].append(message)
 
     return jsonify({'status': 'Order submitted successfully'})
 
