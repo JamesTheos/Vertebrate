@@ -1,5 +1,5 @@
 from flask import Flask, render_template, jsonify, request
-from confluent_kafka import Consumer, Producer, KafkaException
+from confluent_kafka import Consumer, Producer, KafkaException, OFFSET_BEGINNING
 from confluent_kafka.admin import AdminClient, NewTopic
 #from LLM_Consumer import get_kafka_data
 #from Neo4j import get_neo4j_data
@@ -10,13 +10,11 @@ from DesignSpaceApp import design_space_app  # Import the blueprint from the Des
 from process_qbd_analysis import process_qbd_analysis  # Import the process QbD analysis blueprint
 from consumeWorkflows import consumeWorkflows, get_all_workflows
 from colorsettings import colorsettings
-from consumeWorkflows import get_released_workflows
 from demo_consumer import tempConsumerChatbot
+#from Nexus2PLC import nexus2plc
 
 
 
-from Nexus2PLC import consume_messagesN2P
-from PLC2Nexus import thread_function
 #from Chatbot import Chatbot, query_llama  # Import the chatbot blueprint
 
 import threading
@@ -52,7 +50,7 @@ app.register_blueprint(process_qbd_analysis)
 app.register_blueprint(consumeWorkflows)
 app.register_blueprint(colorsettings)
 app.register_blueprint(tempConsumerChatbot)
-
+#app.register_blueprint(nexus2plc)
 
 
 
@@ -65,7 +63,7 @@ kafka_cons_conf = {
     'auto.offset.reset': 'earliest'
 }
 consumer = Consumer(kafka_cons_conf)
-consumer.subscribe(['ISPEScene1', 'ISPEScene2','ISPEMTemp','ISPESpeed','ISPEPressure','ISPEAmbTemp','ISPEStartPhase1'])  # Kafka topics
+# consumer.subscribe(['ISPEScene1', 'ISPEScene2','ISPEMTemp','ISPESpeed','ISPEPressure','ISPEAmbTemp','ISPEStartPhase1'])  # Kafka topics
 
 # Kafka producer configuration
 kafka_prod_conf = {
@@ -95,6 +93,13 @@ data_store = {
 def consume_messages():
     global data_store
     print("App: Starting consume_messages thread", flush=True)  # Initial print statement
+
+    def temp_on_assign(consumer, partitions):
+        for partition in partitions:
+            partition.offset = OFFSET_BEGINNING
+        consumer.assign(partitions)
+    consumer.subscribe(['ISPEScene1', 'ISPEScene2','ISPEMTemp','ISPESpeed','ISPEPressure','ISPEAmbTemp','ISPEStartPhase1', 'manufacturing_orders'], on_assign=temp_on_assign)
+    #tbd: Scene1, Scene2 Start, needed?
     while True:
         msg = consumer.poll(timeout=1.0)
         if msg is None:
@@ -109,10 +114,22 @@ def consume_messages():
         topic = msg.topic()
         data = json.loads(msg.value().decode('utf-8'))
         timestamp = msg.timestamp()[1]  # Get the timestamp from the message
-        data_store[topic].append({
-            'timestamp': timestamp,
-            'value': data['value']  # Assuming the message contains 'value'
-        })
+        if topic != 'manufacturing_orders':
+            data_store[topic].append({
+                'timestamp': timestamp,
+                'value': data['value']  # Assuming the message contains 'value'
+            })
+
+        elif topic == 'manufacturing_orders':
+            existing_order = next((order for order in data_store[topic] if order['orderNumber'] == data['orderNumber']), None)
+            if existing_order:
+            # Replace the existing order with the new data and timestamp
+                existing_order.update({
+                    'timestamp': timestamp,
+                    'status': data['status']
+                })
+            else:
+                data_store[topic].append(data)
         #print(f"New data for {topic}: {data['value']} at {timestamp}", flush=True)  # Debugging log
         #print("Current data store message to follow", flush=True)  # Debugging log
        # print(f"Current data store: {data_store}", flush=True)  # Debugging log
@@ -250,7 +267,7 @@ def submit_order():
     producer.flush()
 
     # Store the order in the data_store for order management
-    data_store['manufacturing_orders'].append(message)
+    #data_store['manufacturing_orders'].append(message)
 
     return jsonify({'status': 'Order submitted successfully'})
 
@@ -305,66 +322,7 @@ def get_released_orders():
 def get_orderOverview():
     return jsonify({'ordersOverview': data_store['manufacturing_orders']})
 
-# @app.route('/workflow/select', methods=['POST'])
-# def workflow_select():
-#     order_id = request.json.get('data')
-#     for order in data_store['manufacturing_orders']:
-#         if order['orderNumber'] == order_id:
-#             timestamp = datetime.utcnow().isoformat()
-#             send_to_kafka('ISPESelectPhase1', {'value': True, 'timestamp': timestamp, **order})
-#     return jsonify({'success': True})
 
-
-
-# @app.route('/workflow/start', methods=['POST'])
-# def workflow_start():
-#     order_id = request.json.get('data')
-#     print(f"Requested Start Order_ID: {order_id}")
-#     for order in data_store['manufacturing_orders']:
-#         print(f"Order: {order}")
-#         if order['orderNumber'] == order_id:
-#             order['status'] = 'Started'
-#             order['timestamp'] = datetime.utcnow().isoformat()
-#             send_to_kafka('ISPEStartPhase1', {'value': True, **order})
-#             send_to_kafka('manufacturing_orders', {**order})
-#     return jsonify({'success': True})
-
-# @app.route('/workflow/scene1', methods=['POST'])
-# def workflow_scene1():
-#     order_id = request.json.get('data')
-#     for order in data_store['manufacturing_orders']:
-#         print(f"Scene 2 Order: {order}")
-#         if order['orderNumber'] == order_id:
-#             order['timestamp'] = datetime.utcnow().isoformat()
-#             send_to_kafka('ISPEScene1', {'value': True, **order})
-#             send_to_kafka('ISPEScene2', {'value': False, **order})
-#     return jsonify({'success': True})
-
-# @app.route('/workflow/scene2', methods=['POST'])
-# def workflow_scene2():
-#     order_id = request.json.get('data')
-#     for order in data_store['manufacturing_orders']:
-#         print(f"Scene 2 Order: {order}")
-#         if order['orderNumber'] == order_id:
-#             order['timestamp'] = datetime.utcnow().isoformat()
-#             send_to_kafka('ISPEScene1', {'value': False, **order})
-#             send_to_kafka('ISPEScene2', {'value': True, **order})
-#     return jsonify({'success': True})
-
-# @app.route('/workflow/end', methods=['POST'])
-# def workflow_end():
-#     order_id = request.json.get('data')
-#     print(f"Requested Start Order_ID: {order_id}")
-#     for order in data_store['manufacturing_orders']:
-#         print(f"Completed Order: {order}")
-#         if order['orderNumber'] == order_id:
-#             order['status'] = 'Completed'
-#             order['timestamp'] = datetime.utcnow().isoformat()
-#             send_to_kafka('ISPEScene1', {'value': False, **order})
-#             send_to_kafka('ISPEScene2', {'value': False, **order})
-#             send_to_kafka('ISPEStartPhase1', {'value': False, **order})
-#             send_to_kafka('manufacturing_orders', {**order})
-#     return jsonify({'success': True})
 
 
 @app.route('/api/workflows', methods=['POST'])
@@ -593,35 +551,9 @@ def login():
 
     return jsonify({'status': 'Username saved successfully'})
 
-# ############################################################################################################
-# # Chatbot route
-# @app.route('/ask', methods=['POST'])
-# def ask():
-#     user_input = request.json['question']  # Get the user's question from the request
-    
-#     # Fetch data from Kafka
-#     kafka_data = get_kafka_data()
-    
-#     # Fetch data from Neo4j
-#     neo4j_query = "MATCH (n) RETURN n LIMIT 5"  # Example query to fetch data from Neo4j
-#     neo4j_data = get_neo4j_data(neo4j_query)
-    
-#     # Prepare prompt for LLM
-#     prompt = f"User asked: {user_input}\nKafka data: {kafka_data}\nNeo4j data: {neo4j_data}\nAnswer:"
-    
-#     # Get response from LLM
-#     response = query_llama(prompt)
-    
-#     return jsonify({'response': response})  # Return the LLM's response as JSON
-############################################################################################################
-
 
 
 if __name__ == '__main__':
     threading.Thread(target=consume_messages, daemon=True).start()
-    # Start the consumer thread in nexus2plc
-    threading.Thread(target=consume_messagesN2P, daemon=True).start()
-    #Start the consumer thread in plc2nexus
-    threading.Thread(target=thread_function, daemon=True).start()  # Start the workflow consumption thread
 
     app.run(debug=True, use_reloader=False,port=5001)
