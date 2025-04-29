@@ -1,5 +1,5 @@
 from flask import Flask, render_template, jsonify, request
-from confluent_kafka import Consumer, Producer, KafkaException, OFFSET_BEGINNING
+from confluent_kafka import Consumer, Producer, KafkaError, OFFSET_BEGINNING
 from confluent_kafka.admin import AdminClient, NewTopic
 #from LLM_Consumer import get_kafka_data
 #from Neo4j import get_neo4j_data
@@ -52,6 +52,8 @@ app.register_blueprint(tempConsumerChatbot)
 
 
 
+
+
 # Kafka consumer configuration
 kafka_cons_conf = {
     'bootstrap.servers': Kafkaserver,
@@ -86,51 +88,6 @@ data_store = {
     'workflows': []
 }
 
-def consume_messages():
-    global data_store
-    print("App: Starting consume_messages thread", flush=True)  # Initial print statement
-
-    def temp_on_assign(consumer, partitions):
-        for partition in partitions:
-            partition.offset = OFFSET_BEGINNING
-        consumer.assign(partitions)
-    consumer.subscribe(['ISPEScene1', 'ISPEScene2','ISPEMTemp','ISPESpeed','ISPEPressure','ISPEAmbTemp','ISPEStartPhase1', 'manufacturing_orders'], on_assign=temp_on_assign)
-    #tbd: Scene1, Scene2 Start, needed?
-    while True:
-        msg = consumer.poll(timeout=1.0)
-        if msg is None:
-            ##print("message empty", flush=True)  # Debugging log
-            continue
-        if msg.error():
-            if msg.error().code() == KafkaException._PARTITION_EOF:
-                continue
-            else:
-                print(msg.error(), flush=True)
-                break
-        topic = msg.topic()
-        data = json.loads(msg.value().decode('utf-8'))
-        timestamp = msg.timestamp()[1]  # Get the timestamp from the message
-        if topic != 'manufacturing_orders':
-            data_store[topic].append({
-                'timestamp': timestamp,
-                'value': data['value']  # Assuming the message contains 'value'
-            })
-
-        elif topic == 'manufacturing_orders':
-            existing_order = next((order for order in data_store[topic] if order['orderNumber'] == data['orderNumber']), None)
-            if existing_order:
-            # Replace the existing order with the new data and timestamp
-                existing_order.update({
-                    'timestamp': timestamp,
-                    'status': data['status']
-                })
-            else:
-                data_store[topic].append(data)
-        #print(f"New data for {topic}: {data['value']} at {timestamp}", flush=True)  # Debugging log
-      
-
-
-
 #Add topics if they dont exist
 def create_topics_if_not_exist(bootstrap_servers, topics):
     admin_client = AdminClient({'bootstrap.servers': bootstrap_servers})
@@ -151,6 +108,57 @@ def create_topics_if_not_exist(bootstrap_servers, topics):
         print("All topics registered.")
 
 create_topics_if_not_exist(Kafkaserver, data_store.keys())
+
+def consume_messages():
+    global data_store
+    print("App: Starting consume_messages thread", flush=True)  # Initial print statement
+
+    def temp_on_assign(consumer, partitions):
+        for partition in partitions:
+            partition.offset = OFFSET_BEGINNING
+        consumer.assign(partitions)
+    consumer.subscribe(['ISPEScene1', 'ISPEScene2','ISPEMTemp','ISPESpeed','ISPEPressure','ISPEAmbTemp','ISPEStartPhase1', 'manufacturing_orders'], on_assign=temp_on_assign)
+    #tbd: Scene1, Scene2 Start, needed?
+    while True:
+        try:
+            msg = consumer.poll(timeout=1.0)
+            if msg is None:
+                ##print("message empty", flush=True)  # Debugging log
+                continue
+            if msg.error():
+                if msg.error().code() == KafkaError._PARTITION_EOF:
+                    continue
+                else:
+                    print(msg.error(), flush=True)
+                    break
+            topic = msg.topic()
+            data = json.loads(msg.value().decode('utf-8'))
+            timestamp = msg.timestamp()[1]  # Get the timestamp from the message
+            if topic != 'manufacturing_orders':
+                data_store[topic].append({
+                    'timestamp': timestamp,
+                    'value': data['value']  # Assuming the message contains 'value'
+                })
+
+            elif topic == 'manufacturing_orders':
+                existing_order = next((order for order in data_store[topic] if order['orderNumber'] == data['orderNumber']), None)
+                if existing_order:
+                # Replace the existing order with the new data and timestamp
+                    existing_order.update({
+                        'timestamp': timestamp,
+                        'status': data['status']
+                    })
+                else:
+                    data_store[topic].append(data)
+            #print(f"New data for {topic}: {data['value']} at {timestamp}", flush=True)  # Debugging log
+        except Exception as e:
+            print("Exception in APP:Consume_Messages:", e, flush=True)
+            pass
+      
+
+
+
+
 
 
 @app.context_processor

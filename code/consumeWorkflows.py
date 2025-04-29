@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request  # Import Flask and related modules for web server and request handling
-from confluent_kafka import KafkaException, Consumer, Producer ,OFFSET_BEGINNING  # Import Kafka modules for consuming messages
+from confluent_kafka import KafkaError, Consumer, Producer ,OFFSET_BEGINNING  # Import Kafka modules for consuming messages
 from confluent_kafka.admin import AdminClient  # Import Kafka Admin module for managing Kafka topics
 import json  # Import JSON module for data serialization
 import logging  # Import logging module for logging
@@ -188,7 +188,7 @@ def consume_workflows():
                 continue  # Continue if no message is received
         for msg in msgs:
             if msg.error():
-                if msg.error().code() == KafkaException._PARTITION_EOF:
+                if msg.error().code() == KafkaError._PARTITION_EOF:
                     continue  # Continue if end of partition is reached
                 else:
                     logging.error(f"Manufacturing Order: Consumer error: {msg.error()}")  # Log any other errors
@@ -211,7 +211,8 @@ def consume_workflows():
                     del released_workflows[workflow_name]
                     print(f"Manufacturing Order: Workflow {workflow_name} removed", flush=True)
 
-    except KeyboardInterrupt:
+    except Exception as e:
+        print("Exception in consume_workflows:", e, flush=True)  # Log any exceptions that occur
         pass
     finally:
         workflowsConsumer.close()

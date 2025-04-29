@@ -88,7 +88,8 @@ def consume_messages():
                     update_opcua_node(node_id, value)
                     previous_values[topic] = value
 
-    except KeyboardInterrupt:
+    except Exception as e:
+        print("Exception in Nexus2PLC:consume_messages:", e, flush=True)
         pass
     finally:
         opcua_client.disconnect()

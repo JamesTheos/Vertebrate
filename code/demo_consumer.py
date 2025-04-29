@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request  
-from confluent_kafka import KafkaException, Consumer, Producer, OFFSET_BEGINNING  
+from confluent_kafka import KafkaError, Consumer, Producer, OFFSET_BEGINNING  
 import json  
 import logging  
 import threading  
@@ -82,7 +82,7 @@ def consume_temp_data_chatbot():
 
             for msg in msgs:
                 if msg.error():
-                    if msg.error().code() == KafkaException._PARTITION_EOF:
+                    if msg.error().code() == KafkaError._PARTITION_EOF:
                         continue  
                     else:
                         logging.error(f"Kafka Consumer Error: {msg.error()}")
@@ -103,7 +103,8 @@ def consume_temp_data_chatbot():
                 # Optional: Print extracted values
                 print(f"Received Order: {order_number}, Value: {value}, timestamp: {timestamp}, Producertime: {Producertime}", flush=True)
 
-    except KeyboardInterrupt:
+    except Exception as e:
+        print("Exception in Demo_consumer:consume_temp_data_chatbot:", e, flush=True)
         pass
     finally:
         tempConsumer.close()
@@ -131,7 +132,7 @@ def consume_man_orders():
 
             for msg in msgs:
                 if msg.error():
-                    if msg.error().code() == KafkaException._PARTITION_EOF:
+                    if msg.error().code() == KafkaError._PARTITION_EOF:
                         continue  
                     else:
                         logging.error(f"Kafka Consumer Error: {msg.error()}")
@@ -148,12 +149,8 @@ def consume_man_orders():
                 print(f"max number for each product name",{product_name},{order_number_dict[product_name]}, flush =True)
                 
                 
-                    # Store order number in memory
-                
-                    
-
-        
-    except KeyboardInterrupt:
+    except Exception as e:
+        print("Exception in Demo_consumer:consume_man_orders:", e, flush=True)
         pass
     finally:
         temp_man_order_consumer.close()

@@ -3,7 +3,6 @@ from kafka import KafkaProducer, KafkaConsumer, TopicPartition
 import json
 import logging
 import uuid
-#import threading
 import os
 
 # Load the configuration for the ISA95 model
