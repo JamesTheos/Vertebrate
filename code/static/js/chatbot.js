@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", function () {
     const chatButton = document.getElementById("chatbot-button");
     const chatBox = document.getElementById("chatbox");
     const closeChat = document.getElementById("close-chat");
@@ -60,14 +60,14 @@ document.addEventListener("DOMContentLoaded", function() {
                 const botReply = "Processing..";
                 displayMessage(botReply, "bot");
                 saveMessage(botReply, "bot");
-                }, 1000);
-            const response = await fetch('/manufacturing-orders-data',{
+            }, 1000);
+            const response = await fetch('/manufacturing-orders-data', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    productName : productName
+                    productName: productName
                 })
             });
             //console.log(response.ok);
@@ -80,7 +80,7 @@ document.addEventListener("DOMContentLoaded", function() {
                             throw new Error(`Server error: ${res.status} ${res.statusText}`);
                         }
                     } catch (error) {
-                       // console.error('Error fetching manufacturing orders data:', error);
+                        // console.error('Error fetching manufacturing orders data:', error);
                         const botReply = "Failed to fetch manufacturing orders data. Please try again later.";
                         displayMessage(botReply, "bot");
                         saveMessage(botReply, "bot");
@@ -91,22 +91,22 @@ document.addEventListener("DOMContentLoaded", function() {
                     //console.log("Order Number: ", OrderNumber);
                 }
             }
-            
+
             // Später aufrufen:
             await fetchOrderNumber(); // orderNumber ist danach verfügbar
             //console.log("Global Order Number: ", OrderNumber);
             //console.log("Lot Number: ", lotNumber);
             const response1 = await fetch('/submit-order', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                orderNumber: String(OrderNumber || ""),
-                product: productName || "",
-                lotNumber: lotNumber || "",
-                workflow: workflow || ""
-            })
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    orderNumber: String(OrderNumber || ""),
+                    product: productName || "",
+                    lotNumber: lotNumber || "",
+                    workflow: workflow || ""
+                })
             });
 
             if (!response1.ok) {
@@ -115,34 +115,34 @@ document.addEventListener("DOMContentLoaded", function() {
             }
 
             if (response1.ok) {
-            const modal = document.getElementById('successModal');
-            //modal.style.display = 'block';
-            setTimeout(() => {
-                const botReply = `Order has been created successfully and added to the Workflow: ${workflow}.`;
-                displayMessage(botReply, "bot");
-                saveMessage(botReply, "bot");
+                const modal = document.getElementById('successModal');
+                //modal.style.display = 'block';
+                setTimeout(() => {
+                    const botReply = `Order has been created successfully and added to the Workflow: ${workflow}.`;
+                    displayMessage(botReply, "bot");
+                    saveMessage(botReply, "bot");
                 }, 1000);
             } else {
                 setTimeout(() => {
                     const botReply = "Failed to create order. Please check the details and try again.";
                     displayMessage(botReply, "bot");
                     saveMessage(botReply, "bot");
-                    }, 1000);;
-            }  
-        } 
+                }, 1000);;
+            }
+        }
         //Second Prompt
         const pattern2 = /Can you follow the release status of order number (\d+) of product ([A-Z0-9]+)?/i;
         const match2 = message.match(pattern2);
-        let orderNumber2;      
+        let orderNumber2;
 
         if (match2) {
             orderNumber2 = match2[1];
             product_name2 = match2[2];
-                fetch('/api/released-orders')
-                    .then(response => response.json())
-                    .then(data => {
-                        const order = data.orders.find(order => (order.orderNumber === orderNumber2) && (order.product === product_name2));
-                        setTimeout(() => {
+            fetch('/api/released-orders')
+                .then(response => response.json())
+                .then(data => {
+                    const order = data.orders.find(order => (order.orderNumber === orderNumber2) && (order.product === product_name2));
+                    setTimeout(() => {
                         if (order) {
                             const botReply = `The release status of order number ${orderNumber2} of ${product_name2} is: ${order.status}.`;
                             displayMessage(botReply, "bot");
@@ -151,146 +151,186 @@ document.addEventListener("DOMContentLoaded", function() {
                             const botReply = `Order number ${orderNumber2} of product ${product_name2} was not found in the released orders.`;
                             displayMessage(botReply, "bot");
                             saveMessage(botReply, "bot");
-                        }}, 1000);
-                    })
-                    .catch(error => {
-                        const botReply = "There was an error fetching the release status of the order.";
-                        displayMessage(botReply, "bot");
-                        saveMessage(botReply, "bot");
-                        console.error('Error fetching released orders:', error);
-                    });
-                
-            
+                        }
+                    }, 1000);
+                })
+                .catch(error => {
+                    const botReply = "There was an error fetching the release status of the order.";
+                    displayMessage(botReply, "bot");
+                    saveMessage(botReply, "bot");
+                    console.error('Error fetching released orders:', error);
+                });
+
+
         }
         //Third Prompt
-        if(message === "Can you check if the needed equipment is free? If not can you free the equipment up from the current task and move that task to a different place?"){
+        if (message === "Can you check if the needed equipment is free? If not can you free the equipment up from the current task and move that task to a different place?") {
             setTimeout(() => {
                 const botReply = "The needed equipment is not free. The current task has been moved to a different place and the equipment has been freed up.";
                 displayMessage(botReply, "bot");
                 saveMessage(botReply, "bot");
-                }, 1000);
+            }, 1000);
         }
         //Fourth Prompt
-        if(message === "Can you also check if the needed ressources are enough?"){
+        if (message === "Can you also check if the needed ressources are enough?") {
             setTimeout(() => {
                 const botReply = "The needed ressources are enough for the current task.";
                 displayMessage(botReply, "bot");
                 saveMessage(botReply, "bot");
-                }, 1000);
+            }, 1000);
         }
 
         //Fifth Prompt
         let borderpoints = [];
         let ispespeed, ispetemp;
-        let lastInside = true; // Starten wir so, als wären wir "drin" (du kannst auch false setzen)
-        
-        // --- Ray Casting Algorithm to check if a point is inside the polygon
+
+        let lastInside = true;
+        let stateofpoint = true; //To track if point is a valid point
+        let stateHistory = []; // To track the last few inside/outside states
+        const MAX_HISTORY = 4; // You can increase for better smoothing
+
+        // --- Ray Casting Algorithm
         function isPointInPolygon(point, polygon) {
-          const [x, y] = point;
-          let inside = false;
-          for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-            const [xi, yi] = polygon[i];
-            const [xj, yj] = polygon[j];
-            const intersect = ((yi > y) !== (yj > y)) &&
-                              (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi);
-            if (intersect) inside = !inside;
-          }
-          return inside;
+            const [x, y] = point;
+            let inside = false;
+            for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+                const [xi, yi] = polygon[i];
+                const [xj, yj] = polygon[j];
+                const intersect = ((yi > y) !== (yj > y)) &&
+                    (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
         }
-        
-        // --- Cross product helper for convex hull
+
+        // --- Convex Hull Helper Functions
         function cross(o, a, b) {
-          return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+            return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
         }
-        
-        // --- Convex Hull Algorithm (Graham Scan)
+
         function convexHull(points) {
-          if (points.length <= 3) {
-            return points.slice();
-          }
-        
-          points.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-        
-          const lower = [];
-          for (const p of points) {
-            while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) {
-              lower.pop();
+            if (points.length <= 3) return points.slice();
+
+            points.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+
+            const lower = [];
+            for (const p of points) {
+                while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0)
+                    lower.pop();
+                lower.push(p);
             }
-            lower.push(p);
-          }
-        
-          const upper = [];
-          for (let i = points.length - 1; i >= 0; i--) {
-            const p = points[i];
-            while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) {
-              upper.pop();
+
+            const upper = [];
+            for (let i = points.length - 1; i >= 0; i--) {
+                const p = points[i];
+                while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0)
+                    upper.pop();
+                upper.push(p);
             }
-            upper.push(p);
-          }
-        
-          upper.pop();
-          lower.pop();
-          return lower.concat(upper);
+
+            upper.pop();
+            lower.pop();
+            return lower.concat(upper);
         }
-        
-        // --- Polling for latest values continuously
+
+        // --- Helper: Detect instability
+        function isUnstable(history) {
+            if (history.length < MAX_HISTORY) return false;
+            for (let i = 1; i < history.length; i++) {
+                if (history[i] === history[i - 1]) return false;
+            }
+            return true;
+        }
+
+        // --- Poll for live values
         function pollLatestValues() {
-          setInterval(() => {
-            fetch('/get-latest-values')
-              .then(response => response.json())
-              .then(data => {
-                ispespeed = parseFloat(data.ispespeed);
-                ispetemp = parseFloat(data.ispetemp);
-        
-                const point = [ispespeed, ispetemp];
-                const inside = isPointInPolygon(point, borderpoints);
-                               
-                if (!inside && lastInside) {
-                  // Übergang: drinnen → draußen
-                  alertOutside();
-                }
-        
-                // Update Zustand
-                lastInside = inside;
-        
-              })
-              .catch(error => console.error('Error fetching latest values:', error));
-          }, 1000); // Poll alle 1 Sekunde
+            setInterval(() => {
+                fetch('/get-latest-values')
+                    .then(response => response.json())
+                    .then(data => {
+                        ispespeed = parseFloat(data.ispespeed);
+                        ispetemp = parseFloat(data.ispetemp);
+
+                        const point = [ispespeed, ispetemp];
+                        console.log("Latest point:", point);
+                        if ((point.length === 2 && Number.isNaN(point[0]) && Number.isNaN(point[1])) || point.length !== 2) {
+                            stateofpoint = false;
+                            return;
+                        }
+                        const inside = isPointInPolygon(point, borderpoints);
+
+                        // Update state history
+                        stateHistory.push(inside);
+                        if (stateHistory.length > MAX_HISTORY) stateHistory.shift();
+
+                        if (stateofpoint == true) {
+                            // Detect instability
+                            if (isUnstable(stateHistory)) {
+                                showUnstableWarning();
+                            } else if (!inside && lastInside) {
+                                // Only notify once when transitioning from inside to outside
+                                showOutsideWarning();
+                            }
+
+                            lastInside = inside;
+
+                        }
+                        else {
+                            setTimeout(() => {
+                                const botReply = "Either no point has been scanned or the scanned point is invalid";
+                                displayMessage(botReply, "bot");
+                                saveMessage(botReply, "bot");
+                            }, 1000);
+
+                        }
+                    }
+                    )
+                    .catch(error => console.error('Error fetching latest values:', error));
+            }, 1000);
         }
-        
-        // --- Funktion zum Anzeigen der Benachrichtigung
-        function alertOutside() {
-          console.log("Achtung! Punkt ist außerhalb des Bereichs!");
-          // Optional: alert("Achtung! Punkt außerhalb des Bereichs!");
+
+        // --- Warnings
+        function showOutsideWarning() {
+            setTimeout(() => {
+                const botReply = "The point is outside the allowed range!";
+                displayMessage(botReply, "bot");
+                saveMessage(botReply, "bot");
+            }, 1000);
         }
-        
-        // --- Initialize when message arrives
+
+        function showUnstableWarning() {
+            setTimeout(() => {
+                const botReply = "The system is unstable! Point is oscillating between inside and outside!";
+                displayMessage(botReply, "bot");
+                saveMessage(botReply, "bot");
+            }, 1000);
+        }
+
+        // --- Init on trigger
         if (message === "Analyse the incoming information") {
-          fetch(`/get-set/${localStorage.getItem('selectedSetId')}`)
-            .then(response => response.json())
-            .then(data => {
-              console.log("Found set:", data);
-        
-              borderpoints = data.values.map(v => [
-                parseFloat(v.ispespeed),
-                parseFloat(v.ispetemp)
-              ]);
-        
-              borderpoints = convexHull(borderpoints);
-        
-              console.log("Using borderpoints:", borderpoints);
-        
-              pollLatestValues();
-            })
-            .catch(error => console.error('Error fetching set:', error));
+            fetch(`/get-set/${localStorage.getItem('selectedSetId')}`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Found set:", data);
+
+                    borderpoints = data.values.map(v => [
+                        parseFloat(v.ispespeed),
+                        parseFloat(v.ispetemp)
+                    ]);
+
+                    borderpoints = convexHull(borderpoints);
+                    console.log("Borderpoints:", borderpoints);
+
+                    pollLatestValues();
+                })
+                .catch(error => console.error('Error fetching set:', error));
         }
-        
-   
         userInput.value = "";
     }
 
+
     // Event listeners
-    chatButton.addEventListener("click", function() {
+    chatButton.addEventListener("click", function () {
         chatBox.classList.toggle("active");
 
         // Show entry message if chat is empty
@@ -299,13 +339,13 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
 
-    closeChat.addEventListener("click", function() {
+    closeChat.addEventListener("click", function () {
         chatBox.classList.remove("active");
     });
 
     sendButton.addEventListener("click", sendMessage);
 
-    userInput.addEventListener("keypress", function(event) {
+    userInput.addEventListener("keypress", function (event) {
         if (event.key === "Enter") {
             sendMessage();
         }
