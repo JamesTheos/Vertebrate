@@ -1,22 +1,38 @@
-First prompt:
+Create & Release Workflow FluVaccineISPE
+
+Create QBD SET 
+
+340 6
+340 10
+360 6
+360 10
+
+First prompt [MANAGER]:
 
 A new order of product Corona is arriving to lot number 1. Add it to the Workflow
+--> Order Overview
 
-Second prompt:
-
-Can you follow the release status of order number 1 of product Corona?
-
-Third prompt:
+Second prompt[MANAGER]:
 
 Can you check if the needed equipment is free? If not can you free the equipment up from the current task and move that task to a different place?
 
-Fourth prompt: 
+Third prompt[MANAGER]: 
 
 Can you also check if the needed resources are enough?
 
+-->Order Overview --> Release Order
+
+
+Fourth prompt[OPERATOR]:
+
+Can you follow the release status of order number 1 of product Corona?
+
+-->Process instruction sim 1
 Fifth prompt:
 
 Analyse the incoming information
+
+End Simulation
 
 
 
