@@ -88,24 +88,25 @@ document.addEventListener("DOMContentLoaded", function () {
                     }
                     const data = await res.json();
                     OrderNumber = data.orderNumber;
-                    //console.log("Order Number: ", OrderNumber);
+                    console.log("Order Number after return: ", OrderNumber);
                 }
             }
 
             // Später aufrufen:
             await fetchOrderNumber(); // orderNumber ist danach verfügbar
-            //console.log("Global Order Number: ", OrderNumber);
-            //console.log("Lot Number: ", lotNumber);
+            console.log("Product name", productName);
+            console.log("Global Order Number: ", OrderNumber);
+            console.log("Lot Number: ", lotNumber);
             const response1 = await fetch('/submit-order', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    orderNumber: String(OrderNumber || ""),
-                    product: productName || "",
-                    lotNumber: lotNumber || "",
-                    workflow: workflow || ""
+                    orderNumber: String(OrderNumber),
+                    product: productName,
+                    lotNumber: lotNumber,
+                    workflow: workflow
                 })
             });
 
@@ -290,6 +291,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // --- Warnings
         function showOutsideWarning() {
+            chatBox.classList.add("active"); // Open chat box
             setTimeout(() => {
                 const botReply = "The point is outside the allowed range!";
                 displayMessage(botReply, "bot");
@@ -298,6 +300,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         function showUnstableWarning() {
+            chatBox.classList.add("active"); // Open chat box
             setTimeout(() => {
                 const botReply = "The system is unstable! Point is oscillating between inside and outside!";
                 displayMessage(botReply, "bot");

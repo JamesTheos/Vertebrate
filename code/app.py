@@ -141,7 +141,7 @@ def consume_messages():
                 })
 
             elif topic == 'manufacturing_orders':
-                existing_order = next((order for order in data_store[topic] if order['orderNumber'] == data['orderNumber']), None)
+                existing_order = next((order for order in data_store[topic] if order['orderNumber'] == data['orderNumber'] and order['product'] == data['product']), None)
                 if existing_order:
                 # Replace the existing order with the new data and timestamp
                     existing_order.update({
