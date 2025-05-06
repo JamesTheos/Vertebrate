@@ -182,15 +182,53 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         //Fifth Prompt
-        let borderpoints = [];
-        let ispespeed, ispetemp;
+        let outerPolygon = [];
+        let innerPolygon = [];
 
-        let lastInside = true;
-        let stateofpoint = true; //To track if point is a valid point
-        let stateHistory = []; // To track the last few inside/outside states
-        const MAX_HISTORY = 4; // You can increase for better smoothing
+        let lastOuterStatus = null;
+        let lastInnerStatus = null;
+        let hasEnteredMargin = false; // Tracks if point has entered the margin space
+        let hasExitedOuterPolygon = false; // Tracks if point has exited outer polygon
+        let hasExitedInnerPolygon = false; // Tracks if point has exited inner polygon
+        let stateHistory = [];
+        const MAX_HISTORY = 4;
 
-        // --- Ray Casting Algorithm
+        let lastPointTimestamp = Date.now();
+        const NO_DATA_TIMEOUT = 5000;  // 5 seconds of no data
+
+        // --- Convex Hull Algorithm ---
+        function cross(o, a, b) {
+            return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+        }
+
+        function convexHull(points) {
+            if (points.length <= 3) return points;
+            points.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+
+            const lower = [];
+            for (const p of points) {
+                while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) {
+                    lower.pop();
+                }
+                lower.push(p);
+            }
+
+            const upper = [];
+            for (let i = points.length - 1; i >= 0; i--) {
+                const p = points[i];
+                while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) {
+                    upper.pop();
+                }
+                upper.push(p);
+            }
+
+            upper.pop();
+            lower.pop();
+
+            return lower.concat(upper);
+        }
+
+        // --- Point In Polygon Algorithm ---
         function isPointInPolygon(point, polygon) {
             const [x, y] = point;
             let inside = false;
@@ -204,135 +242,165 @@ document.addEventListener("DOMContentLoaded", function () {
             return inside;
         }
 
-        // --- Convex Hull Helper Functions
-        function cross(o, a, b) {
-            return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+        // --- Fetch Data and Build Polygons ---
+        function buildPolygons(data) {
+            const rawOuterPoints = data.values.map(v => [
+                parseFloat(v.ispespeed),
+                parseFloat(v.ispetemp)
+            ]);
+
+            const rawInnerPoints = data.values.map(v => [
+                parseFloat(v.innerMarginSpeed),
+                parseFloat(v.innerMarginTemp)
+            ]);
+
+            outerPolygon = convexHull(rawOuterPoints);
+            innerPolygon = convexHull(rawInnerPoints);
+
+            console.log("Outer polygon:", outerPolygon);
+            console.log("Inner polygon:", innerPolygon);
         }
 
-        function convexHull(points) {
-            if (points.length <= 3) return points.slice();
+        // --- Evaluate Point Status ---
+        function evaluatePoint(point) {
+            const isInOuter = isPointInPolygon(point, outerPolygon);  // Check if point is inside the outer polygon
+            const isInInner = isPointInPolygon(point, innerPolygon);  // Check if point is inside the inner polygon
 
-            points.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+            // If point exits the margin space: Inside outer, inside inner
+            if (isInOuter && isInInner) {
+                if (hasEnteredMargin) {
+                    if (!chatBox.classList.contains("active")) {
+                        chatBox.classList.add("active");
+                    }; // Open chat box
 
-            const lower = [];
-            for (const p of points) {
-                while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0)
-                    lower.pop();
-                lower.push(p);
+                    setTimeout(() => {
+                        const botReply = "Point is completely stable!";
+                        displayMessage(botReply, "bot");
+                        saveMessage(botReply, "bot");
+                    }, 1000);
+                    hasEnteredMargin = false;  // Reset margin entry flag when leaving margin space
+                }
             }
 
-            const upper = [];
-            for (let i = points.length - 1; i >= 0; i--) {
-                const p = points[i];
-                while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0)
-                    upper.pop();
-                upper.push(p);
+            // If point is completely outside the outer polygon
+            if (!isInOuter && !hasExitedOuterPolygon) {
+                if (!chatBox.classList.contains("active")) {
+                    chatBox.classList.add("active");
+                }; // Open chat box
+
+                setTimeout(() => {
+                    const botReply = "Data point is completely outside the design set!";
+                    displayMessage(botReply, "bot");
+                    saveMessage(botReply, "bot");
+                }, 1000);
+                hasExitedOuterPolygon = true;  // Notify once when completely outside both polygons
+                hasExitedInnerPolygon = false; // Reset inner exit flag
             }
 
-            upper.pop();
-            lower.pop();
-            return lower.concat(upper);
+            // If point leaves the inner polygon but still inside the outer polygon
+            if (isInOuter && !isInInner) {
+                if (!hasExitedInnerPolygon) {
+                    if (!chatBox.classList.contains("active")) {
+                        chatBox.classList.add("active");
+                    }; // Open chat box
+
+                    setTimeout(() => {
+                        const botReply = "The point is in the margin space!";
+                        displayMessage(botReply, "bot");
+                        saveMessage(botReply, "bot");
+                    }, 1000);
+                    hasExitedInnerPolygon = true;  // Notify once when leaving inner polygon
+                    hasExitedOuterPolygon = false;
+                }
+            }
+            
+
+            // If point enters the inner polygon again (and is inside outer polygon)
+            if (isInOuter && isInInner) {
+                if (hasExitedInnerPolygon) {
+                    if (!chatBox.classList.contains("active")) {
+                        chatBox.classList.add("active");
+                    }; // Open chat box
+
+                    setTimeout(() => {
+                        const botReply = "The point is stable.";
+                        displayMessage(botReply, "bot");
+                        saveMessage(botReply, "bot");
+                    }, 1000);
+                    hasExitedInnerPolygon = false;  // Reset when re-entering the inner polygon
+                    hasExitedOuterPolygon = false;
+                }
+            }
+
+            // Handle point completely outside and notify on re-entry
+            if (!isInOuter && hasExitedOuterPolygon) {
+                // If the point comes back inside the outer polygon
+                if (lastOuterStatus === false && isInOuter) {
+                    if (!chatBox.classList.contains("active")) {
+                        chatBox.classList.add("active");
+                    }; // Open chat box
+
+                    setTimeout(() => {
+                        const botReply = "The point is in the margin space!";
+                        displayMessage(botReply, "bot");
+                        saveMessage(botReply, "bot");
+                    }, 1000);
+                    hasExitedOuterPolygon = false;  // Reset when re-entering outer polygon
+                }
+            }
+
+          /*  // Reset flags when moving back to a stable state
+            if (isInOuter && isInInner) {
+                hasExitedOuterPolygon = false;  // Reset outer exit flag
+                hasExitedInnerPolygon = false;  // Reset inner exit flag
+            }*/
+            
+            // Update the states for the next evaluation
+            lastOuterStatus = isInOuter;
+            lastInnerStatus = isInInner;
         }
 
-        // --- Helper: Detect instability
-        function isUnstable(history) {
-            if (history.length < MAX_HISTORY) return false;
-            for (let i = 1; i < history.length; i++) {
-                if (history[i] === history[i - 1]) return false;
-            }
-            return true;
-        }
 
-        // --- Poll for live values
+
+        // --- Poll Latest Values ---
         function pollLatestValues() {
             setInterval(() => {
                 fetch('/get-latest-values')
-                    .then(response => response.json())
+                    .then(res => res.json())
                     .then(data => {
-                        ispespeed = parseFloat(data.ispespeed);
-                        ispetemp = parseFloat(data.ispetemp);
+                        if (!data?.ispespeed || !data?.ispetemp) return;
 
-                        const point = [ispespeed, ispetemp];
-                        if ((point.length === 2 && Number.isNaN(point[0]) && Number.isNaN(point[1])) || point.length !== 2) {
-                            stateofpoint = false;
-                            return;
-                        }
-                        const inside = isPointInPolygon(point, borderpoints);
+                        const point = [
+                            parseFloat(data.ispespeed),
+                            parseFloat(data.ispetemp)
+                        ];
 
-                        // Update state history
-                        stateHistory.push(inside);
-                        if (stateHistory.length > MAX_HISTORY) stateHistory.shift();
-
-                        if (stateofpoint == true) {
-                            // Detect instability
-                            if (isUnstable(stateHistory)) {
-                                showUnstableWarning();
-                            } else if (!inside && lastInside) {
-                                // Only notify once when transitioning from inside to outside
-                                showOutsideWarning();
-                            }
-
-                            lastInside = inside;
-
-                        }
-                        else {
-                            setTimeout(() => {
-                                const botReply = "Either no point has been scanned or the scanned point is invalid";
-                                displayMessage(botReply, "bot");
-                                saveMessage(botReply, "bot");
-                            }, 1000);
-
-                        }
-                    }
-                    )
-                    .catch(error => console.error('Error fetching latest values:', error));
+                        lastPointTimestamp = Date.now();
+                        evaluatePoint(point);
+                    })
+                    .catch(err => console.error('Error fetching latest values:', err));
             }, 1000);
+
+            // "No points received" watchdog
+            setInterval(() => {
+                if (Date.now() - lastPointTimestamp > NO_DATA_TIMEOUT) {
+                    console.warn("⚠️ No points received in the last 5 seconds");
+                }
+            }, 2000);
         }
 
-        // --- Warnings
-        function showOutsideWarning() {
-            if (!chatBox.classList.contains("active")) {
-                chatBox.classList.add("active"); // Open chat box
-            }
-            setTimeout(() => {
-                const botReply = "The point is outside the allowed range!";
-                displayMessage(botReply, "bot");
-                saveMessage(botReply, "bot");
-            }, 1000);
-        }
-
-        function showUnstableWarning() {
-
-            if (!chatBox.classList.contains("active")) {
-                chatBox.classList.add("active");
-            }; // Open chat box
-
-            setTimeout(() => {
-                const botReply = "The system is unstable! Point is oscillating between inside and outside!";
-                displayMessage(botReply, "bot");
-                saveMessage(botReply, "bot");
-            }, 1000);
-        }
-
-        // --- Init on trigger
+        // --- Main Logic ---
         if (message === "Analyse the incoming information") {
             fetch(`/get-set/${localStorage.getItem('selectedSetId')}`)
-                .then(response => response.json())
+                .then(res => res.json())
                 .then(data => {
-                    console.log("Found set:", data);
-
-                    borderpoints = data.values.map(v => [
-                        parseFloat(v.ispespeed),
-                        parseFloat(v.ispetemp)
-                    ]);
-
-                    borderpoints = convexHull(borderpoints);
-                    console.log("Borderpoints:", borderpoints);
-
+                    buildPolygons(data);
                     pollLatestValues();
                 })
-                .catch(error => console.error('Error fetching set:', error));
+                .catch(err => console.error('Error fetching set:', err));
         }
+
+
         userInput.value = "";
     }
 
