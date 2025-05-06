@@ -16,6 +16,7 @@
         <tr>
             <th>ISPESpeed</th>
             <th>ISPETemp</th>
+            <th>Margin</th>
             <th>Action</th>
         </tr>
     </thead>
@@ -23,6 +24,7 @@
         <tr>
             <td><input type="number" class="ispespeed" required></td>
             <td><input type="number" class="ispetemp" required></td>
+            <td><input type="number" class="margin" required></td>
             <td><button type="button" class="button-dsd-row" onclick="removeRow(this)">Remove</button></td>
         </tr>
     </tbody>
@@ -100,6 +102,7 @@
         newRow.innerHTML = `
             <td><input type="number" class="ispespeed" required></td>
             <td><input type="number" class="ispetemp" required></td>
+            <td><input type="number" class="margin" required></td>
             <td><button type="button" class="button-dsd-row" onclick="removeRow(this)">Remove</button></td>
         `;
     }
@@ -118,7 +121,8 @@
         const rows = document.querySelectorAll('#value-pairs-table tbody tr');
         const values = Array.from(rows).map(row => ({
             ispespeed: row.querySelector('.ispespeed').value,
-            ispetemp: row.querySelector('.ispetemp').value
+            ispetemp: row.querySelector('.ispetemp').value,
+            margin: row.querySelector('.margin').value
         }));
         const setId = document.getElementById('set-select').value || null;
         setName = name;
@@ -148,6 +152,7 @@
                 <tr>
                     <td><input type="number" class="ispespeed" required></td>
                     <td><input type="number" class="ispetemp" required></td>
+                    <td><input type="number" class="margin" required></td>
                     <td><button type="button" class= "button-dsd-row" onclick="removeRow(this)">Remove</button></td>
                 </tr>
             `;
@@ -168,6 +173,7 @@
                     newRow.innerHTML = `
                         <td><input type="number" class="ispespeed" value="${value.ispespeed}" required></td>
                         <td><input type="number" class="ispetemp" value="${value.ispetemp}" required></td>
+                        <td><input type="number" class="margin" value="${value.margin}" required></td>
                         <td><button type="button" class= "button-dsd-row" onclick="removeRow(this)">Remove</button></td>
                     `;
                 });
