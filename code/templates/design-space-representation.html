@@ -69,12 +69,14 @@
                 }
 
                 chart = new Chart(ctx, {
-                    type: 'scatter',
+                    type: 'line',
                     data: {
                         datasets: [{
                             label: 'Design Space',
                             data: dataset,
-                            backgroundColor: 'rgba(75, 192, 192, 0.6)'
+                            backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            fill: true
                         }]
                     },
                     options: {
