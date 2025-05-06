@@ -64,6 +64,30 @@
                     y: value.ispetemp
                 }));
 
+                // Berechne den geometrischen Schwerpunkt (Centroid)
+                const centroid = dataset.reduce(
+                    (acc, point) => {
+                        acc.x += point.x;
+                        acc.y += point.y;
+                        return acc;
+                    },
+                    { x: 0, y: 0 }
+                );
+                centroid.x /= dataset.length;
+                centroid.y /= dataset.length;
+
+                // Sortiere die Punkte nach ihrem Polarwinkel relativ zum Centroid
+                dataset.sort((a, b) => {
+                    const angleA = Math.atan2(a.y - centroid.y, a.x - centroid.x);
+                    const angleB = Math.atan2(b.y - centroid.y, b.x - centroid.x);
+                    return angleA - angleB;
+                });
+
+                if (dataset.length > 0) {
+                    dataset.push(dataset[0]);
+                }
+
+
                 if (chart) {
                     chart.destroy();
                 }
@@ -74,7 +98,7 @@
                         datasets: [{
                             label: 'Design Space',
                             data: dataset,
-                            backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.4)',
                             borderColor: 'rgba(75, 192, 192, 1)',
                             fill: true
                         }]
@@ -111,7 +135,9 @@
                 chart.data.datasets.push({
                     label: 'Latest Value',
                     data: [],
-                    backgroundColor: 'red'
+                    backgroundColor: 'red',
+                    type: 'scatter',
+                    showLine: false
                 });
                 chart.update();
             });
