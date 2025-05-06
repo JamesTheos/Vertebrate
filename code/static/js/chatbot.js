@@ -291,7 +291,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // --- Warnings
         function showOutsideWarning() {
-            chatBox.classList.add("active"); // Open chat box
+            if (!chatBox.classList.contains("active")) {
+                chatBox.classList.add("active"); // Open chat box
+            }
             setTimeout(() => {
                 const botReply = "The point is outside the allowed range!";
                 displayMessage(botReply, "bot");
@@ -300,7 +302,11 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         function showUnstableWarning() {
-            chatBox.classList.add("active"); // Open chat box
+
+            if (!chatBox.classList.contains("active")) {
+                chatBox.classList.add("active");
+            }; // Open chat box
+
             setTimeout(() => {
                 const botReply = "The system is unstable! Point is oscillating between inside and outside!";
                 displayMessage(botReply, "bot");
