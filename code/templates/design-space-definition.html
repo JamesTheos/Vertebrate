@@ -126,6 +126,23 @@
         }));
         const setId = document.getElementById('set-select').value || null;
         setName = name;
+        // Calculate inner border points for margins
+        const center = values.reduce((acc, val) => {
+            acc.x += parseFloat(val.ispespeed);
+            acc.y += parseFloat(val.ispetemp);
+            return acc;
+        });
+
+        center.x /= values.length;
+        center.y /= values.length;
+
+        values.forEach(value => {
+            const xDiff = parseFloat(value.ispetemp) - center.x;
+            const yDiff = parseFloat(value.ispespeed) - center.y;
+
+            value.innerMarginY = parseFloat(value.ispetemp) + (xDiff > 0 ? (margin/100)* parseFloat(value.ispetemp) : -(margin/100) * parseFloat(value.ispetemp));
+            value.innerMarginX = parseFloat(value.ispespeed) + (yDiff > 0 ? (margin/100)* parseFloat(value.ispespeed) : -(margin/100) * parseFloat(value.ispespeed));
+        });
         fetch('/save-set', {
             method: 'POST',
             headers: {
