@@ -143,9 +143,10 @@
             margin = parseFloat(value.margin);
             const xDiff = -parseFloat(value.ispespeed) + center.x;
             const yDiff = -parseFloat(value.ispetemp) + center.y;
+        
 
-            value.innerMarginTemp = String(parseFloat(value.ispetemp) + (yDiff> 0 ? (margin/100)* parseFloat(value.ispetemp) : -(margin/100) * parseFloat(value.ispetemp)));
-            value.innerMarginSpeed = String(parseFloat(value.ispespeed) + (xDiff > 0 ? (margin/100)* parseFloat(value.ispespeed) : -(margin/100) * parseFloat(value.ispespeed)));
+            value.innerMarginTemp = String(yDiff > 0 ? Math.max(parseFloat(value.ispetemp) + (margin / 100) * parseFloat(value.ispetemp), center.y)  : Math.max((parseFloat(value.ispetemp) - (margin / 100) * parseFloat(value.ispetemp)), center.y));
+            value.innerMarginSpeed = String( xDiff > 0 ? Math.max(parseFloat(value.ispespeed) + (margin/100)* parseFloat(value.ispespeed), center.x) : Math.max(parseFloat(value.ispespeed)- (margin/100) * parseFloat(value.ispespeed), center.x));
         });
         fetch('/save-set', {
             method: 'POST',
