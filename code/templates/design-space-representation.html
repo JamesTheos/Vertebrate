@@ -64,15 +64,19 @@
                     y: value.ispetemp
                 }));
 
+                // Add a second dataset
+                const secondDataset = data.values.map(value => ({
+                    x: value.innerMarginSpeed, // Assuming the second dataset has these properties
+                    y: value.innerMarginTemp
+                }));
+
                 // Berechne den geometrischen Schwerpunkt (Centroid)
-                const centroid = dataset.reduce(
-                    (acc, point) => {
-                        acc.x += point.x;
-                        acc.y += point.y;
-                        return acc;
-                    },
-                    { x: 0, y: 0 }
-                );
+                centroid = { x: 0, y: 0 };
+                data.values.forEach(value => {
+                    centroid.x += parseFloat(value.ispespeed);
+                    centroid.y += parseFloat(value.ispetemp);
+                    
+                });
                 centroid.x /= dataset.length;
                 centroid.y /= dataset.length;
 
@@ -82,11 +86,30 @@
                     const angleB = Math.atan2(b.y - centroid.y, b.x - centroid.x);
                     return angleA - angleB;
                 });
+                
+                secondDataset.sort((a, b) => {
+                    const angleA = Math.atan2(a.y - centroid.y, a.x - centroid.x);
+                    const angleB = Math.atan2(b.y - centroid.y, b.x - centroid.x);
+                    return angleA - angleB;
+                });
+                centroid2 = { x: 0, y: 0 };
+                data.values.forEach(value => {
+                    centroid.x += parseFloat(value.innerMarginSpeed);
+                    centroid.y += parseFloat(value.innerMarginTemp);
+                    
+                });
+                centroid2.x /= dataset.length;
+                centroid2.y /= dataset.length;
+
+
 
                 if (dataset.length > 0) {
                     dataset.push(dataset[0]);
                 }
 
+                if (secondDataset.length > 0) {
+                    secondDataset.push(secondDataset[0]);
+                }
 
                 if (chart) {
                     chart.destroy();
@@ -98,10 +121,19 @@
                         datasets: [{
                             label: 'Design Space',
                             data: dataset,
-                            backgroundColor: 'rgba(75, 192, 192, 0.4)',
-                            borderColor: 'rgba(75, 192, 192, 1)',
-                            fill: true
-                        }]
+                            backgroundColor: 'rgba(0, 0, 255, 1)', /* Adjusted for transparency */
+                            borderColor: 'blue',
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'Margin',
+                            data: secondDataset,
+                            backgroundColor: 'orange', // Adjusted for transparency
+                            borderColor: 'orange',
+                            borderWidth: 2,
+                            fill: true // Ensures the shape is filled
+                        }
+                    ]
                     },
                     options: {
                         responsive: true,
@@ -120,7 +152,7 @@
                             },
                             y: {
                                 min: 0,
-                                max: 40,
+                                max: 80,
                                 title: {
                                     display: true,
                                     text: 'ISPETemp'
@@ -136,8 +168,6 @@
                     label: 'Latest Value',
                     data: [],
                     backgroundColor: 'red',
-                    type: 'scatter',
-                    showLine: false
                 });
                 chart.update();
             });

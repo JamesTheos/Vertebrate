@@ -126,22 +126,26 @@
         }));
         const setId = document.getElementById('set-select').value || null;
         setName = name;
-        // Calculate inner border points for margins
-        const center = values.reduce((acc, val) => {
-            acc.x += parseFloat(val.ispespeed);
-            acc.y += parseFloat(val.ispetemp);
-            return acc;
+        // Calculate the average (center) of all x and y points
+        center = { x: 0, y: 0 };
+        values.forEach(value => {
+            center.x += parseFloat(value.ispespeed);
+            center.y += parseFloat(value.ispetemp);
+            
         });
 
         center.x /= values.length;
         center.y /= values.length;
 
-        values.forEach(value => {
-            const xDiff = parseFloat(value.ispetemp) - center.x;
-            const yDiff = parseFloat(value.ispespeed) - center.y;
+        
 
-            value.innerMarginY = parseFloat(value.ispetemp) + (xDiff > 0 ? (margin/100)* parseFloat(value.ispetemp) : -(margin/100) * parseFloat(value.ispetemp));
-            value.innerMarginX = parseFloat(value.ispespeed) + (yDiff > 0 ? (margin/100)* parseFloat(value.ispespeed) : -(margin/100) * parseFloat(value.ispespeed));
+        values.forEach(value => {
+            margin = parseFloat(value.margin);
+            const xDiff = -parseFloat(value.ispespeed) + center.x;
+            const yDiff = -parseFloat(value.ispetemp) + center.y;
+
+            value.innerMarginTemp = String(parseFloat(value.ispetemp) + (yDiff> 0 ? (margin/100)* parseFloat(value.ispetemp) : -(margin/100) * parseFloat(value.ispetemp)));
+            value.innerMarginSpeed = String(parseFloat(value.ispespeed) + (xDiff > 0 ? (margin/100)* parseFloat(value.ispespeed) : -(margin/100) * parseFloat(value.ispespeed)));
         });
         fetch('/save-set', {
             method: 'POST',
