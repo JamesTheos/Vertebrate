@@ -145,8 +145,8 @@ def Temp_consume_and_process():
     
     # Define the number of messages to retrieve in one call
     num_messages = 100
-    normalizeUpperLimit = 8
-    normalizeLowerLimit = 2
+    normalizeUpperLimit = 43
+    normalizeLowerLimit = 17
     current_sum = 0
     count = 0
     current_time = 0

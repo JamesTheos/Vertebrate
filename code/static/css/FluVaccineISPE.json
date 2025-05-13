@@ -1,5 +1,5 @@
 {
-    "workflowName": "ISPE",
+    "workflowName": "FluVaccineISPE",
     "options": [
         {
             "option": "Start",
@@ -13,16 +13,16 @@
             ]
         },
         {
-            "option": "Start Scene1",
+            "option": "Start 1. Simulation",
             "actions": [
                 {
-                    "action": "Scene1",
+                    "action": "Simulation 1",
                     "external": true,
                     "topic": "ISPEScene1",
                     "externalAction": true
                 },
                 {
-                    "action": "Scene2",
+                    "action": "Simulation 2",
                     "external": true,
                     "topic": "ISPEScene2",
                     "externalAction": true
@@ -30,27 +30,27 @@
             ]
         },
         {
-            "option": "End Scene",
+            "option": "Start 2. Simulation",
             "actions": [
                 {
-                    "action": "Scene1",
+                    "action": "Simulation 1",
                     "external": true,
                     "topic": "ISPEScene1",
-                    "externalAction": false
+                    "externalAction": true
                 },
                 {
-                    "action": "Scene2",
+                    "action": "Simulation 2",
                     "external": true,
                     "topic": "ISPEScene2",
-                    "externalAction": false
+                    "externalAction": true
                 }
             ]
         },
         {
-            "option": "End",
+            "option": "Complete Simulation",
             "actions": [
                 {
-                    "action": "Complete",
+                    "action": "End",
                     "external": true,
                     "topic": "ISPEStartPhase1",
                     "externalAction": false

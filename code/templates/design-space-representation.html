@@ -6,7 +6,7 @@
 {% block content %}
 <!-- Dropdown to select different sets -->
 <select id="set-select" class="dropdown-dsr" onchange="loadSet(this.value)"></select>
-    <option value="Select a set"></option>
+    <!-- <option value="Select a set"></option> -->
 </select>
 
 
@@ -24,18 +24,18 @@
             .then(response => response.json())
             .then(data => {
                 const select = document.getElementById('set-select');
-                const option = document.createElement('option');
-                option.value = 0;
-                option.textContent = "Select Set";
-                select.appendChild(option);
+                // const option = document.createElement('option');
+                // option.value = 0;
+                // option.textContent = "Select Set";
+                // select.appendChild(option);
                 
                 data.forEach(set => {
                     const option = document.createElement('option');
                     option.value = set.id;
                     option.textContent = set.name;
                     select.appendChild(option);
+                    loadSet(set.id); 
                 });
-                
             });
 
         // Start polling for the latest values
@@ -127,7 +127,7 @@
                             pointRadius: 0 // Hides the points on the line
                         },
                         {
-                            label: 'Margin',
+                            label: 'Alarm limits',
                             data: secondDataset,
                             backgroundColor: 'rgba(255, 165, 0, 0.6)', // Adjusted for transparency
                             borderColor: 'rgba(255, 165, 0, 0.6)',

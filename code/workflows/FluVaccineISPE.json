@@ -2,7 +2,7 @@
     "workflowName": "FluVaccineISPE",
     "options": [
         {
-            "option": "Start",
+            "option": "Start Process",
             "actions": [
                 {
                     "action": "Start",
@@ -47,7 +47,7 @@
             ]
         },
         {
-            "option": "Complete Simulation",
+            "option": "End Process",
             "actions": [
                 {
                     "action": "End",

@@ -21,7 +21,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // If chat is empty, show the entry message
         if (savedMessages.length === 0) {
-            const welcomeMessage = "Hi! I'm your chatbot. How may I assist you?";
+            const welcomeMessage = "Hi! I'm your AI Agent. How may I assist you?";
             displayMessage(welcomeMessage, "bot");
             saveMessage(welcomeMessage, "bot");
         } else {
@@ -51,8 +51,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const match = message.match(pattern);
         // If the message matches the pattern, extract the values
         let OrderNumber, productName, lotNumber, workflow = "FluVaccineISPE";
-
-        if (match) {
+       if (match) {
             productName = match[1];
             lotNumber = match[2];
             // Creating and releasing order code from manufacturing-orders.html
@@ -305,7 +304,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     }; // Open chat box
 
                     setTimeout(() => {
-                        const botReply = "The point is in the margin space!";
+                        const botReply = "The point is within the alarm limits!";
                         displayMessage(botReply, "bot");
                         saveMessage(botReply, "bot");
                     }, 1000);
@@ -341,7 +340,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     }; // Open chat box
 
                     setTimeout(() => {
-                        const botReply = "The point is in the margin space!";
+                        const botReply = "The point is within the alarm limits!";
                         displayMessage(botReply, "bot");
                         saveMessage(botReply, "bot");
                     }, 1000);
