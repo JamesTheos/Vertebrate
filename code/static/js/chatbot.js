@@ -46,17 +46,18 @@ document.addEventListener("DOMContentLoaded", function () {
         saveMessage(message, "user");
 
         //First Prompt
-        const pattern = /A new order of product ([A-Z0-9]+) is arriving to lot number (\d+). Add it to the Workflow/i;
-
-        const match = message.match(pattern);
-        // If the message matches the pattern, extract the values
-        let OrderNumber, productName, lotNumber, workflow = "FluVaccineISPE";
-       if (match) {
-            productName = match[1];
-            lotNumber = match[2];
-            // Creating and releasing order code from manufacturing-orders.html
+        if (message === "Hey Agent, we have been talking to ISPE about a potential product order for a their flu vaccine. What do you think is the next step?") {
             setTimeout(() => {
-                const botReply = "Processing..";
+                const botReply = "Based on the history with ISPE, usually they send us the order. Shall I prepare an order for ISPE FluVaccine already?";
+                displayMessage(botReply, "bot");
+                saveMessage(botReply, "bot");
+            }, 1000);
+        }
+        //Second Prompt
+        if (message === "Yeah go ahead!") {
+            let OrderNumber, productName = "FluVaccine", lotNumber = "1", workflow = "FluVaccineISPE";
+            setTimeout(() => {
+                const botReply = "Yeah sure, I will prepare an order for ISPE FluVaccine.";
                 displayMessage(botReply, "bot");
                 saveMessage(botReply, "bot");
             }, 1000);
@@ -80,7 +81,7 @@ document.addEventListener("DOMContentLoaded", function () {
                         }
                     } catch (error) {
                         // console.error('Error fetching manufacturing orders data:', error);
-                        const botReply = "Failed to fetch manufacturing orders data. Please try again later.";
+                        const botReply = "Unfortunately, I was not able to fetch the manufacturing order data. Please try again later.";
                         displayMessage(botReply, "bot");
                         saveMessage(botReply, "bot");
                         return;
@@ -118,67 +119,35 @@ document.addEventListener("DOMContentLoaded", function () {
                 const modal = document.getElementById('successModal');
                 //modal.style.display = 'block';
                 setTimeout(() => {
-                    const botReply = `Order has been created successfully and added to the Workflow: ${workflow}.`;
+                    const botReply = `´The order has been created successfully and added to the ${workflow}.`;
                     displayMessage(botReply, "bot");
                     saveMessage(botReply, "bot");
                 }, 1000);
             } else {
                 setTimeout(() => {
-                    const botReply = "Failed to create order. Please check the details and try again.";
+                    const botReply = "Unfortunately, creating the order was not possible. Please check your information and try again later.";
                     displayMessage(botReply, "bot");
                     saveMessage(botReply, "bot");
                 }, 1000);;
             }
         }
-        //Second Prompt
-        const pattern2 = /Can you follow the release status of order number (\d+) of product ([A-Z0-9]+)?/i;
-        const match2 = message.match(pattern2);
-        let orderNumber2;
-
-        if (match2) {
-            orderNumber2 = match2[1];
-            product_name2 = match2[2];
-            fetch('/api/released-orders')
-                .then(response => response.json())
-                .then(data => {
-                    const order = data.orders.find(order => (order.orderNumber === orderNumber2) && (order.product === product_name2));
-                    setTimeout(() => {
-                        if (order) {
-                            const botReply = `The release status of order number ${orderNumber2} of ${product_name2} is: ${order.status}.`;
-                            displayMessage(botReply, "bot");
-                            saveMessage(botReply, "bot");
-                        } else {
-                            const botReply = `Order number ${orderNumber2} of product ${product_name2} was not found in the released orders.`;
-                            displayMessage(botReply, "bot");
-                            saveMessage(botReply, "bot");
-                        }
-                    }, 1000);
-                })
-                .catch(error => {
-                    const botReply = "There was an error fetching the release status of the order.";
-                    displayMessage(botReply, "bot");
-                    saveMessage(botReply, "bot");
-                    console.error('Error fetching released orders:', error);
-                });
-
-
-        }
         //Third Prompt
-        if (message === "Can you check if the needed equipment is free? If not can you free the equipment up from the current task and move that task to a different place?") {
+        if (message === "Hey Agent, we want to start the production of the ISPE Flu vaccine order.") {
             setTimeout(() => {
-                const botReply = "The needed equipment is not free. The current task has been moved to a different place and the equipment has been freed up.";
+                const botReply = "I have already prepared the order. I have allocated the equipment, that is available and ready for use.";
                 displayMessage(botReply, "bot");
                 saveMessage(botReply, "bot");
             }, 1000);
         }
-        //Fourth Prompt
-        if (message === "Can you also check if the needed resources are enough?") {
+        //Fourth Prompt ----> The releasing of the order is not implemented. It will be done off screen manually.
+        if (message === "Can you release the order please?") {
             setTimeout(() => {
-                const botReply = "The needed ressources are enough for the current task.";
+                const botReply = "Yeah. I have released the order.";
                 displayMessage(botReply, "bot");
                 saveMessage(botReply, "bot");
             }, 1000);
         }
+
 
         //Fifth Prompt
         let outerPolygon = [];
@@ -273,7 +242,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     }; // Open chat box
 
                     setTimeout(() => {
-                        const botReply = "Point is completely stable!";
+                        const botReply = "The new point recieved is in a completely stable state!";
                         displayMessage(botReply, "bot");
                         saveMessage(botReply, "bot");
                     }, 1000);
@@ -288,7 +257,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 }; // Open chat box
 
                 setTimeout(() => {
-                    const botReply = "Data point is completely outside the design set!";
+                    const botReply = "Watch out! The point recieved is completely out side the design space!";
                     displayMessage(botReply, "bot");
                     saveMessage(botReply, "bot");
                 }, 1000);
@@ -304,7 +273,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     }; // Open chat box
 
                     setTimeout(() => {
-                        const botReply = "The point is within the alarm limits!";
+                        const botReply = "I would like to inform you that the new point recieved is outside the alarm limits!";
                         displayMessage(botReply, "bot");
                         saveMessage(botReply, "bot");
                     }, 1000);
@@ -312,7 +281,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     hasExitedOuterPolygon = false;
                 }
             }
-            
+
 
             // If point enters the inner polygon again (and is inside outer polygon)
             if (isInOuter && isInInner) {
@@ -347,13 +316,6 @@ document.addEventListener("DOMContentLoaded", function () {
                     hasExitedOuterPolygon = false;  // Reset when re-entering outer polygon
                 }
             }
-
-          /*  // Reset flags when moving back to a stable state
-            if (isInOuter && isInInner) {
-                hasExitedOuterPolygon = false;  // Reset outer exit flag
-                hasExitedInnerPolygon = false;  // Reset inner exit flag
-            }*/
-            
             // Update the states for the next evaluation
             lastOuterStatus = isInOuter;
             lastInnerStatus = isInInner;
@@ -389,7 +351,13 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         // --- Main Logic ---
-        if (message === "Analyse the incoming information") {
+        if (message === "Hi Agent, I need your support while I'm running the batch. Can you keep an eye on the design space of this product?") {
+            setTimeout(() => {
+                const botReply = "Ok, I can do that.";
+                displayMessage(botReply, "bot");
+                saveMessage(botReply, "bot");
+            }, 1000);
+
             fetch(`/get-set/${localStorage.getItem('selectedSetId')}`)
                 .then(res => res.json())
                 .then(data => {
