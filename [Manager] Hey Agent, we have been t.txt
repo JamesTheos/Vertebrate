@@ -1,0 +1,17 @@
+[Manager]: Hey Agent, we have been talking to ISPE about a potential product order for a their flu vaccine. What do you think is the next step?
+[Agent]: Based on the history with ISPE, usually they send us the order. Shall I prepare an order for ISPE FluVaccine already?
+[Manager]: Yeah go ahead!
+[Prod Manager]: Hey Agent, we want to start the production of the ISPE Flu vaccine order.
+[Agent]: I have already prepared the order. I have allocated the equipment, that is available and ready for use.
+[Prod. Manager]: Can you release the order please?
+[Agent]: Yeah. I have released the order.
+[Operator]: Hi Agent, I need your support while I'm running the batch. Can you keep an eye on the design space of this product ?
+[Agent]: Ok, I can do that.
+--> Warning: Agent pops up.
+
+
+
+Start Process-> Stzart
+Start Process Simulatin __> Process Sim 1/2
+Change Process Simulation --> Process Sim 1/2
+End Process SImulation --> End

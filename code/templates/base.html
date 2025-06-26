@@ -114,7 +114,11 @@
         </div>
         <div class="user-info">
             <img src="{{ url_for('static', filename='images/icons/user.svg') }}" alt="User" class="user-icon" style="width: 32px; height: 32px;">
-            <span class="user-name" id="user-name">{{appconfig.Username}}</span>
+            <span class="user-name" id="user-name">
+                {% if current_user.is_authenticated %}
+                    {{ current_user.username }}
+                {% endif %}
+            </span>
 
         </div>
         <a href="/settings" class="settings">
@@ -151,7 +155,7 @@
     ********************************************************************************************************************
      -->
     <nav class = "sidebar"> 
-        <div href="/" class="logo">ISPE Demo</div>
+        <div href="/index" class="logo">ISPE Demo</div>
 
         <div id = "sidebar" class = "menu-content show-sidebar">
             <div class = "menu-items">
@@ -160,7 +164,7 @@
                 <!-- FIRST SUBMENU -->
 
                 <div class = "item"> 
-                    <a href="/">Home</a>
+                    <a href="/index">Home</a>
                 </div>
 
                 <!-- SECOND SUBMENU -->

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Login{% endblock %}
+{% block header_title %}Login{% endblock %}
+
+{% block content %}
+<div id="loginModal" class="modal-login">
+        <div class="modal-content-login">
+            <form>
+                <div class="form-group-login">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" class="input-style-login" name="username">
+                </div>
+                <div class="form-group-login">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" class="input-style-login" name="password">
+                </div>
+                <button class="button-style-login">Log In</button>
+                <button id = "close-login" class="button-style-login">Close</button>
+            </form>
+        </div>
+    </div>
+{% endblock %}

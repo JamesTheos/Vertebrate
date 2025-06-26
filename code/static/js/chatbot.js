@@ -46,7 +46,7 @@ document.addEventListener("DOMContentLoaded", function () {
         saveMessage(message, "user");
 
         //First Prompt
-        if (message === "Hey Agent, we have been talking to ISPE about a potential product order for a their flu vaccine. What do you think is the next step?") {
+        if (message === "Hey Agent, we have been talking to ISPE about a potential product order for their flu vaccine. What do you think is the next step?") {
             setTimeout(() => {
                 const botReply = "Based on the history with ISPE, usually they send us the order. Shall I prepare an order for ISPE FluVaccine already?";
                 displayMessage(botReply, "bot");
@@ -54,7 +54,7 @@ document.addEventListener("DOMContentLoaded", function () {
             }, 1000);
         }
         //Second Prompt
-        if (message === "Yeah go ahead!") {
+        if (message === "Yeah, go ahead!") {
             let OrderNumber, productName = "FluVaccine", lotNumber = "1", workflow = "FluVaccineISPE";
             setTimeout(() => {
                 const botReply = "Yeah sure, I will prepare an order for ISPE FluVaccine.";
@@ -119,7 +119,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 const modal = document.getElementById('successModal');
                 //modal.style.display = 'block';
                 setTimeout(() => {
-                    const botReply = `´The order has been created successfully and added to the ${workflow}.`;
+                    const botReply = `The order has been created successfully and added to the ${workflow}.`;
                     displayMessage(botReply, "bot");
                     saveMessage(botReply, "bot");
                 }, 1000);
@@ -132,7 +132,7 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         }
         //Third Prompt
-        if (message === "Hey Agent, we want to start the production of the ISPE Flu vaccine order.") {
+        if (message === "Hey Agent, we want to start the production of the ISPE FluVaccine order.") {
             setTimeout(() => {
                 const botReply = "I have already prepared the order. I have allocated the equipment, that is available and ready for use.";
                 displayMessage(botReply, "bot");
@@ -242,7 +242,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     }; // Open chat box
 
                     setTimeout(() => {
-                        const botReply = "The new point recieved is in a completely stable state!";
+                        const botReply = "The new point received is in a completely stable state!";
                         displayMessage(botReply, "bot");
                         saveMessage(botReply, "bot");
                     }, 1000);
@@ -257,7 +257,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 }; // Open chat box
 
                 setTimeout(() => {
-                    const botReply = "Watch out! The point recieved is completely out side the design space!";
+                    const botReply = "Watch out! The point received is completely out side the design space!";
                     displayMessage(botReply, "bot");
                     saveMessage(botReply, "bot");
                 }, 1000);
@@ -273,7 +273,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     }; // Open chat box
 
                     setTimeout(() => {
-                        const botReply = "I would like to inform you that the new point recieved is outside the alarm limits!";
+                        const botReply = "I would like to inform you that the new point received is outside the alarm limits!";
                         displayMessage(botReply, "bot");
                         saveMessage(botReply, "bot");
                     }, 1000);

@@ -13,16 +13,16 @@
             ]
         },
         {
-            "option": "Start 1. Simulation",
+            "option": "Start Process Simulation",
             "actions": [
                 {
-                    "action": "Simulation 1",
+                    "action": "Process Simulation 1",
                     "external": true,
                     "topic": "ISPEScene1",
                     "externalAction": true
                 },
                 {
-                    "action": "Simulation 2",
+                    "action": "Process Simulation 2",
                     "external": true,
                     "topic": "ISPEScene2",
                     "externalAction": true
@@ -30,16 +30,16 @@
             ]
         },
         {
-            "option": "Start 2. Simulation",
+            "option": "Change Process Simulation",
             "actions": [
                 {
-                    "action": "Simulation 1",
+                    "action": "Process Simulation 1",
                     "external": true,
                     "topic": "ISPEScene1",
                     "externalAction": true
                 },
                 {
-                    "action": "Simulation 2",
+                    "action": "Process Simulation 2",
                     "external": true,
                     "topic": "ISPEScene2",
                     "externalAction": true

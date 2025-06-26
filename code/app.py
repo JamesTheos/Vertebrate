@@ -1,4 +1,7 @@
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, abort
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_sqlalchemy import SQLAlchemy
+
 from confluent_kafka import Consumer, Producer, KafkaError, OFFSET_BEGINNING
 from confluent_kafka.admin import AdminClient, NewTopic
 #from LLM_Consumer import get_kafka_data
@@ -11,6 +14,23 @@ from process_qbd_analysis import process_qbd_analysis  # Import the process QbD 
 from consumeWorkflows import consumeWorkflows, get_all_workflows
 from colorsettings import colorsettings
 from demo_consumer import tempConsumerChatbot
+from auth import auth
+from models import db, User
+from functools import wraps
+
+def roles_required(*roles):
+    def wrapper(f):
+        @wraps(f)
+        def decorated_view(*args, **kwargs):
+            print("Current user role:", current_user.role)
+            print("Allowed roles:", roles)
+            if not current_user.is_authenticated or current_user.role not in roles:
+                abort(403)
+            return f(*args, **kwargs)
+        return decorated_view
+    return wrapper
+     
+
 #from Nexus2PLC import nexus2plc
 
 
@@ -37,23 +57,6 @@ unit= config['unit']
 
 
 
-
-# Create Flask application with custom static folder
-app = Flask(__name__)
-
-# Register the blueprints
-app.register_blueprint(product_analytics_app)
-app.register_blueprint(design_space_app)
-app.register_blueprint(process_qbd_analysis)
-app.register_blueprint(consumeWorkflows)
-app.register_blueprint(colorsettings)
-app.register_blueprint(tempConsumerChatbot)
-#app.register_blueprint(nexus2plc)
-
-
-
-
-
 # Kafka consumer configuration
 kafka_cons_conf = {
     'bootstrap.servers': Kafkaserver,
@@ -72,6 +75,7 @@ producer = Producer(kafka_prod_conf)
 def send_to_kafka(topic, value):
     producer.produce(topic, key="FromUX", value=json.dumps(value).encode('utf-8'))
     producer.flush()
+
 
 
 data_store = {
@@ -154,405 +158,445 @@ def consume_messages():
         except Exception as e:
             print("Exception in APP:Consume_Messages:", e, flush=True)
             pass
-      
 
 
+def create_app():
+# Create Flask application with custom static folder
+    app = Flask(__name__)
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///UserManagement.db'  # Example URI, change as needed
+    app.secret_key = 'your_secret_key'  # Set a secret key for session management
 
+    db.init_app(app)
 
+    login_manager = LoginManager()
+    login_manager.init_app(app)
 
-
-@app.context_processor
-def inject_config():
-    config_path = os.path.join(os.path.dirname(__file__), 'appconfig.json')
-    with open(config_path) as config_file:
-        config = json.load(config_file)
-    return dict(appconfig=config)
-#######################################################################################
-#main route
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-#######################################################################################
-#analytics route
-@app.route('/product_analytics')  # Define route for the product analytics page
-def product_analytics():
-    return render_template('product_analytics.html')  # Render the product_analytics.html template
-@app.route('/process-qbd-analysis')
-def trending():
-   return render_template('process-qbd-analysis.html')
-
-#######################################################################################
-#Orders route
-@app.route('/manufacturing-orders', methods=['GET', 'POST'])
-def manufacturing_orders():
-    return render_template('manufacturing-orders.html')
-
-@app.route('/order-management', methods=['GET', 'POST'])
-def order_management():
-    if request.method == 'POST':
-        action = request.json.get('action')
-        order_id = request.json.get('order_id')
-        workflow_name = request.json.get('workflowName')
-
-
-        if not workflow_name or not order_id or not action:
-            return jsonify({'error': 'Missing required fields'}), 400
-
-        # Load the workflow data from the JSON file
-        workflow_path = os.path.join(os.path.dirname(__file__), 'workflows', f'{workflow_name}.json')
-        if not os.path.exists(workflow_path):
-            return jsonify({'error': 'Workflow not found'}), 404
-
-        with open(workflow_path) as workflow_file:
-            workflow_data = json.load(workflow_file)
-
-        
-        order_found = False
-        for order in data_store['manufacturing_orders']:
-            if order['orderNumber'] == order_id:
-                order_found = True
-                if action == 'release':
-                    order['status'] = 'Released'
-                elif action == 'abort':
-                    order['status'] = 'Aborted'
-
-                    # Reset all values to null for all external topics
-                    for step in workflow_data['options']:
-                        for action in step.get('actions', []):
-                            if action.get('external'):
-                                topic = action.get('topic')
-                                send_to_kafka(topic, {'value': False, **order})
-                else:
-                    return jsonify({'error': 'Invalid action'}), 400
-                producer.produce('manufacturing_orders', key="FromOrderManagement", value=json.dumps(order).encode('utf-8'))
-                producer.flush()
-                break
-        if not order_found:
-            return jsonify({'error': 'Order not found'}), 404
-        return jsonify({'status': 'Action Completed'}), 200
-    return render_template('order-management.html', orders=data_store['manufacturing_orders'])
-
-@app.route('/data/<topic>')
-def get_data(topic):
-    data = data_store.get(topic, [])
-    #print(f"Serving data for {topic}: {data}", flush=True)  # Debugging log
-    return jsonify(data)
-
-@app.route('/submit-order', methods=['POST'])
-def submit_order():
-    order_data = request.json
-    print(f"Requested Action: {order_data}")
-    order_number = order_data.get('orderNumber')
-    product = order_data.get('product')
-    lot_number = order_data.get('lotNumber')
-    workflow = order_data.get('workflow')
-
-    if not order_number or not product or not lot_number:
-        return jsonify({'error': 'Missing data'}), 400
-
-    message = {
-        'Enterprise': enterprise,
-        'Site': site,
-        'Area': area,
-        'Process Cell': process_cell,
-        'Unit': unit,
-        'orderNumber': order_number,
-        'product': product,
-        'lotNumber': lot_number,
-        'workflow': workflow,
-        'timestamp': datetime.now().isoformat(),
-        'status': 'Created'
-    }
-    print(f"Order Submitted: {message}")
-    producer.produce('manufacturing_orders', key="FromOrderCreation", value=json.dumps(message).encode('utf-8'))
-    producer.flush()
-
-    return jsonify({'status': 'Order submitted successfully'})
-
-@app.route('/orders')
-def get_orders():
-    orders = data_store.get('manufacturing_orders', [])
-    return jsonify(orders)
-
-#######################################################################################
-#Scada route
-@app.route('/scada')
-def scada():
-    return render_template('scada.html')
-@app.route('/equipment-overview')
-def equipmentoverview():
-    return render_template('equipment-overview.html')
-@app.route('/3d-view')
-def view3d():
-    return render_template('3d-view.html')
-
-#######################################################################################
-#design-space route
-@app.route('/design-space-definition')
-def designspacedefinition():
-    return render_template('design-space-definition.html')
-
-@app.route('/design-space-representation')
-def designspacerepresentation():
-    return render_template('design-space-representation.html')
-
-############################################################################################################
-#Workflows route
-@app.route('/batch')
-def batch():
-    return render_template('batch.html')
-
-@app.route('/overview') # Define route for the overview page under workflows
-def overview():
-    workflows = get_all_workflows().json
-    relStaCom_orders = [order for order in data_store['manufacturing_orders'] if order['status'] == 'Started']
-    print(f"Orders: {relStaCom_orders}")
-    print(f"Workflows: {workflows}")
-    return render_template('overview.html', running_orders=relStaCom_orders, workflows=workflows)
-
-
-@app.route('/api/released-orders', methods=['GET'])
-def get_released_orders():
-    released_orders = [order for order in data_store['manufacturing_orders'] if order['status'] == 'Released' or order['status'] == 'Started']
-    return jsonify({'orders': released_orders})
-
-@app.route('/api/order-status', methods=['GET'])
-def get_orderOverview():
-    return jsonify({'ordersOverview': data_store['manufacturing_orders']})
-
-
-
-
-@app.route('/api/workflows', methods=['POST'])
-def workflow_steps():
-    try:
-        data = request.json
-        workflow_name = data.get('workflow_name')
-        order_number = data.get('orderNumber')
-        current_step_index = data.get('currentStep')
-        button_pressed = data.get('action')
-
-        if not workflow_name or not order_number or current_step_index is None or not button_pressed:
-            return jsonify({'error': 'Missing required fields'}), 400
-
-        # Load the workflow data from the JSON file
-        workflow_path = os.path.join(os.path.dirname(__file__), 'workflows', f'{workflow_name}.json')
-        if not os.path.exists(workflow_path):
-            return jsonify({'error': 'Workflow not found'}), 404
-
-        with open(workflow_path) as workflow_file:
-            workflow_data = json.load(workflow_file)
-
-        # Index each step in the workflow starting from 0
-        for index, step in enumerate(workflow_data.get('options', [])):
-            step['stepIndex'] = index + 1
-
-        total_steps = len(workflow_data.get('options', []))
-        if total_steps == 0:
-            return jsonify({'error': 'No steps found in the workflow'}), 400
-
-        # Handle the first step of the workflow
-        if current_step_index == 1 and total_steps > 1:
-            for order in data_store['manufacturing_orders']:
-                if order['orderNumber'] == order_number:
-                    order['status'] = 'Started'
-                    order['timestamp'] = datetime.utcnow().isoformat()
-                    for actions in workflow_data['options'][0].get('actions', []):
-                        if actions.get('action') == button_pressed:
-                            if actions.get('external'):
-                                topic = actions.get('topic')
-                                external_action = actions.get('externalAction')
-                                send_to_kafka(topic, {'value': external_action, **order})
-
-                                #Demo adaptation to add second action
-                                if topic == 'ISPEScene1':
-                                    if external_action == True:
-                                        send_to_kafka('ISPEScene2', {'value': False, **order})
-                                    elif external_action == False:   
-                                        send_to_kafka('ISPEScene2', {'value': True, **order})
-
-                                elif topic == 'ISPEScene2':
-                                    if external_action == True:
-                                        send_to_kafka('ISPEScene1', {'value': False, **order})
-                                    elif external_action == False:   
-                                        send_to_kafka('ISPEScene1', {'value': True, **order})
-                                break
-                    send_to_kafka('manufacturing_orders', {**order})
-
-        if current_step_index < total_steps and current_step_index > 1:
-            for order in data_store['manufacturing_orders']:
-                if order['orderNumber'] == order_number:
-                    order['timestamp'] = datetime.utcnow().isoformat()
-
-                    for option in workflow_data['options'][current_step_index - 1].get('actions', []):
-                        if option.get('action') == button_pressed:
-                            if option.get('external'):
-                                step_current_topic = option.get('topic')
-                                action_current = option.get('externalAction')
-                                send_to_kafka(step_current_topic, {'value': action_current, **order})
-
-                                #Demo adaptation to add second action
-                                if step_current_topic == 'ISPEScene1':
-                                    if action_current == True:
-                                        send_to_kafka('ISPEScene2', {'value': False, **order})
-                                    elif action_current == False:   
-                                        send_to_kafka('ISPEScene2', {'value': True, **order})
-
-                                elif step_current_topic == 'ISPEScene2':
-                                    if action_current == True:
-                                        send_to_kafka('ISPEScene1', {'value': False, **order})
-                                    elif action_current == False:   
-                                        send_to_kafka('ISPEScene1', {'value': True, **order})
-                                break
-
-        if current_step_index == total_steps:
-            for order in data_store['manufacturing_orders']:
-                if order['orderNumber'] == order_number:
-                    order['status'] = 'Completed'
-                    order['timestamp'] = datetime.utcnow().isoformat()
-
-                    for actions in workflow_data['options'][current_step_index - 1].get('actions', []):
-        
-                        if actions.get('action') == button_pressed:
-                            if actions.get('external'):
-                                topic = actions.get('topic')
-                                external_action = actions.get('externalAction')
-                                send_to_kafka(topic, {'value': external_action, **order})
-
-                                #Demo adaptation to add second action
-                                if topic == 'ISPEScene1':
-                                    if external_action == True:
-                                        send_to_kafka('ISPEScene2', {'value': False, **order})
-                                    elif external_action == False:   
-                                        send_to_kafka('ISPEScene2', {'value': True, **order})
-
-                                elif topic == 'ISPEScene2':
-                                    if external_action == True:
-                                        send_to_kafka('ISPEScene1', {'value': False, **order})
-                                    elif external_action == False:   
-                                        send_to_kafka('ISPEScene1', {'value': True, **order})
-                                break
-
-                    send_to_kafka('manufacturing_orders', {**order})
-
-                    # Reset all values to null for all external topics
-                    for step in workflow_data['options']:
-                        for action in step.get('actions'):
-                            if action.get('external') == True:
-                                topic = action.get('topic')
-                                send_to_kafka(topic, {'value': False, **order})
-
-        return jsonify({'success': True})
-
-    except Exception as e:
-        print(f"Error in /api/workflows: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+    app.register_blueprint(auth)
    
 
+    # Register the blueprints
+    app.register_blueprint(product_analytics_app)
+    app.register_blueprint(design_space_app)
+    app.register_blueprint(process_qbd_analysis)
+    app.register_blueprint(consumeWorkflows)
+    app.register_blueprint(colorsettings)
+    app.register_blueprint(tempConsumerChatbot)
+#app.register_blueprint(nexus2plc)
 
-#returns workflow for process instructions
-@app.route('/api/get-workflow', methods=['GET'])
-def get_workflow():
-    orderNumber = request.args.get('orderNumber')
-    print(f"Requested Order: {orderNumber}")
-    order = next((order for order in data_store['manufacturing_orders'] if order['orderNumber'] == orderNumber), None)
-    if not order:
-        return jsonify({'error': 'Order not found'}), 404
-    workflow = order.get('workflow')
+    @app.context_processor
+    def inject_config():
+        config_path = os.path.join(os.path.dirname(__file__), 'appconfig.json')
+        with open(config_path) as config_file:
+            config = json.load(config_file)
+        return dict(appconfig=config)
+    #######################################################################################
+    #main route
+    @app.route('/')
+    @app.route('/index')
+    def index():
+        return render_template('index.html')
 
-   
-    workflow_path = os.path.join(os.path.dirname(__file__), 'workflows', f'{workflow}.json')
-    if os.path.exists(workflow_path):
-        with open(workflow_path) as workflow_file:
-            workflow_data = json.load(workflow_file)
+    #######################################################################################
+    #analytics route
+    @app.route('/product_analytics')
+    @roles_required('admin')
+    def product_analytics():
+        return render_template('product_analytics.html')
 
-        data = {
-            'workflows': workflow_data.get('options'),
-            'workflow_name': workflow_data.get('workflowName'),
-        }
+    @app.route('/process-qbd-analysis')
+    @roles_required('user')
+    def trending():
+        return render_template('process-qbd-analysis.html')
+
+    #######################################################################################
+    #Orders route
+    @app.route('/manufacturing-orders', methods=['GET', 'POST'])
+    @roles_required('guest')
+    def manufacturing_orders():
+        return render_template('manufacturing-orders.html')
+    
+    @app.errorhandler(403)
+    def forbidden(e):
+        return render_template('access.html'), 403
+
+    @app.route('/order-management', methods=['GET', 'POST'])
+    def order_management():
+        if request.method == 'POST':
+            action = request.json.get('action')
+            order_id = request.json.get('order_id')
+            workflow_name = request.json.get('workflowName')
+
+
+            if not workflow_name or not order_id or not action:
+                return jsonify({'error': 'Missing required fields'}), 400
+
+            # Load the workflow data from the JSON file
+            workflow_path = os.path.join(os.path.dirname(__file__), 'workflows', f'{workflow_name}.json')
+            if not os.path.exists(workflow_path):
+                return jsonify({'error': 'Workflow not found'}), 404
+
+            with open(workflow_path) as workflow_file:
+                workflow_data = json.load(workflow_file)
+
+            
+            order_found = False
+            for order in data_store['manufacturing_orders']:
+                if order['orderNumber'] == order_id:
+                    order_found = True
+                    if action == 'release':
+                        order['status'] = 'Released'
+                    elif action == 'abort':
+                        order['status'] = 'Aborted'
+
+                        # Reset all values to null for all external topics
+                        for step in workflow_data['options']:
+                            for action in step.get('actions', []):
+                                if action.get('external'):
+                                    topic = action.get('topic')
+                                    send_to_kafka(topic, {'value': False, **order})
+                    else:
+                        return jsonify({'error': 'Invalid action'}), 400
+                    producer.produce('manufacturing_orders', key="FromOrderManagement", value=json.dumps(order).encode('utf-8'))
+                    producer.flush()
+                    break
+            if not order_found:
+                return jsonify({'error': 'Order not found'}), 404
+            return jsonify({'status': 'Action Completed'}), 200
+        return render_template('order-management.html', orders=data_store['manufacturing_orders'])
+
+    @app.route('/data/<topic>')
+    def get_data(topic):
+        data = data_store.get(topic, [])
+        #print(f"Serving data for {topic}: {data}", flush=True)  # Debugging log
         return jsonify(data)
-    else:
-        return jsonify({'error': 'Workflow not found'}), 404
 
-@app.route('/sampling')
-def sampling():
-    return render_template('sampling.html')
+    @app.route('/submit-order', methods=['POST'])
+    def submit_order():
+        order_data = request.json
+        print(f"Requested Action: {order_data}")
+        order_number = order_data.get('orderNumber')
+        product = order_data.get('product')
+        lot_number = order_data.get('lotNumber')
+        workflow = order_data.get('workflow')
 
-@app.route('/process-instructions')
-def processinstructions():
-    return render_template('process-instructions.html' )
+        if not order_number or not product or not lot_number:
+            return jsonify({'error': 'Missing data'}), 400
 
-@app.route('/settings')
-def settings():
-    return render_template('settings.html')
+        message = {
+            'Enterprise': enterprise,
+            'Site': site,
+            'Area': area,
+            'Process Cell': process_cell,
+            'Unit': unit,
+            'orderNumber': order_number,
+            'product': product,
+            'lotNumber': lot_number,
+            'workflow': workflow,
+            'timestamp': datetime.now().isoformat(),
+            'status': 'Created'
+        }
+        print(f"Order Submitted: {message}")
+        producer.produce('manufacturing_orders', key="FromOrderCreation", value=json.dumps(message).encode('utf-8'))
+        producer.flush()
+
+        return jsonify({'status': 'Order submitted successfully'})
+
+    @app.route('/orders')
+    def get_orders():
+        orders = data_store.get('manufacturing_orders', [])
+        return jsonify(orders)
+
+    #######################################################################################
+    #Scada route
+    @app.route('/scada')
+    def scada():
+        return render_template('scada.html')
+    @app.route('/equipment-overview')
+    def equipmentoverview():
+        return render_template('equipment-overview.html')
+    @app.route('/3d-view')
+    def view3d():
+        return render_template('3d-view.html')
+
+    #######################################################################################
+    #design-space route
+    @app.route('/design-space-definition')
+    def designspacedefinition():
+        return render_template('design-space-definition.html')
+
+    @app.route('/design-space-representation')
+    def designspacerepresentation():
+        return render_template('design-space-representation.html')
+
+    ############################################################################################################
+    #Workflows route
+    @app.route('/batch')
+    def batch():
+        return render_template('batch.html')
+
+    @app.route('/overview') # Define route for the overview page under workflows
+    def overview():
+        workflows = get_all_workflows().json
+        relStaCom_orders = [order for order in data_store['manufacturing_orders'] if order['status'] == 'Started']
+        print(f"Orders: {relStaCom_orders}")
+        print(f"Workflows: {workflows}")
+        return render_template('overview.html', running_orders=relStaCom_orders, workflows=workflows)
+
+
+    @app.route('/api/released-orders', methods=['GET'])
+    def get_released_orders():
+        released_orders = [order for order in data_store['manufacturing_orders'] if order['status'] == 'Released' or order['status'] == 'Started']
+        return jsonify({'orders': released_orders})
+
+    @app.route('/api/order-status', methods=['GET'])
+    def get_orderOverview():
+        return jsonify({'ordersOverview': data_store['manufacturing_orders']})
 
 
 
 
-@app.route('/plantconfig')
-def plantconfig():
-    config_path = os.path.join(os.path.dirname(__file__), 'config.json')
-    with open(config_path) as config_file:
-        config = json.load(config_file)
-    return render_template('plantconfig.html', config=config)
+    @app.route('/api/workflows', methods=['POST'])
+    def workflow_steps():
+        try:
+            data = request.json
+            workflow_name = data.get('workflow_name')
+            order_number = data.get('orderNumber')
+            current_step_index = data.get('currentStep')
+            button_pressed = data.get('action')
 
-@app.route('/processconfig')
-def processconfig():
-    return render_template('processconfig.html')
+            if not workflow_name or not order_number or current_step_index is None or not button_pressed:
+                return jsonify({'error': 'Missing required fields'}), 400
 
-@app.route('/workflow-management')
-def workflow_management():
-    return render_template('workflowmanagement.html')
+            # Load the workflow data from the JSON file
+            workflow_path = os.path.join(os.path.dirname(__file__), 'workflows', f'{workflow_name}.json')
+            if not os.path.exists(workflow_path):
+                return jsonify({'error': 'Workflow not found'}), 404
 
+            with open(workflow_path) as workflow_file:
+                workflow_data = json.load(workflow_file)
 
-@app.route('/save-plant-config', methods=['POST'])
-def save_plant_config():
-    new_config = request.json
-    config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+            # Index each step in the workflow starting from 0
+            for index, step in enumerate(workflow_data.get('options', [])):
+                step['stepIndex'] = index + 1
+
+            total_steps = len(workflow_data.get('options', []))
+            if total_steps == 0:
+                return jsonify({'error': 'No steps found in the workflow'}), 400
+
+            # Handle the first step of the workflow
+            if current_step_index == 1 and total_steps > 1:
+                for order in data_store['manufacturing_orders']:
+                    if order['orderNumber'] == order_number:
+                        order['status'] = 'Started'
+                        order['timestamp'] = datetime.utcnow().isoformat()
+                        for actions in workflow_data['options'][0].get('actions', []):
+                            if actions.get('action') == button_pressed:
+                                if actions.get('external'):
+                                    topic = actions.get('topic')
+                                    external_action = actions.get('externalAction')
+                                    send_to_kafka(topic, {'value': external_action, **order})
+
+                                    #Demo adaptation to add second action
+                                    if topic == 'ISPEScene1':
+                                        if external_action == True:
+                                            send_to_kafka('ISPEScene2', {'value': False, **order})
+                                        elif external_action == False:   
+                                            send_to_kafka('ISPEScene2', {'value': True, **order})
+
+                                    elif topic == 'ISPEScene2':
+                                        if external_action == True:
+                                            send_to_kafka('ISPEScene1', {'value': False, **order})
+                                        elif external_action == False:   
+                                            send_to_kafka('ISPEScene1', {'value': True, **order})
+                                    break
+                        send_to_kafka('manufacturing_orders', {**order})
+
+            if current_step_index < total_steps and current_step_index > 1:
+                for order in data_store['manufacturing_orders']:
+                    if order['orderNumber'] == order_number:
+                        order['timestamp'] = datetime.utcnow().isoformat()
+
+                        for option in workflow_data['options'][current_step_index - 1].get('actions', []):
+                            if option.get('action') == button_pressed:
+                                if option.get('external'):
+                                    step_current_topic = option.get('topic')
+                                    action_current = option.get('externalAction')
+                                    send_to_kafka(step_current_topic, {'value': action_current, **order})
+
+                                    #Demo adaptation to add second action
+                                    if step_current_topic == 'ISPEScene1':
+                                        if action_current == True:
+                                            send_to_kafka('ISPEScene2', {'value': False, **order})
+                                        elif action_current == False:   
+                                            send_to_kafka('ISPEScene2', {'value': True, **order})
+
+                                    elif step_current_topic == 'ISPEScene2':
+                                        if action_current == True:
+                                            send_to_kafka('ISPEScene1', {'value': False, **order})
+                                        elif action_current == False:   
+                                            send_to_kafka('ISPEScene1', {'value': True, **order})
+                                    break
+
+            if current_step_index == total_steps:
+                for order in data_store['manufacturing_orders']:
+                    if order['orderNumber'] == order_number:
+                        order['status'] = 'Completed'
+                        order['timestamp'] = datetime.utcnow().isoformat()
+
+                        for actions in workflow_data['options'][current_step_index - 1].get('actions', []):
+            
+                            if actions.get('action') == button_pressed:
+                                if actions.get('external'):
+                                    topic = actions.get('topic')
+                                    external_action = actions.get('externalAction')
+                                    send_to_kafka(topic, {'value': external_action, **order})
+
+                                    #Demo adaptation to add second action
+                                    if topic == 'ISPEScene1':
+                                        if external_action == True:
+                                            send_to_kafka('ISPEScene2', {'value': False, **order})
+                                        elif external_action == False:   
+                                            send_to_kafka('ISPEScene2', {'value': True, **order})
+
+                                    elif topic == 'ISPEScene2':
+                                        if external_action == True:
+                                            send_to_kafka('ISPEScene1', {'value': False, **order})
+                                        elif external_action == False:   
+                                            send_to_kafka('ISPEScene1', {'value': True, **order})
+                                    break
+
+                        send_to_kafka('manufacturing_orders', {**order})
+
+                        # Reset all values to null for all external topics
+                        for step in workflow_data['options']:
+                            for action in step.get('actions'):
+                                if action.get('external') == True:
+                                    topic = action.get('topic')
+                                    send_to_kafka(topic, {'value': False, **order})
+
+            return jsonify({'success': True})
+
+        except Exception as e:
+            print(f"Error in /api/workflows: {e}")
+            return jsonify({'error': 'Internal server error'}), 500
     
-    # Ensure Kafkaserver and clusterid remain unchanged
-    new_config['Kafkaserver'] = Kafkaserver
-    new_config['clusterid'] = clusterid
+
+
+    #returns workflow for process instructions
+    @app.route('/api/get-workflow', methods=['GET'])
+    def get_workflow():
+        orderNumber = request.args.get('orderNumber')
+        print(f"Requested Order: {orderNumber}")
+        order = next((order for order in data_store['manufacturing_orders'] if order['orderNumber'] == orderNumber), None)
+        if not order:
+            return jsonify({'error': 'Order not found'}), 404
+        workflow = order.get('workflow')
+
     
-    with open(config_path, 'w') as config_file:
-        json.dump(new_config, config_file, indent=4)
+        workflow_path = os.path.join(os.path.dirname(__file__), 'workflows', f'{workflow}.json')
+        if os.path.exists(workflow_path):
+            with open(workflow_path) as workflow_file:
+                workflow_data = json.load(workflow_file)
+
+            data = {
+                'workflows': workflow_data.get('options'),
+                'workflow_name': workflow_data.get('workflowName'),
+            }
+            return jsonify(data)
+        else:
+            return jsonify({'error': 'Workflow not found'}), 404
+
+    @app.route('/sampling')
+    def sampling():
+        return render_template('sampling.html')
+
+    @app.route('/process-instructions')
+    def processinstructions():
+        return render_template('process-instructions.html' )
+
+    @app.route('/settings')
+    def settings():
+        return render_template('settings.html')
+
+    @app.route('/user-management')
+    def user_man():
+        return render_template('user-management.html')
+
+
+    @app.route('/plantconfig')
+    def plantconfig():
+        config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+        with open(config_path) as config_file:
+            config = json.load(config_file)
+        return render_template('plantconfig.html', config=config)
+
+    @app.route('/processconfig')
+    def processconfig():
+        return render_template('processconfig.html')
+
+    @app.route('/workflow-management')
+    def workflow_management():
+        return render_template('workflowmanagement.html')
+
+
+    @app.route('/save-plant-config', methods=['POST'])
+    def save_plant_config():
+        new_config = request.json
+        config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+        
+        # Ensure Kafkaserver and clusterid remain unchanged
+        new_config['Kafkaserver'] = Kafkaserver
+        new_config['clusterid'] = clusterid
+        
+        with open(config_path, 'w') as config_file:
+            json.dump(new_config, config_file, indent=4)
+        
+        # Update the global config variable
+        global enterprise, site, area, process_cell, unit
+        enterprise = new_config['enterprise']
+        site = new_config['site']
+        area = new_config['area']
+        process_cell = new_config['process_cell']
+        unit = new_config['unit']
+        
+        return jsonify({'status': 'Configuration saved successfully'})
+
+
+
+
+
+
+    @app.route('/api/login', methods=['POST'])
+    def login():
+
+        username = request.json.get('username')
+        password = request.json.get('password')
+
+        
+
+        
+
+        config_path = os.path.join(os.path.dirname(__file__), 'appconfig.json')
+        with open(config_path) as config_file:
+            config = json.load(config_file)
+
+        config['Username'] = username
+
+        with open(config_path, 'w') as config_file:
+            json.dump(config, config_file, indent=4)
+
+        return jsonify({'status': 'Username saved successfully'})
     
-    # Update the global config variable
-    global enterprise, site, area, process_cell, unit
-    enterprise = new_config['enterprise']
-    site = new_config['site']
-    area = new_config['area']
-    process_cell = new_config['process_cell']
-    unit = new_config['unit']
+    @login_manager.user_loader
+    def load_user(user_id):
+        return User.query.get(int(user_id))
     
-    return jsonify({'status': 'Configuration saved successfully'})
+    return app
+    
 
 
 
+#if __name__ == '__main__':
+    #threading.Thread(target=consume_messages, daemon=True).start()
 
-
-
-@app.route('/api/login', methods=['POST'])
-def login():
-
-    username = request.json.get('username')
-    password = request.json.get('password')
-
-    config_path = os.path.join(os.path.dirname(__file__), 'appconfig.json')
-    with open(config_path) as config_file:
-        config = json.load(config_file)
-
-    config['Username'] = username
-
-    with open(config_path, 'w') as config_file:
-        json.dump(config, config_file, indent=4)
-
-    return jsonify({'status': 'Username saved successfully'})
-
-
-
-if __name__ == '__main__':
-    threading.Thread(target=consume_messages, daemon=True).start()
-
-    app.run(debug=True, use_reloader=False,port=5001)
+    #app.run(debug=True, use_reloader=False,port=5001)

@@ -1,0 +1,41 @@
+{% extends "basesettings.html" %}
+
+{% block title %}Settings{% endblock %}
+{% block header_title %}Settings{% endblock %}
+
+{% block content %}
+<form id="addUserForm">
+    <div>
+        <label for="username">Username:</label>
+        <input type="text" id="usernameReg" name="username" required>
+    </div>
+    <div>
+        <label for="password">Password:</label>
+        <input type="password" id="passwordReg" name="password" required>
+    </div>
+    <div>
+        <label for="role">Role:</label>
+        <select id="roleReg" name="role" required>
+            <option value="admin">Admin</option>
+            <option value="user">User</option>
+            <option value="guest">Guest</option>
+        </select>
+    </div>
+    <button type="submit">Add User</button>
+</form>
+<script>
+document.getElementById('addUserForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const username = document.getElementById('usernameReg').value.trim();
+    const password = document.getElementById('passwordReg').value.trim();
+    const role = document.getElementById('roleReg').value;
+    console.log(`Adding user: ${username}, Role: ${role}`);
+
+    await fetch('/registerUser', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username, password: password, role: role })
+    });
+});
+</script>
+{% endblock %}

@@ -17,24 +17,21 @@ document.addEventListener('DOMContentLoaded', function() {
     loginButton.onclick = async function() {
         const userName = document.getElementById("username").value;
         const password = document.getElementById("password").value;
-
+        console.log(userName, password);
         try {
-            const response = await fetch('/api/login', {
+            const response = await fetch('/loginUser', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ username: userName, password: password })
+                body: JSON.stringify({ username: userName, password: password})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.redirect) {
+                    window.location.href = data.redirect; // Redirect in the browser
+                } 
             });
-
-            if (response.ok) {
-                const result = await response.json();
-                console.log('Login successful:', result);
-                modal.style.display = "none";
-                location.reload(); 
-            } else {
-                console.error('Login failed:', response.statusText);
-            }
         } catch (error) {
             console.error('Error:', error);
         }

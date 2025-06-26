@@ -49,10 +49,10 @@ order_status = None #order status from the orders consumer
 global_threading_var = 0
 
 ###################### Route ############################
-@process_qbd_analysis.route('/process-qbd-analysis')
-def process_qbd_analysis_view():
-    logging.info("Processing QbD Analysis View")
-    return render_template('process-qbd-analysis.html')
+# @process_qbd_analysis.route('/process-qbd-analysis')
+# def process_qbd_analysis_view():
+#     logging.info("Processing QbD Analysis View")
+#     return render_template('process-qbd-analysis.html')
    
 #################### api ###############################
 @process_qbd_analysis.route('/api/process-qbd-analysis')

@@ -108,10 +108,13 @@
         </div>
         <div class="user-info">
             <img src="{{ url_for('static', filename='images/icons/user.svg') }}" alt="User" class="user-icon" style="width: 32px; height: 32px;">
-            <span class="user-name" id="user-name">{{appconfig.Username}}</span>
+            <span class="user-name" id="user-name"> 
+                {% if current_user.is_authenticated %}
+                {{ current_user.username }}
+                {% endif %}</span>
 
         </div>
-        <a href="/" class="settings active"> 
+        <a href="/index" class="settings active"> 
             <img src="{{ url_for('static', filename='images/icons/settings.svg') }}" alt="Settings" class="settings-icon" style="width: 32px; height: 32px;">
         </a>
         <div class="right-section" id="datetime">
@@ -147,7 +150,7 @@
     ********************************************************************************************************************
      -->
     <nav class = "sidebar"> 
-        <div href="/" class="logo">ISPE Demo</div>
+        <div href="/index" class="logo">ISPE Demo</div>
 
         <div id = "settings-sidebar" class = "menu-content-settings show-sidebar">
             <div class = "menu-items-setting">
@@ -162,6 +165,9 @@
                 </div>
                 <div class = "item-settings"> 
                     <a href="/workflow-management">Workflow Management</a>
+                </div>
+                <div class = "item-settings"> 
+                    <a href="/user-management">User Management</a>
                 </div>
             </div>
         </div>
