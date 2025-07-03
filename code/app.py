@@ -199,19 +199,19 @@ def create_app():
     #######################################################################################
     #analytics route
     @app.route('/product_analytics')
-    @roles_required('admin')
+    #@roles_required('admin')
     def product_analytics():
         return render_template('product_analytics.html')
 
     @app.route('/process-qbd-analysis')
-    @roles_required('user')
+    #@roles_required('user')
     def trending():
         return render_template('process-qbd-analysis.html')
 
     #######################################################################################
     #Orders route
     @app.route('/manufacturing-orders', methods=['GET', 'POST'])
-    @roles_required('guest')
+    #@roles_required('guest')
     def manufacturing_orders():
         return render_template('manufacturing-orders.html')
     

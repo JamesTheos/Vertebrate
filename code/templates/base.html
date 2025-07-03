@@ -118,9 +118,14 @@
                 {% if current_user.is_authenticated %}
                     {{ current_user.username }}
                 {% endif %}
+            </form>
             </span>
-
         </div>
+          
+        <div class = "user-logout">
+            <img src="{{ url_for('static', filename='images/icons/logout.svg') }}" alt="Logout" class="logout-icon" style="width: 32px; height: 32px;">
+        </div>
+        
         <a href="/settings" class="settings">
             <img src="{{ url_for('static', filename='images/icons/settings.svg') }}" alt="Settings" class="settings-icon" style="width: 32px; height: 32px;">
         </a>
@@ -142,6 +147,7 @@
                 </div>
                 <button class="button-style-login">Log In</button>
                 <button id = "close-login" class="button-style-login">Close</button>
+                <button class="button-style-logout" id="logout-button">Logout</button>
             </form>
         </div>
     </div>

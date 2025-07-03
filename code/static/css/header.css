@@ -1,18 +1,19 @@
- /* Header */
- .header {
+/* Header */
+.header {
     position: fixed;
     display: flex;
     flex-direction: row;
     justify-content: space-between;
     background-color: var(--header-background);
-    color:var(--header-text-color);
+    color: var(--header-text-color);
     height: 60px;
     left: 250px;
     right: 0px;
     top: 0px; 
+    z-index: 1000; /* Ensures the header stays on top */
 }
 
-
+/* Left Section */
 .left-section {
     display: flex;
     align-items: center;
@@ -21,32 +22,54 @@
     min-width: 100px;
     font-weight: bold;
     font-size: 20px;
-    
 }
 
+/* Middle Section */
 .middle-section {
     display: flex;
     flex: 1;
     align-items: center;
-    
 }
 
+/* User Info Section */
 .user-info {
-    border-radius: 8px;
     display: flex;
-    align-items: center;
+    align-items: center; /* Vertically center user info */
     padding-left: 20px;
     padding-right: 20px;
-    background-color: var(--button-background); 
+    background-color: var(--button-background);
+    border-radius: 8px;
     margin-top: 5px;
     margin-bottom: 5px;
     cursor: pointer;
 }
 
-.user-name{
+/* User Name */
+.user-name {
     padding-left: 10px;
+    font-size: 18px; /* Adjust font size if needed */
 }
 
+/* User Logout */
+.user-logout {
+    display: flex;
+    align-items: center; /* Align logout button vertically with user name */
+    padding-left: 10px;
+    padding-right: 10px;
+    margin-left: 10px; /* Add space between user info and logout button */
+    margin-top: 5px;
+    margin-bottom: 5px;
+    border-radius: 8px;
+    background-color: var(--button-background);
+    cursor: pointer;
+    height: 40px;
+}
+
+.user-logout:hover {
+    background-color: var(--button-hover-color);
+}
+
+/* Settings */
 .settings {
     display: flex;
     align-items: center;
@@ -60,15 +83,15 @@
     background-color: var(--button-background); 
 }
 
-.settings:hover, .user-info:hover,.settings.active {
+.settings:hover, .user-info:hover, .settings.active {
     background-color: var(--button-hover-color);
 }
 
+/* Right Section */
 .right-section {
     display: flex;
     align-items: center;
     padding-left: 20px;
     padding-right: 20px;
     min-width: 100px;
-    
 }

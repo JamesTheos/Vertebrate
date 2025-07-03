@@ -5,6 +5,7 @@ from models import db
 from flask_login import login_user, logout_user, current_user
 
 auth = Blueprint('auth', __name__)
+logged_in=False
 
 @auth.route('/registerUser', methods=['POST'])
 def register_user():
@@ -41,8 +42,14 @@ def loginUser():
 
     if user and check_password_hash(user.password, password):
         print("Login successful")
+        logged_in = True
         login_user(user)
         # Return a JSON response with the redirect URL
-        return jsonify({'redirect': url_for('index')})
+        return jsonify({'redirect': url_for('index'), 'logged_in': logged_in})
 
-
+@auth.route('/logoutUser', methods=['POST'])
+def logoutUser():
+    logout_user()
+    logged_in = False
+    print("User logged out")
+    return jsonify({'redirect': url_for('index'), 'logged_in': logged_in})
