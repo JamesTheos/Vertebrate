@@ -7,6 +7,11 @@ from flask_login import login_user, logout_user, current_user
 auth = Blueprint('auth', __name__)
 logged_in=False
 
+@auth.route('/loginstatus', methods = ['POST'])
+def loginstatus():
+    print("Checking login status: ", logged_in)
+    return jsonify({'logged_in': logged_in})
+
 @auth.route('/registerUser', methods=['POST'])
 def register_user():
     # Here you would typically handle user registration logic
@@ -46,7 +51,12 @@ def loginUser():
         print("logged_in_status: ",logged_in)
         login_user(user)
         # Return a JSON response with the redirect URL
-        return jsonify({'redirect': url_for('index'), 'logged_in': logged_in})
+        return jsonify({'redirect': url_for('index'),'logged_in': logged_in})#,
+    else:
+        print("Login failed")
+        logged_in = False
+        print("logged_in_status: ",logged_in)
+        return jsonify({'redirect': url_for('Login_error'), 'logged_in': logged_in})
 
 @auth.route('/logoutUser', methods=['POST'])
 def logoutUser():
@@ -54,4 +64,7 @@ def logoutUser():
     logged_in = False
     print("logged_in_status: ",logged_in)
     print("User logged out")
-    return jsonify({'redirect': url_for('index'), 'logged_in': logged_in})
+    if logged_in:
+        return jsonify({'redirect': url_for('Logout_message'), 'logged_in': logged_in})
+    else:
+        return jsonify({'redirect': url_for('index'), 'logged_in': logged_in})

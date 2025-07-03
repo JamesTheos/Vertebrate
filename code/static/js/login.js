@@ -4,8 +4,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const loginButton = document.querySelector(".button-style-login");
     const closeButton = document.getElementById("close-login");
     const userlogout = document.querySelector(".user-logout");
-   
-    logged_in_status = false; // Initialize logged_in_status variable
+
+    let logged_in_status; // Initialize logged_in_status variable
 
     userInfo.onclick = function() {
         modal.style.display = "block";
@@ -15,74 +15,66 @@ document.addEventListener('DOMContentLoaded', function() {
         event.preventDefault();
         modal.style.display = "none"; 
     }
-    //if(logged_in_status = false) {
-    loginButton.onclick = async function() {
-        const userName = document.getElementById("username").value;
-        const password = document.getElementById("password").value;
-        console.log(userName, password,logged_in_status);
-        try {
-            const response = await fetch('/loginUser', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username: userName, password: password})
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.redirect) {
-                    window.location.href = data.redirect; // Redirect in the browser
-                    logged_in_status = data.logged_in; // Update the logged_in_status variable
-                } 
-            });
-        } catch (error) {
-            console.error('Error:', error);
-        }
 
-        
+    function checkloginstatus() {
+        fetch('/loginstatus', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            logged_in_status = data.logged_in; // Update the logged_in_status variable
+            console.log('Logged in status:', logged_in_status);
+        })
+        .catch(error => console.error('Error:', error));
     }
-
     
-
-
-    userlogout.onclick = async function() {
+    loginButton.onclick = async function() {
+            console.log('loginstatus:', logged_in_status);
+            checkloginstatus();
+            const userName = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+            console.log(userName, password, logged_in_status);
+            if(logged_in_status === undefined || logged_in_status === false) {
             try {
-                const response = await fetch('/logoutUser', {
+                const response = await fetch('/loginUser', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username: userName, password: password })
+                });
+                const data = await response.json();
+                if (data.redirect) {
+                    window.location.href = data.redirect;//Redirect in the browser 
+                    logged_in_status = data.logged_in; // Update the logged_in_status variable
+                    console.log('Logged in status after logout:', logged_in_status);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }};
+    
+    userlogout.onclick = async function() {
+        checkloginstatus();
+        if(logged_in_status === undefined || logged_in_status === true){ 
+            try {
+                const response_logout = await fetch('/logoutUser', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.redirect) {
-                        window.location.href = data.redirect; // Redirect in the browser
-                        logged_in_status = data.logged_in; // Update the logged_in_status variable
-                    } 
                 });
-            } catch (error) {
-                console.error('Error:', error);
-            }
-        }}
-/*else{
-    userlogout.onclick = function() {  
-    logoutbutton.onclick = async function() {
-        try {
-            const response = await fetch('/logoutUser', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
+                const data = await response_logout.json();
                 if (data.redirect) {
                     window.location.href = data.redirect; // Redirect in the browser
                     logged_in_status = data.logged_in; // Update the logged_in_status variable
-                } 
-            });
-        } catch (error) {
-            console.error('Error:', error);
-        }
-    }
-}}}*/);
+                    console.log('Logged in status after logout:', logged_in_status);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        };
+    }});

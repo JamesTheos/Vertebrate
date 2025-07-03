@@ -195,6 +195,16 @@ def create_app():
     @app.route('/index')
     def index():
         return render_template('index.html')
+    
+    #login-error route
+    @app.route('/login-error')
+    def Login_error():
+        return render_template('Login-error.html')
+    
+    #logout-message route
+    @app.route('/logout-message')
+    def Logout_message():
+        return render_template('Logout-message.html')
 
     #######################################################################################
     #analytics route
