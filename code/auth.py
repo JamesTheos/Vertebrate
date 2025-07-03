@@ -1,16 +1,14 @@
-from flask import Blueprint, render_template, redirect, url_for, request, jsonify
+from flask import Blueprint, render_template, redirect, url_for, request, jsonify, session
+from datetime import timedelta, datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import User
 from models import db
-from flask_login import login_user, logout_user, current_user
+from flask_login import login_user, logout_user, current_user 
 
-auth = Blueprint('auth', __name__)
-logged_in=False
-
-@auth.route('/loginstatus', methods = ['POST'])
-def loginstatus():
-    print("Checking login status: ", logged_in)
-    return jsonify({'logged_in': logged_in})
+auth = Blueprint('auth', __name__) 
+now = datetime.now()
+session['last_activity'] = now.strftime("%Y-%m-%d %H:%M:%S")
+last_activity = session.get('last_activity', now)
 
 @auth.route('/registerUser', methods=['POST'])
 def register_user():
@@ -45,26 +43,33 @@ def loginUser():
 
     user = User.query.filter_by(username=username).first()
 
-    if user and check_password_hash(user.password, password):
+    if user and check_password_hash(user.password, password) and not current_user.is_authenticated:
         print("Login successful")
-        logged_in = True
-        print("logged_in_status: ",logged_in)
         login_user(user)
+        session.permanent=True
+        if last_activity:
+            global last_activity_time
+            last_activity_time = datetime.strptime(last_activity, "%Y-%m-%d %H:%M:%S") 
         # Return a JSON response with the redirect URL
-        return jsonify({'redirect': url_for('index'),'logged_in': logged_in})#,
+        return jsonify({'redirect': url_for('index')})
+
     else:
         print("Login failed")
-        logged_in = False
-        print("logged_in_status: ",logged_in)
-        return jsonify({'redirect': url_for('Login_error'), 'logged_in': logged_in})
+        return jsonify({'redirect': url_for('Login_error')})
 
 @auth.route('/logoutUser', methods=['POST'])
 def logoutUser():
     logout_user()
-    logged_in = False
-    print("logged_in_status: ",logged_in)
+    session.permanent = False
     print("User logged out")
-    if logged_in:
-        return jsonify({'redirect': url_for('Logout_message'), 'logged_in': logged_in})
+    if current_user.is_authenticated:
+        return jsonify({'redirect': url_for('Logout_message')})
     else:
-        return jsonify({'redirect': url_for('index'), 'logged_in': logged_in})
+        return jsonify({'redirect': url_for('index')})
+
+if now - last_activity_time > timedelta(minutes=1):
+        logout_user()
+        session.clear()
+        print("Session expired due to inactivity")
+        redirect(url_for('Login_error'))
+        
