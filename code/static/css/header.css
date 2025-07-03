@@ -2,15 +2,16 @@
 .header {
     position: fixed;
     display: flex;
-    flex-direction: row;
     justify-content: space-between;
-    background-color: var(--header-background);
-    color: var(--header-text-color);
+    align-items: center;
+    background-color: var(--header-background, #0a0a15);
+    color: var(--header-text-color, white);
     height: 60px;
     left: 250px;
-    right: 0px;
-    top: 0px; 
-    z-index: 1000; /* Ensures the header stays on top */
+    right: 0;
+    top: 0;
+    padding: 0 20px;
+    z-index: 1000;
 }
 
 /* Left Section */
@@ -18,7 +19,7 @@
     display: flex;
     align-items: center;
     padding-left: 10px;
-    padding-right: 30px;
+    padding-right: 50px;
     min-width: 100px;
     font-weight: bold;
     font-size: 20px;
@@ -31,67 +32,70 @@
     align-items: center;
 }
 
-/* User Info Section */
+/* Right Section */
+.right-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 100px;
+}
+
+/* User Info */
 .user-info {
     display: flex;
-    align-items: center; /* Vertically center user info */
-    padding-left: 20px;
-    padding-right: 20px;
-    background-color: var(--button-background);
+    align-items: center;
+    background-color: var(--button-background, #1a1a2e);
     border-radius: 8px;
-    margin-top: 5px;
-    margin-bottom: 5px;
-    cursor: pointer;
+    padding: 0 12px;
+    height: 40px;
+    cursor: default;
 }
 
-/* User Name */
+.user-icon {
+    width: 32px;
+    height: 32px;
+}
+
 .user-name {
-    padding-left: 10px;
-    font-size: 18px; /* Adjust font size if needed */
+    margin-left: 10px;
+    font-size: 18px;
+    color: white;
+    white-space: nowrap;
 }
 
-/* User Logout */
+/* Logout Button */
 .user-logout {
     display: flex;
-    align-items: center; /* Align logout button vertically with user name */
-    padding-left: 10px;
-    padding-right: 10px;
-    margin-left: 10px; /* Add space between user info and logout button */
-    margin-top: 5px;
-    margin-bottom: 5px;
-    border-radius: 8px;
-    background-color: var(--button-background);
-    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
     height: 40px;
+    border-radius: 8px;
+    background-color: var(--button-background, #1a1a2e);
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
 }
 
-.user-logout:hover {
-    background-color: var(--button-hover-color);
+.logout-icon {
+    width: 32px;
+    height: 32px;
 }
 
 /* Settings */
 .settings {
     display: flex;
     align-items: center;
-    padding-left: 20px;
-    padding-right: 20px;
-    max-width: 50px;
-    cursor: pointer;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
     border-radius: 8px;
-    margin-top: 5px;
-    margin-bottom: 5px;
-    background-color: var(--button-background); 
+    background-color: var(--button-background, #1a1a2e);
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
 }
 
-.settings:hover, .user-info:hover, .settings.active {
-    background-color: var(--button-hover-color);
-}
-
-/* Right Section */
-.right-section {
-    display: flex;
-    align-items: center;
-    padding-left: 20px;
-    padding-right: 20px;
-    min-width: 100px;
+.user-logout:hover,
+.settings:hover,
+.settings.active {
+    background-color: var(--button-hover-color, #2a2a3d);
 }

@@ -105,53 +105,60 @@
      -->
 
     <div class="header">
-        <!-- <div class="rome-title">ISPE - Rome Demo</div> -->
-        <div class="left-section">
-            {% block header_title %}Welcome Screen{% endblock %}
-        </div>      
-        <div class="middle-section">
-
-        </div>
-        <div class="user-info">
-            <img src="{{ url_for('static', filename='images/icons/user.svg') }}" alt="User" class="user-icon" style="width: 32px; height: 32px;">
-            <span class="user-name" id="user-name">
-                {% if current_user.is_authenticated %}
-                    {{ current_user.username }}
-                {% endif %}
-            </form>
-            </span>
-        </div>
-          
-        <div class = "user-logout">
-            <img src="{{ url_for('static', filename='images/icons/logout.svg') }}" alt="Logout" class="logout-icon" style="width: 32px; height: 32px;">
-        </div>
-        
-        <a href="/settings" class="settings">
-            <img src="{{ url_for('static', filename='images/icons/settings.svg') }}" alt="Settings" class="settings-icon" style="width: 32px; height: 32px;">
-        </a>
-        <div class="right-section" id="datetime">
-
-        </div>        
+    <!-- Left Section -->
+    <div class="left-section">
+        {% block header_title %}Welcome Screen{% endblock %}
     </div>
 
-    <div id="loginModal" class="modal-login">
-        <div class="modal-content-login">
-            <form>
-                <div class="form-group-login">
-                    <label for="username">Username:</label>
-                    <input type="text" id="username" class="input-style-login" name="username">
-                </div>
-                <div class="form-group-login">
-                    <label for="password">Password:</label>
-                    <input type="password" id="password" class="input-style-login" name="password">
-                </div>
-                <button class="button-style-login">Log In</button>
-                <button id = "close-login" class="button-style-login">Close</button>
-                <button class="button-style-logout" id="logout-button">Logout</button>
-            </form>
-        </div>
+    <!-- Middle Section (empty) -->
+    <div class="middle-section"></div>
+
+    <!-- Right Section -->
+    <div class="right-section">
+    <!-- User Info -->
+    <div class="user-info">
+        <img src="{{ url_for('static', filename='images/icons/user.svg') }}" alt="User" class="user-icon">
+        <span class="user-name" id="user-name">
+            {% if current_user.is_authenticated %}
+                {{ current_user.username }}
+            {% endif %}
+        </span>
     </div>
 
+    <!-- Logout Button -->
+    <div class="user-logout" id="logout-button">
+        <img src="{{ url_for('static', filename='images/icons/logout.svg') }}" alt="Logout" class="logout-icon">
+    </div>
+
+    <!-- Settings Button -->
+    <a href="/settings" class="settings">
+        <img src="{{ url_for('static', filename='images/icons/settings.svg') }}" alt="Settings" class="settings-icon">
+    </a>
+</div>
+
+
+        <!-- Datetime -->
+        <div id="datetime"></div>
+    </div>
+</div>
+
+<!-- Login Modal -->
+<div id="loginModal" class="modal-login">
+    <div class="modal-content-login">
+        <form>
+            <div class="form-group-login">
+                <label for="username">Username:</label>
+                <input type="text" id="username" class="input-style-login" name="username">
+            </div>
+            <div class="form-group-login">
+                <label for="password">Password:</label>
+                <input type="password" id="password" class="input-style-login" name="password">
+            </div>
+            <button class="button-style-login">Log In</button>
+            <button id="close-login" class="button-style-login">Close</button>
+        </form>
+    </div>
+</div>
 
     <!-- 
     ********************************************************************************************************************

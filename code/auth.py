@@ -43,6 +43,7 @@ def loginUser():
     if user and check_password_hash(user.password, password):
         print("Login successful")
         logged_in = True
+        print("logged_in_status: ",logged_in)
         login_user(user)
         # Return a JSON response with the redirect URL
         return jsonify({'redirect': url_for('index'), 'logged_in': logged_in})
@@ -51,5 +52,6 @@ def loginUser():
 def logoutUser():
     logout_user()
     logged_in = False
+    print("logged_in_status: ",logged_in)
     print("User logged out")
     return jsonify({'redirect': url_for('index'), 'logged_in': logged_in})
