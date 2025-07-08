@@ -111,7 +111,11 @@
             <span class="user-name" id="user-name"> 
                 {% if current_user.is_authenticated %}
                 {{ current_user.username }}
-                {% endif %}</span>
+                {% endif %}
+                {% if not current_user.is_authenticated %}
+                {{ appconfig.Username }}
+                {% endif %}
+            </span>
 
         </div>
         <a href="/index" class="settings active"> 

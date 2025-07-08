@@ -6,7 +6,7 @@ from confluent_kafka import Consumer, Producer, KafkaError, OFFSET_BEGINNING
 from confluent_kafka.admin import AdminClient, NewTopic
 #from LLM_Consumer import get_kafka_data
 #from Neo4j import get_neo4j_data
-from datetime import datetime
+from datetime import datetime, timedelta
 ## Import the blueprints from the other modules
 from product_analytics_app import product_analytics_app
 from DesignSpaceApp import design_space_app  # Import the blueprint from the DesignSpaceApp module
@@ -17,14 +17,18 @@ from demo_consumer import tempConsumerChatbot
 from auth import auth
 from models import db, User
 from functools import wraps
+from timeout import register_timeout_hook
+
 
 def roles_required(*roles):
     def wrapper(f):
         @wraps(f)
         def decorated_view(*args, **kwargs):
+            if not current_user.is_authenticated:
+                current_user.role = 'guest'
             print("Current user role:", current_user.role)
             print("Allowed roles:", roles)
-            if not current_user.is_authenticated or current_user.role not in roles:
+            if current_user.role not in roles:
                 abort(403)
             return f(*args, **kwargs)
         return decorated_view
@@ -53,8 +57,6 @@ site = config['site']
 area = config['area']
 process_cell = config['process_cell']
 unit= config['unit'] 
-
-
 
 
 # Kafka consumer configuration
@@ -165,14 +167,16 @@ def create_app():
     app = Flask(__name__)
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///UserManagement.db'  # Example URI, change as needed
     app.secret_key = 'your_secret_key'  # Set a secret key for session management
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes = 10) #generalt time session
 
     db.init_app(app)
 
     login_manager = LoginManager()
     login_manager.init_app(app)
-
     app.register_blueprint(auth)
-   
+    
+    register_timeout_hook(app)
+
 
     # Register the blueprints
     app.register_blueprint(product_analytics_app)
@@ -209,19 +213,19 @@ def create_app():
     #######################################################################################
     #analytics route
     @app.route('/product_analytics')
-    #@roles_required('admin')
+    @roles_required('admin')
     def product_analytics():
         return render_template('product_analytics.html')
 
     @app.route('/process-qbd-analysis')
-    #@roles_required('user')
+    @roles_required('user')
     def trending():
         return render_template('process-qbd-analysis.html')
 
     #######################################################################################
     #Orders route
     @app.route('/manufacturing-orders', methods=['GET', 'POST'])
-    #@roles_required('guest')
+    @roles_required('guest')
     def manufacturing_orders():
         return render_template('manufacturing-orders.html')
     
@@ -528,6 +532,7 @@ def create_app():
     def settings():
         return render_template('settings.html')
 
+    @roles_required('admin')
     @app.route('/user-management')
     def user_man():
         return render_template('user-management.html')

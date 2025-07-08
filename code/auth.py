@@ -3,12 +3,10 @@ from datetime import timedelta, datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import User
 from models import db
-from flask_login import login_user, logout_user, current_user 
+from flask_login import login_user, logout_user, current_user
+
 
 auth = Blueprint('auth', __name__) 
-now = datetime.now()
-session['last_activity'] = now.strftime("%Y-%m-%d %H:%M:%S")
-last_activity = session.get('last_activity', now)
 
 @auth.route('/registerUser', methods=['POST'])
 def register_user():
@@ -45,11 +43,7 @@ def loginUser():
 
     if user and check_password_hash(user.password, password) and not current_user.is_authenticated:
         print("Login successful")
-        login_user(user)
-        session.permanent=True
-        if last_activity:
-            global last_activity_time
-            last_activity_time = datetime.strptime(last_activity, "%Y-%m-%d %H:%M:%S") 
+        login_user(user)        
         # Return a JSON response with the redirect URL
         return jsonify({'redirect': url_for('index')})
 
@@ -66,10 +60,3 @@ def logoutUser():
         return jsonify({'redirect': url_for('Logout_message')})
     else:
         return jsonify({'redirect': url_for('index')})
-
-if now - last_activity_time > timedelta(minutes=1):
-        logout_user()
-        session.clear()
-        print("Session expired due to inactivity")
-        redirect(url_for('Login_error'))
-        

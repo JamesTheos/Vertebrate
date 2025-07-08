@@ -122,6 +122,9 @@
             {% if current_user.is_authenticated %}
                 {{ current_user.username }}
             {% endif %}
+            {% if not current_user.is_authenticated %}
+                {{ appconfig.Username }}
+            {% endif %}
         </span>
     </div>
 
