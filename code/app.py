@@ -19,16 +19,26 @@ from models import db, User
 from functools import wraps
 from timeout import register_timeout_hook
 
+# Define role hierarchy (lower index = lower privilege)
+ROLE_HIERARCHY = ["guest", "user", "admin"]
 
-def roles_required(*roles):
+def roles_required(*required_roles):
     def wrapper(f):
         @wraps(f)
         def decorated_view(*args, **kwargs):
             if not current_user.is_authenticated:
                 current_user.role = 'guest'
+            # Find allowed roles by hierarchy
+            allowed_roles = set()
+            for role in required_roles:
+                if role in ROLE_HIERARCHY:
+                    idx = ROLE_HIERARCHY.index(role)
+                    # Include all roles >= that index
+                    allowed_roles.update(ROLE_HIERARCHY[idx:])
+
             print("Current user role:", current_user.role)
-            print("Allowed roles:", roles)
-            if current_user.role not in roles:
+            print("Allowed roles:", allowed_roles)
+            if current_user.role not in allowed_roles:
                 abort(403)
             return f(*args, **kwargs)
         return decorated_view
@@ -532,8 +542,8 @@ def create_app():
     def settings():
         return render_template('settings.html')
 
-    @roles_required('admin')
     @app.route('/user-management')
+    @roles_required('admin')
     def user_man():
         return render_template('user-management.html')
 
