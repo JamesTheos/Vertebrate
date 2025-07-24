@@ -2,7 +2,7 @@ from flask import session, redirect, url_for
 from flask_login import current_user, logout_user
 from datetime import datetime
 
-INACTIVITY_TIMEOUT = 120  # seconds
+INACTIVITY_TIMEOUT = 300  # seconds
 
 def register_timeout_hook(app):
     @app.before_request

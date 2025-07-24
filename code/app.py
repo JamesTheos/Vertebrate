@@ -1,7 +1,7 @@
 from flask import Flask, render_template, jsonify, request, abort
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_sqlalchemy import SQLAlchemy
-
+import sqlite3
 from confluent_kafka import Consumer, Producer, KafkaError, OFFSET_BEGINNING
 from confluent_kafka.admin import AdminClient, NewTopic
 #from LLM_Consumer import get_kafka_data
@@ -18,6 +18,7 @@ from auth import auth
 from models import db, User
 from functools import wraps
 from timeout import register_timeout_hook
+#from readDB import cluster_id_temp
 
 # Define role hierarchy (lower index = lower privilege)
 ROLE_HIERARCHY = ["guest", "user", "admin"]
@@ -47,8 +48,6 @@ def roles_required(*required_roles):
 
 #from Nexus2PLC import nexus2plc
 
-
-
 import threading
 import json
 import os
@@ -68,6 +67,20 @@ area = config['area']
 process_cell = config['process_cell']
 unit= config['unit'] 
 
+#Get clusterid saved in Database
+db_path = 'C:/Users/User/Documents/GitHub/Vertebrate/code/instance/UserManagement.db'
+if os.path.exists(db_path):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM metainfo")
+    Metainfo = cursor.fetchall()
+    if Metainfo and len(Metainfo[0]) > 0:
+        cluster_id_temp = Metainfo[0][0]
+    else:
+        cluster_id_temp = None
+    conn.close()
+else:
+    cluster_id_temp = None
 
 # Kafka consumer configuration
 kafka_cons_conf = {
@@ -205,7 +218,21 @@ def create_app():
         return dict(appconfig=config)
     #######################################################################################
     #main route
-    @app.route('/')
+    
+    #One-time check to set the main route based on clusterid
+    if clusterid != cluster_id_temp:
+        @app.route('/')
+        def initial_index_redirect():
+            return render_template('initial-index.html')
+    else:
+        @app.route('/')
+        def index_redirect():
+            return render_template('index.html')
+    @app.route('/initial-index')
+    def initial_index():
+        return render_template('initial-index.html')
+
+    #@app.route('/')
     @app.route('/index')
     def index():
         return render_template('index.html')
@@ -219,23 +246,28 @@ def create_app():
     @app.route('/logout-message')
     def Logout_message():
         return render_template('Logout-message.html')
+    
+    #Updated User Info route
+    @app.route('/updated-user')
+    def updated_user():
+        return render_template('Updated-User.html')
 
     #######################################################################################
     #analytics route
     @app.route('/product_analytics')
-    @roles_required('admin')
+    #@roles_required('admin')
     def product_analytics():
         return render_template('product_analytics.html')
 
     @app.route('/process-qbd-analysis')
-    @roles_required('user')
+    #@roles_required('user')
     def trending():
         return render_template('process-qbd-analysis.html')
 
     #######################################################################################
     #Orders route
     @app.route('/manufacturing-orders', methods=['GET', 'POST'])
-    @roles_required('guest')
+    #@roles_required('guest')
     def manufacturing_orders():
         return render_template('manufacturing-orders.html')
     
@@ -543,10 +575,13 @@ def create_app():
         return render_template('settings.html')
 
     @app.route('/user-management')
-    @roles_required('admin')
+    #@roles_required('admin')
     def user_man():
         return render_template('user-management.html')
 
+    @app.route('/user-profile')
+    def user_profile():
+        return render_template('user-profile.html')
 
     @app.route('/plantconfig')
     def plantconfig():

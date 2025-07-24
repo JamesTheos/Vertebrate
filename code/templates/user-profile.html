@@ -1,0 +1,91 @@
+{% extends "basesettings.html" %}
+{% block title %}User Profile{% endblock %}
+{% block header_title %}User Settings{% endblock %}
+{% block content %}
+
+
+
+<form id="ManageUserForm">
+    <div>
+        <label for="current_username">Current Username:</label>
+        <output id="current_username">{{ current_user.username }}</output>
+    </div>
+    <div>
+        <label for="username">New Username:</label>
+        <input type="text" id="usernamenew" name="username" required>
+    </div>
+    <div>
+        <label for="password">New Password:</label>
+        <input type="password" id="passwordnew" name="password" required>
+    </div>
+    <div>
+        <label for="confirm_password">Confirm New Password:</label>
+        <input type="password" id="confirm_password" name="confirm_password" required>
+    </div>
+    <button type="submit">Update User</button>
+    <button type="submit">Update Password</button>
+
+</form>
+<script>    
+const usernameInput = document.getElementById('usernamenew');
+const passwordInput = document.getElementById('passwordnew');
+const confirmPasswordInput = document.getElementById('confirm_password');
+const updateUserBtn = Array.from(document.querySelectorAll('button[type="submit"]')).find(
+    btn => btn.textContent.trim() === 'Update User'
+);
+const updatePasswordBtn = Array.from(document.querySelectorAll('button[type="submit"]')).find(
+    btn => btn.textContent.trim() === 'Update Password'
+);
+
+function validateUsername() {
+    updateUserBtn.disabled = !usernameInput.value.trim();
+}
+function validatePasswords() {
+    const password = passwordInput.value;
+    const confirmPassword = confirmPasswordInput.value;
+    updatePasswordBtn.disabled = !password || !confirmPassword || password !== confirmPassword;
+}
+
+usernameInput.addEventListener('input', validateUsername);
+passwordInput.addEventListener('input', validatePasswords);
+confirmPasswordInput.addEventListener('input', validatePasswords);
+
+updateUserBtn.addEventListener('click', function(event) {
+    event.preventDefault();
+    const newUsername = usernameInput.value.trim();
+    if (newUsername) {
+        fetch('/UpdateUser', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username: newUsername})
+        })
+        .then(res => res.json())
+        .then(data => {
+            alert(data.message || 'Username updated!');
+        });
+    }
+});
+
+updatePasswordBtn.addEventListener('click', function(event) {
+    event.preventDefault();
+    const password = passwordInput.value;
+    const confirmPassword = confirmPasswordInput.value;
+    if (password && confirmPassword && password === confirmPassword) {
+        fetch('/UpdateUser', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({password: password})
+        })
+        .then(res => res.json())
+        .then(data => {
+            alert(data.message || 'Password updated!');
+        });
+    }
+});
+
+validateUsername();
+validatePasswords();
+
+
+</script>
+{% endblock %}

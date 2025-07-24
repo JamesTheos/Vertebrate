@@ -60,3 +60,21 @@ def logoutUser():
         return jsonify({'redirect': url_for('Logout_message')})
     else:
         return jsonify({'redirect': url_for('index')})
+    
+@auth.route('/UpdateUser', methods=['POST'])
+def update_user():
+    if not current_user.is_authenticated:
+        return jsonify({'redirect': url_for('Login_error')})
+
+    new_username = request.json.get('username')
+    new_password = request.json.get('password')
+
+    #user = User.query.filter_by(id=current_user.username).first()
+    if current_user.is_authenticated:
+        if new_username :
+            current_user.username = new_username
+        if new_password :
+            current_user.password = generate_password_hash(new_password)
+        db.session.commit()
+        print("User updated successfully")
+        return jsonify({'redirect': url_for('updated_user')})
