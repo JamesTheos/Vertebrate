@@ -1,0 +1,104 @@
+{% extends "basesettings.html" %}
+
+{% block title %}Settings{% endblock %}
+{% block header_title %}Role Management{% endblock %}
+
+{% block content %}
+
+
+<div class="role-management-container">
+    <div id="add-role-modal" class="modal">
+        <div class="modal-content">
+            <h3>Add New Role</h3>
+            <form id="add-role-form">
+                <fieldset>
+                <legend>Role Details</legend>
+
+                <table>
+
+                    <tr>
+                        <th><label for="manufacturing-order">Manufacturing Order:</label></th>
+                        <td>Order Management<input type="checkbox" id="order-management" name="order-management" ></td>
+                        <td>Order Overview<input type="checkbox" id="order-overview" name="order-overview" ></td>
+                    </tr>
+                    <tr>
+                        <th><label for="workflow-management">Workflow Management:</label></th>
+                        <td>Workflow Overview<input type="checkbox" id="workflow-overview" name="workflow-overview" ></td>
+                        <td>Batch <input type="checkbox" id="batch" name="batch" ></td>
+                        <td>Process Instructions<input type="checkbox" id="process-instructions" name="process-instructions" ></td>
+                        <td>Sampling<input type="checkbox" id="sampling" name="sampling" ></td>
+                    </tr>
+                    <tr>
+                        <th><label for="scada">SCADA:</label></th>
+                        <td>Equipment <input type="checkbox" id="equipment" name="equipment" ></td>
+                        <td>P&ID<input type="checkbox" id="pid" name="pid" ></td>
+                        <td>3D-View<input type="checkbox" id="3d-view" name="3d-view" ></td>
+                    </tr>
+                    <tr>
+                        <th><label for="QBD">QBD:</label></th>
+                        <td>Design Space Definition <input type="checkbox" id="design-space-definition" name="design-space-definition" ></td>
+                        <td>Design Space Representation <input type="checkbox" id="design-space-representation" name="design-space-representation" ></td>
+                    </tr>
+                    <tr>
+                        <th><label for="analytics">Analytics:</label></th>
+                        <td>Product Analytics <input type="checkbox" id="product-analytics" name="product-analytics" ></td>
+                        <td>Process QBD Analytics <input type="checkbox" id="process-qbd-analytics" name="process-qbd-analytics" ></td>
+                    </tr>
+                    <tr>
+                        <th><label for="Settings">Settings:</label></th>
+                        <td>Plant Configuration<input type="checkbox" id="plant-configuration" name="plant-configuration" ></td>
+                        <td>Process Configuration<input type="checkbox" id="process-configuration" name="process-configuration" ></td>
+                        <td>Workflow Management<input type="checkbox" id="workflow-management" name="workflow-management" ></td>
+                        <td>User Management<input type="checkbox" id="user-management" name="user-management" ></td>
+                        <td>Role Management<input type="checkbox" id="role-management" name="role-management" ></td>
+                    </tr>
+
+                </table>
+                </fieldset>
+            <label for="role-name">Role Name:</label>
+            <input type="text" id="role-name" name="role-name">
+            <button type="submit">Add Role</button>
+            </form>
+        </div>
+    </div>
+<script>
+const addRoleForm = document.getElementById('add-role-form');
+const roleNameInput = document.getElementById('role-name');
+const addRoleButton = document.querySelector('button[type="submit"]');
+
+// Disable button if role name is empty
+roleNameInput.addEventListener('input', function() {
+    addRoleButton.disabled = !roleNameInput.value.trim();
+});
+
+// Handle form submission
+addRoleForm.addEventListener('submit', function(event) {
+    event.preventDefault();
+    const roleName = roleNameInput.value.trim();
+    if (!roleName) return;
+
+    // Collect checked checkbox IDs
+    const checkedBoxes = Array.from(addRoleForm.querySelectorAll('input[type="checkbox"]:checked'))
+        .reduce((acc, cb) => {
+            acc[cb.id] = true;
+            return acc;
+        }, {});
+
+    fetch('/get-role', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            created_role: roleName,
+            role_apps: checkedBoxes
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        addRoleForm.reset();
+        addRoleButton.disabled = true;
+    });
+    console.log(roleName ,":", checkedBoxes)
+});
+
+</script>
+{% endblock %}

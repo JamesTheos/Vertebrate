@@ -18,33 +18,9 @@ from auth import auth
 from models import db, User
 from functools import wraps
 from timeout import register_timeout_hook
-#from readDB import cluster_id_temp
 
-# Define role hierarchy (lower index = lower privilege)
-ROLE_HIERARCHY = ["guest", "user", "admin"]
-
-def roles_required(*required_roles):
-    def wrapper(f):
-        @wraps(f)
-        def decorated_view(*args, **kwargs):
-            if not current_user.is_authenticated:
-                current_user.role = 'guest'
-            # Find allowed roles by hierarchy
-            allowed_roles = set()
-            for role in required_roles:
-                if role in ROLE_HIERARCHY:
-                    idx = ROLE_HIERARCHY.index(role)
-                    # Include all roles >= that index
-                    allowed_roles.update(ROLE_HIERARCHY[idx:])
-
-            print("Current user role:", current_user.role)
-            print("Allowed roles:", allowed_roles)
-            if current_user.role not in allowed_roles:
-                abort(403)
-            return f(*args, **kwargs)
-        return decorated_view
-    return wrapper
-     
+#Dictionary for user-defined roles
+Created_Roles = {}    
 
 #from Nexus2PLC import nexus2plc
 
@@ -216,6 +192,19 @@ def create_app():
         with open(config_path) as config_file:
             config = json.load(config_file)
         return dict(appconfig=config)
+    
+    #######################################################################################
+    #User-defined Roles
+    @app.route('/get-role',methods = ["POST"])
+    def define_role():
+        new_role = request.json.get('created_role')
+        allowed_apps = request.json.get('role_apps')
+        if new_role not in Created_Roles.keys():
+            Created_Roles[new_role] = allowed_apps
+        else:
+            Created_Roles[new_role] = allowed_apps
+        return Created_Roles
+
     #######################################################################################
     #main route
     
@@ -573,11 +562,16 @@ def create_app():
     @app.route('/settings')
     def settings():
         return render_template('settings.html')
+    
+    @app.route('/role-management')
+    def role_management():
+        return render_template('role-management.html')
+
 
     @app.route('/user-management')
     #@roles_required('admin')
     def user_man():
-        return render_template('user-management.html')
+        return render_template('user-management.html',roles=list(Created_Roles.keys()))
 
     @app.route('/user-profile')
     def user_profile():

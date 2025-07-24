@@ -173,6 +173,9 @@
                 <div class = "item-settings"> 
                     <a href="/user-management">User Management</a>
                 </div>
+                <div class = "item-settings"> 
+                    <a href="/role-management">Role Management</a>
+                </div>
                 {% if current_user.is_authenticated %}
                 <div class = "item-settings"> 
                     <a href="/user-profile">User Profile</a>
@@ -206,7 +209,7 @@
     </script>
    
     <script src="{{ url_for('static', filename='js/login.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='js/profile-management.js') }}" defer></script>
+    
    
 </body>
 </html>

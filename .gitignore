@@ -1,3 +1,3 @@
-__pycache__
-config.json
-UserManagement.db
+__pycache__/
+code/config.json
+code/UserManagement.db
