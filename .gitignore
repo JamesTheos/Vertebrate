@@ -2,3 +2,4 @@ __pycache__/
 code/config.json
 code/UserManagement.db
 /code/__pycache__
+*.pyc
