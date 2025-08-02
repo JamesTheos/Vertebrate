@@ -60,6 +60,23 @@
             <button type="submit">Add Role</button>
             </form>
         </div>
+                <h3>Existing Roles</h3>
+        <ul>
+            {% for role in roles %}
+                <li>
+                    <strong>{{ role.name }}</strong>
+                    {% if role.permissions %}
+                        <ul>
+                            {% for perm in role.permissions %}
+                                <li>{{ perm }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </li>
+            {% else %}
+                <li>No roles defined yet.</li>
+            {% endfor %}
+        </ul>
     </div>
 <script>
 const addRoleForm = document.getElementById('add-role-form');

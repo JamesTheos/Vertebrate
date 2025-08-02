@@ -17,7 +17,19 @@ class User(UserMixin, db.Model):
     @property
     def id(self):
         return self.uid
+    
+# Define role class    
 
- 
-    
-    
+class Role(db.Model):
+    __tablename__ = 'roles'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String, unique=True, nullable=False)
+    permissions = db.relationship('RolePermission', backref='role', cascade="all, delete-orphan")
+
+# Define role permission class
+
+class RolePermission(db.Model):
+    __tablename__ = 'role_permissions'
+    id = db.Column(db.Integer, primary_key=True)
+    permission = db.Column(db.String, nullable=False)
+    role_id = db.Column(db.Integer, db.ForeignKey('roles.id'), nullable=False)

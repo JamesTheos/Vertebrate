@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, request, abort
+from flask import Flask, app, render_template, jsonify, request, abort
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_sqlalchemy import SQLAlchemy
 import sqlite3
@@ -18,6 +18,10 @@ from auth import auth
 from models import db, User
 from functools import wraps
 from timeout import register_timeout_hook
+
+
+# User-defined Roles
+from models import db, Role, RolePermission
 
 #Dictionary for user-defined roles
 Created_Roles = {}    
@@ -195,15 +199,15 @@ def create_app():
     
     #######################################################################################
     #User-defined Roles
-    @app.route('/get-role',methods = ["POST"])
-    def define_role():
-        new_role = request.json.get('created_role')
-        allowed_apps = request.json.get('role_apps')
-        if new_role not in Created_Roles.keys():
-            Created_Roles[new_role] = allowed_apps
-        else:
-            Created_Roles[new_role] = allowed_apps
-        return Created_Roles
+#    @app.route('/get-role',methods = ["POST"])
+#   def define_role():
+#        new_role = request.json.get('created_role')
+#        allowed_apps = request.json.get('role_apps')
+#        if new_role not in Created_Roles.keys():
+#            Created_Roles[new_role] = allowed_apps
+#        else:
+#            Created_Roles[new_role] = allowed_apps
+#        return Created_Roles
 
     #######################################################################################
     #main route
@@ -565,8 +569,16 @@ def create_app():
     
     @app.route('/role-management')
     def role_management():
-        return render_template('role-management.html')
-
+        roles = Role.query.all()
+        # Optionally, get permissions for each role
+        roles_with_permissions = [
+            {
+                'name': role.name,
+                'permissions': [perm.permission for perm in role.permissions]
+            }
+            for role in roles
+        ]
+        return render_template('role-management.html', roles=roles_with_permissions)    
 
     @app.route('/user-management')
     #@roles_required('admin')
@@ -616,8 +628,39 @@ def create_app():
         return jsonify({'status': 'Configuration saved successfully'})
 
 
+    
 
 
+    @app.route('/get-role', methods=["POST"])
+    def define_role():
+        data = request.get_json()
+        new_role = data.get('created_role')
+        allowed_apps = data.get('role_apps')
+        if not new_role or not allowed_apps:
+            return jsonify({'message': 'Role name and at least one function required.'}), 400
+
+        # Check if role already exists
+        role = Role.query.filter_by(name=new_role).first()
+        if role:
+            # Update permissions: remove old permissions
+            RolePermission.query.filter_by(role_id=role.id).delete()
+        else:
+            role = Role(name=new_role)
+            db.session.add(role)
+            db.session.flush()  # To get role.id
+
+        # Add new permissions
+        # allowed_apps can be a list or dict depending on your frontend
+        if isinstance(allowed_apps, dict):
+            perms = allowed_apps.keys()
+        else:
+            perms = allowed_apps
+
+        for perm in perms:
+            db.session.add(RolePermission(permission=perm, role=role))
+
+        db.session.commit()
+        return jsonify({'message': f'Role "{new_role}" saved in database.'})
 
 
     @app.route('/api/login', methods=['POST'])
