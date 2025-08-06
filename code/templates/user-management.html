@@ -14,10 +14,10 @@
         <input type="password" id="passwordReg" name="password" required>
     </div>
     <div>
-        <label for="role">Role:</label>
-        <select id="roleReg" name="role" required>
+        <label for="roleReg">Role:</label>
+        <select name="role_id" id="roleReg" required style="min-width: 200px;">
             {% for role in roles %}
-                <option value="{{ role }}">{{ role }}</option>
+                <option value="{{ role.id }}">{{ role.name }}</option>
             {% endfor %}
         </select>
     </div>

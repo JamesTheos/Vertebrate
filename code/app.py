@@ -583,7 +583,8 @@ def create_app():
     @app.route('/user-management')
     #@roles_required('admin')
     def user_man():
-        return render_template('user-management.html',roles=list(Created_Roles.keys()))
+        roles = Role.query.all()
+        return render_template('user-management.html', roles=roles)
 
     @app.route('/user-profile')
     def user_profile():

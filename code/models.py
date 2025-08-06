@@ -13,6 +13,7 @@ class User(UserMixin, db.Model):
     uid = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String, nullable=False, unique = True)
     password = db.Column(db.String, nullable=False)
+    role_id = db.Column(db.Integer, db.ForeignKey('roles.id'))  
     role = db.Column(db.String)
     @property
     def id(self):
