@@ -4,3 +4,4 @@ code/UserManagement.db
 /code/__pycache__
 *.pyc
 *.pyc
+code/instance/UserManagement.db
