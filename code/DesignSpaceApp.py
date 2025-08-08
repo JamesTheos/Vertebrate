@@ -1,5 +1,6 @@
 from flask import Blueprint, Flask, request, jsonify, render_template
 from kafka import KafkaProducer, KafkaConsumer, TopicPartition
+from kafka.errors import NoBrokersAvailable
 import json
 import logging
 import uuid
@@ -21,35 +22,48 @@ design_space_app = Blueprint('design_space_app', __name__)
 logging.basicConfig(level=logging.CRITICAL)
 
 # Kafka producer for sending data
-producer = KafkaProducer(
-    bootstrap_servers=Kafkaserver,
-    value_serializer=lambda v: json.dumps(v).encode('utf-8')
-)
+try:
+    producer = KafkaProducer(
+        bootstrap_servers=Kafkaserver,
+        value_serializer=lambda v: json.dumps(v).encode('utf-8')
+    )
+except NoBrokersAvailable:
+    print("Kafka broker not available. Please check your configuration and broker status.")
+    producer = None
 
 # Kafka consumer for receiving data
-consumer = KafkaConsumer(
-    'design-space-topic',
-    bootstrap_servers=Kafkaserver,
-    auto_offset_reset='earliest',  # Read from the beginning of the topic
-    value_deserializer=lambda m: json.loads(m.decode('utf-8'))
-)
+try:
+    consumer = KafkaConsumer(
+        'design-space-topic',
+        bootstrap_servers=Kafkaserver,
+        auto_offset_reset='earliest',  # Read from the beginning of the topic
+        value_deserializer=lambda m: json.loads(m.decode('utf-8'))
+    )
+except NoBrokersAvailable:
+    print("Kafka broker not available. Please check your configuration and broker status.")
+    producer = None
+
 
 # Initialize storage for sets
 sets_storage = {}
 
 # Load existing sets from Kafka topic
 def load_existing_sets():
+    if consumer is None:
+        print("Kafka consumer is not available.")
+        return
     while not consumer.assignment():
-        consumer.poll(timeout_ms=1000)
-    partitions = consumer.assignment()
-    consumer.seek_to_beginning(*partitions)
-    while True:
-        raw_msgs = consumer.poll(timeout_ms=1000)
-        if not raw_msgs:
-            break
-        for tp, msgs in raw_msgs.items():
-            for message in msgs:
-                sets_storage[message.value['id']] = message.value
+        while not consumer.assignment():
+            consumer.poll(timeout_ms=1000)
+        partitions = consumer.assignment()
+        consumer.seek_to_beginning(*partitions)
+        while True:
+            raw_msgs = consumer.poll(timeout_ms=1000)
+            if not raw_msgs:
+                break
+            for tp, msgs in raw_msgs.items():
+                for message in msgs:
+                    sets_storage[message.value['id']] = message.value
 # Load existing sets from Kafka topic
 load_existing_sets()
 

@@ -3,6 +3,7 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from flask_sqlalchemy import SQLAlchemy
 import sqlite3
 from confluent_kafka import Consumer, Producer, KafkaError, OFFSET_BEGINNING
+from confluent_kafka import KafkaException
 from confluent_kafka.admin import AdminClient, NewTopic
 #from LLM_Consumer import get_kafka_data
 #from Neo4j import get_neo4j_data
@@ -68,8 +69,14 @@ kafka_cons_conf = {
     'group.id': 'flask-consumer-group',
     'auto.offset.reset': 'earliest'
 }
-consumer = Consumer(kafka_cons_conf)
-# consumer.subscribe(['ISPEScene1', 'ISPEScene2','ISPEMTemp','ISPESpeed','ISPEPressure','ISPEAmbTemp','ISPEStartPhase1'])  # Kafka topics
+
+try:
+    consumer = Consumer(kafka_cons_conf)
+    # consumer.subscribe(['ISPEScene1', 'ISPEScene2','ISPEMTemp','ISPESpeed','ISPEPressure','ISPEAmbTemp','ISPEStartPhase1'])  # Kafka topics
+except KafkaException as e:
+    print(f"Kafka consumer could not be initialized: {e}")
+    consumer = None
+
 
 # Kafka producer configuration
 kafka_prod_conf = {
