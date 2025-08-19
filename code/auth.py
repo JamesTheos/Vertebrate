@@ -4,7 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from models import User
 from models import db
 from flask_login import login_user, logout_user, current_user
-
+from models import Role
 
 auth = Blueprint('auth', __name__) 
 
@@ -13,10 +13,9 @@ def register_user():
     # Here you would typically handle user registration logic
     username = request.json.get('username')
     password = request.json.get('password')
-    role = request.json.get('role') 
+    role_id = request.json.get('role') 
 
-    print(f"Registering user: {username}, Role: {role}")
-
+    print(f"Registering user: {username}, Role ID: {role_id}")
     user = User.query.filter_by(username=username).first()
 
     if user:
@@ -26,8 +25,15 @@ def register_user():
     new_user = User(
         username=username,
         password=generate_password_hash(password),
-        role=role
     )
+
+    role = Role.query.filter_by(id=role_id).first()
+    if not role:
+        print(f"Role with ID '{role_id}' not found")
+        return f"Role does not exist", 400
+
+    # ⬅️ Rolle zuweisen über Many-to-Many
+    new_user.roles.append(role)
 
     db.session.add(new_user)
     db.session.commit()
