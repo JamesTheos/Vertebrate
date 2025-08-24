@@ -444,7 +444,7 @@ def create_app():
                 for order in data_store['manufacturing_orders']:
                     if order['orderNumber'] == order_number:
                         order['status'] = 'Started'
-                        order['timestamp'] = datetime.utcnow().isoformat()
+                        order['timestamp'] = datetime.now(datetime.UTC).isoformat()
                         for actions in workflow_data['options'][0].get('actions', []):
                             if actions.get('action') == button_pressed:
                                 if actions.get('external'):
@@ -470,7 +470,7 @@ def create_app():
             if current_step_index < total_steps and current_step_index > 1:
                 for order in data_store['manufacturing_orders']:
                     if order['orderNumber'] == order_number:
-                        order['timestamp'] = datetime.utcnow().isoformat()
+                        order['timestamp'] = datetime.now(datetime.UTC).isoformat()
 
                         for option in workflow_data['options'][current_step_index - 1].get('actions', []):
                             if option.get('action') == button_pressed:
@@ -497,7 +497,7 @@ def create_app():
                 for order in data_store['manufacturing_orders']:
                     if order['orderNumber'] == order_number:
                         order['status'] = 'Completed'
-                        order['timestamp'] = datetime.utcnow().isoformat()
+                        order['timestamp'] = datetime.now(datetime.UTC).isoformat()
 
                         for actions in workflow_data['options'][current_step_index - 1].get('actions', []):
             
