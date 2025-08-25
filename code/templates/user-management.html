@@ -14,33 +14,54 @@
         <input type="password" id="passwordReg" name="password" required>
     </div>
     <div>
-        <label for="roleReg">Role:</label>
-        <select name="role_id" id="roleReg" required style="min-width: 200px;">
+        <label for="roleReg">Roles:</label>
+        <!-- Mehrfachauswahl erlaubt mehrere Rollen -->
+        <select name="roles" id="roleReg" multiple required>
             {% for role in roles %}
                 <option value="{{ role.id }}">{{ role.name }}</option>
             {% endfor %}
         </select>
+        <small>Halte Strg (Windows) oder ⌘ (Mac) gedrückt, um mehrere Rollen auszuwählen</small>
     </div>
     <button type="submit">Add User</button>
 </form>
+
 <script>
 document.getElementById('addUserForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const username = document.getElementById('usernameReg').value.trim();
     const password = document.getElementById('passwordReg').value.trim();
-    const role = document.getElementById('roleReg').value;
-    console.log(`Adding user: ${username}, Role: ${role}`);
+    const roleSelect = document.getElementById('roleReg');
 
-    await fetch('/registerUser', {
+    // Alle ausgewählten Rollen als Array sammeln
+    const selectedRoles = Array.from(roleSelect.selectedOptions).map(opt => parseInt(opt.value));
+
+    console.log(`Adding user: ${username}, Roles:`, selectedRoles);
+
+    const response = await fetch('/registerUser', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: username, password: password, role: role })
+        body: JSON.stringify({
+            username: username,
+            password: password,
+            roles: selectedRoles
+        })
     });
+
+    if (response.ok) {
+        alert("User registered successfully.");
+        location.reload();
+    } else {
+        const error = await response.text();
+        alert("Error: " + error);
+    }
 });
 </script>
+
 <style>
-    select {
+select[multiple] {
     min-width: 200px;
+    height: 100px;
     padding: 6px;
     border-radius: 4px;
     border: 1px solid #ccc;
