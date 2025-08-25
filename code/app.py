@@ -16,13 +16,13 @@ from consumeWorkflows import consumeWorkflows, get_all_workflows
 from colorsettings import colorsettings
 from demo_consumer import tempConsumerChatbot
 from auth import auth
-from models import db, User
+from models import db, User, Role, RolePermission, Permission
 from functools import wraps
 from timeout import register_timeout_hook
 
 
 # User-defined Roles
-from models import db, Role, RolePermission
+
 
 #Dictionary for user-defined roles
 Created_Roles = {}    
@@ -187,6 +187,9 @@ def create_app():
     
     register_timeout_hook(app)
 
+    @login_manager.user_loader
+    def load_user(user_id):
+        return User.query.get(int(user_id))
 
     # Register the blueprints
     app.register_blueprint(product_analytics_app)
@@ -275,7 +278,10 @@ def create_app():
     def forbidden(e):
         return render_template('access.html'), 403
 
+    from utils import permission_required
+
     @app.route('/order-management', methods=['GET', 'POST'])
+    @permission_required('order-management')
     def order_management():
         if request.method == 'POST':
             action = request.json.get('action')
@@ -576,16 +582,8 @@ def create_app():
     
     @app.route('/role-management')
     def role_management():
-        roles = Role.query.all()
-        # Optionally, get permissions for each role
-        roles_with_permissions = [
-            {
-                'name': role.name,
-                'permissions': [perm.permission for perm in role.permissions]
-            }
-            for role in roles
-        ]
-        return render_template('role-management.html', roles=roles_with_permissions)    
+        roles = Role.query.options(db.joinedload(Role.permissions)).all()
+        return render_template('role-management.html', roles=roles)    
 
     @app.route('/user-management')
     #@roles_required('admin')
@@ -644,31 +642,40 @@ def create_app():
         data = request.get_json()
         new_role = data.get('created_role')
         allowed_apps = data.get('role_apps')
+
         if not new_role or not allowed_apps:
             return jsonify({'message': 'Role name and at least one function required.'}), 400
+
+        # Normalize allowed_apps to a list of permission keys (strings)
+        if isinstance(allowed_apps, dict):
+            perm_keys = list(allowed_apps.keys())
+        else:
+            perm_keys = list(allowed_apps)
 
         # Check if role already exists
         role = Role.query.filter_by(name=new_role).first()
         if role:
-            # Update permissions: remove old permissions
+            # Remove existing role_permission entries for this role
             RolePermission.query.filter_by(role_id=role.id).delete()
+            db.session.flush()
         else:
             role = Role(name=new_role)
             db.session.add(role)
-            db.session.flush()  # To get role.id
+            db.session.flush()  # get role.id
 
-        # Add new permissions
-        # allowed_apps can be a list or dict depending on your frontend
-        if isinstance(allowed_apps, dict):
-            perms = allowed_apps.keys()
-        else:
-            perms = allowed_apps
-
-        for perm in perms:
-            db.session.add(RolePermission(permission=perm, role=role))
+        # For each permission key ensure a Permission row exists and link it
+        for key in perm_keys:
+            perm = Permission.query.filter_by(key=key).first()
+            if not perm:
+                perm = Permission(key=key)
+                db.session.add(perm)
+                db.session.flush()  # get perm.id
+            # create association record
+            rp = RolePermission(role_id=role.id, permission_id=perm.id)
+            db.session.add(rp)
 
         db.session.commit()
-        return jsonify({'message': f'Role "{new_role}" saved in database.'})
+        return jsonify({'message': f'Role \"{new_role}\" saved in database.', 'role_id': role.id, 'permissions': perm_keys})
 
 
     @app.route('/api/login', methods=['POST'])
@@ -692,10 +699,7 @@ def create_app():
 
         return jsonify({'status': 'Username saved successfully'})
     
-    @login_manager.user_loader
-    def load_user(user_id):
-        return User.query.get(int(user_id))
-    
+
     return app
     
 

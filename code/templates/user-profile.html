@@ -5,87 +5,124 @@
 
 
 
-<form id="ManageUserForm">
+<form id="updateUserForm">
     <div>
-        <label for="current_username">Current Username:</label>
-        <output id="current_username">{{ current_user.username }}</output>
+        <label for="usernameUpdate">Username:</label>
+        <input type="text" id="usernameUpdate" name="username"
+               value="{{ current_user.username }}" required>
     </div>
     <div>
-        <label for="username">New Username:</label>
-        <input type="text" id="usernamenew" name="username" required>
+        <label for="passwordUpdate">New Password:</label>
+        <input type="password" id="passwordUpdate" name="password" placeholder="Leave empty to keep current">
     </div>
     <div>
-        <label for="password">New Password:</label>
-        <input type="password" id="passwordnew" name="password" required>
+    <label for="confirmPasswordUpdate">Confirm Password:</label>
+        <input type="password" id="confirmPasswordUpdate" name="confirm_password">
     </div>
     <div>
-        <label for="confirm_password">Confirm New Password:</label>
-        <input type="password" id="confirm_password" name="confirm_password" required>
+        <label for="roleUpdate">Roles:</label>
+        <select name="roles" id="roleUpdate" multiple required>
+            {% for role in roles %}
+                <option value="{{ role.id }}"
+                    {% if role in current_user.roles %}
+                        selected
+                    {% endif %}
+                >{{ role.name }}</option>
+            {% endfor %}
+        </select>
     </div>
     <button type="submit">Update User</button>
-    <button type="submit">Update Password</button>
-
 </form>
-<script>    
-const usernameInput = document.getElementById('usernamenew');
-const passwordInput = document.getElementById('passwordnew');
-const confirmPasswordInput = document.getElementById('confirm_password');
-const updateUserBtn = Array.from(document.querySelectorAll('button[type="submit"]')).find(
-    btn => btn.textContent.trim() === 'Update User'
-);
-const updatePasswordBtn = Array.from(document.querySelectorAll('button[type="submit"]')).find(
-    btn => btn.textContent.trim() === 'Update Password'
-);
 
-function validateUsername() {
-    updateUserBtn.disabled = !usernameInput.value.trim();
-}
-function validatePasswords() {
+
+<script>
+const usernameInput = document.getElementById('usernameUpdate');
+const passwordInput = document.getElementById('passwordUpdate');
+const confirmPasswordInput = document.getElementById('confirmPasswordUpdate');
+const roleSelect = document.getElementById('roleUpdate');
+const updateForm = document.getElementById('updateUserForm');
+const updateButton = updateForm.querySelector('button[type="submit"]');
+
+// Validierungen
+function validateForm() {
+    const usernameValid = usernameInput.value.trim().length > 0;
     const password = passwordInput.value;
     const confirmPassword = confirmPasswordInput.value;
-    updatePasswordBtn.disabled = !password || !confirmPassword || password !== confirmPassword;
+    const passwordsMatch = password === confirmPassword;
+    const rolesSelected = roleSelect.selectedOptions.length > 0;
+
+    updateButton.disabled = !usernameValid || (password && !passwordsMatch) || !rolesSelected;
 }
 
-usernameInput.addEventListener('input', validateUsername);
-passwordInput.addEventListener('input', validatePasswords);
-confirmPasswordInput.addEventListener('input', validatePasswords);
+// Event Listener
+usernameInput.addEventListener('input', validateForm);
+passwordInput.addEventListener('input', validateForm);
+confirmPasswordInput.addEventListener('input', validateForm);
+roleSelect.addEventListener('change', validateForm);
 
-updateUserBtn.addEventListener('click', function(event) {
-    event.preventDefault();
-    const newUsername = usernameInput.value.trim();
-    if (newUsername) {
-        fetch('/UpdateUser', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({username: newUsername})
-        })
-        .then(res => res.json())
-        .then(data => {
-            alert(data.message || 'Username updated!');
-        });
+// Formular-Submit
+updateForm.addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value;
+    const confirmPassword = confirmPasswordInput.value;
+    const selectedRoles = Array.from(roleSelect.selectedOptions).map(opt => parseInt(opt.value));
+
+    if (!username) {
+        alert("Username is required.");
+        return;
+    }
+
+    if (password && password !== confirmPassword) {
+        alert("Passwords do not match.");
+        return;
+    }
+
+    if (selectedRoles.length === 0) {
+        alert("Please select at least one role.");
+        return;
+    }
+
+    const payload = {
+        username: username,
+        roles: selectedRoles
+    };
+
+    if (password.length > 0) {
+        payload.password = password;
+    }
+
+    const response = await fetch('/UpdateUser', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    });
+
+    if (response.ok) {
+        const data = await response.json();
+        alert(data.message || "User updated successfully.");
+        window.location.reload();
+    } else {
+        const errorText = await response.text();
+        alert("Update failed: " + errorText);
     }
 });
 
-updatePasswordBtn.addEventListener('click', function(event) {
-    event.preventDefault();
-    const password = passwordInput.value;
-    const confirmPassword = confirmPasswordInput.value;
-    if (password && confirmPassword && password === confirmPassword) {
-        fetch('/UpdateUser', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({password: password})
-        })
-        .then(res => res.json())
-        .then(data => {
-            alert(data.message || 'Password updated!');
-        });
-    }
-});
-
-validateUsername();
-validatePasswords();
-
-
+// Initial validieren
+validateForm();
 </script>
+
+<style>
+select[multiple] {
+    min-width: 200px;
+    height: 100px;
+    padding: 6px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    background: #fff;
+    color: #222;
+}
+</style>
+
 {% endblock %}

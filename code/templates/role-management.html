@@ -60,7 +60,7 @@
             <button type="submit">Add Role</button>
             </form>
         </div>
-                <h3>Existing Roles</h3>
+            <h3>Existing Roles</h3>
         <ul>
             {% for role in roles %}
                 <li>
@@ -68,7 +68,7 @@
                     {% if role.permissions %}
                         <ul>
                             {% for perm in role.permissions %}
-                                <li>{{ perm }}</li>
+                                <li>{{ perm.key }}</li>
                             {% endfor %}
                         </ul>
                     {% endif %}
