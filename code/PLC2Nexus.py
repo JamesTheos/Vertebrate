@@ -4,7 +4,7 @@ from opcua.common.subscription import Subscription
 from confluent_kafka import Producer, Consumer, KafkaException, OFFSET_BEGINNING
 import json
 #import time
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 
 # Load the configuration for the ISA95 model
@@ -117,7 +117,7 @@ class SubHandler(object):
         if node_id in node_topic_mapping:
             topic = node_topic_mapping[node_id]
             timestamp = data.monitored_item.Value.SourceTimestamp
-            producertimestamp = datetime.utcnow().isoformat()
+            producertimestamp = datetime.now(timezone.utc).isoformat()
             health_status = data.monitored_item.Value.StatusCode.name
             data_dict = {
                 "Enterprise": enterprise,

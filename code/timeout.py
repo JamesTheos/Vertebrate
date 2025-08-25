@@ -1,6 +1,6 @@
 from flask import session, redirect, url_for
 from flask_login import current_user, logout_user
-from datetime import datetime
+from datetime import datetime, UTC
 
 INACTIVITY_TIMEOUT = 300  # seconds
 
@@ -9,7 +9,7 @@ def register_timeout_hook(app):
     def check_inactivity():
         if current_user.is_authenticated:
             #print("A login user is authenticated, checking inactivity timeout.")
-            now = datetime.utcnow()
+            now = datetime.now(UTC)
             last_activity = session.get('last_activity')
 
             if last_activity:
@@ -22,3 +22,4 @@ def register_timeout_hook(app):
                     return redirect(url_for('Logout_message'))
 
             session['last_activity'] = now.isoformat()
+        return None
