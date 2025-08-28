@@ -634,8 +634,9 @@ def create_app():
         return jsonify({'status': 'Configuration saved successfully'})
 
 
-    
-
+    ###########################################################################################################################
+    #ROLES EDITING
+    ###########################################################################################################################
 
     @app.route('/get-role', methods=["POST"])
     def define_role():
@@ -676,6 +677,61 @@ def create_app():
 
         db.session.commit()
         return jsonify({'message': f'Role \"{new_role}\" saved in database.', 'role_id': role.id, 'permissions': perm_keys})
+    
+    @app.route('/get-role/<role_name>', methods=["GET"])
+    def get_role(role_name):
+        role = Role.query.filter_by(name=role_name).first()
+        if not role:
+            return jsonify({'message': 'Role not found'}), 404
+
+        permissions = [
+            {'key': perm.key} for perm in 
+            Permission.query.join(RolePermission, Permission.id == RolePermission.permission_id)
+            .filter(RolePermission.role_id == role.id).all()
+        ]
+
+        return jsonify({'name': role.name, 'permissions': permissions})
+
+
+    @app.route('/update-role', methods=["POST"])
+    def update_role():
+        data = request.get_json()
+        role_name = data.get('role_name')
+        updated_apps = data.get('updated_role_apps')
+
+        if not role_name or not updated_apps:
+            return jsonify({'message': 'Role name and at least one function required.'}), 400
+
+        role = Role.query.filter_by(name=role_name).first()
+        if not role:
+            return jsonify({'message': 'Role not found'}), 404
+
+        # Normalize updated_apps to list of keys
+        if isinstance(updated_apps, dict):
+            perm_keys = list(updated_apps.keys())
+        else:
+            perm_keys = list(updated_apps)
+
+        # Remove existing permissions
+        RolePermission.query.filter_by(role_id=role.id).delete()
+        db.session.flush()
+
+        # Recreate permissions
+        for key in perm_keys:
+            perm = Permission.query.filter_by(key=key).first()
+            if not perm:
+                perm = Permission(key=key)
+                db.session.add(perm)
+                db.session.flush()
+            rp = RolePermission(role_id=role.id, permission_id=perm.id)
+            db.session.add(rp)
+
+        db.session.commit()
+        return jsonify({'message': f'Role "{role_name}" updated successfully.', 'permissions': perm_keys})
+
+    ##########################################################################################################################
+    ##########################################################################################################################
+
 
 
     @app.route('/api/login', methods=['POST'])
