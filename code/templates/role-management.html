@@ -5,62 +5,75 @@
 
 {% block content %}
 
-
 <div class="role-management-container">
-    <div id="add-role-modal" class="modal">
+    <div id="role-modal" class="modal">
         <div class="modal-content">
-            <h3>Add New Role</h3>
-            <form id="add-role-form">
+            <h3>Add / Edit Role</h3>
+            <form id="role-form">
                 <fieldset>
-                <legend>Role Details</legend>
+                    <legend>Role Details</legend>
 
-                <table>
-
-                    <tr>
-                        <th><label for="manufacturing-order">Manufacturing Order:</label></th>
-                        <td>Order Management<input type="checkbox" id="order-management" name="order-management" ></td>
-                        <td>Order Overview<input type="checkbox" id="order-overview" name="order-overview" ></td>
-                    </tr>
-                    <tr>
-                        <th><label for="workflow-management">Workflow Management:</label></th>
-                        <td>Workflow Overview<input type="checkbox" id="workflow-overview" name="workflow-overview" ></td>
-                        <td>Batch <input type="checkbox" id="batch" name="batch" ></td>
-                        <td>Process Instructions<input type="checkbox" id="process-instructions" name="process-instructions" ></td>
-                        <td>Sampling<input type="checkbox" id="sampling" name="sampling" ></td>
-                    </tr>
-                    <tr>
-                        <th><label for="scada">SCADA:</label></th>
-                        <td>Equipment <input type="checkbox" id="equipment" name="equipment" ></td>
-                        <td>P&ID<input type="checkbox" id="pid" name="pid" ></td>
-                        <td>3D-View<input type="checkbox" id="3d-view" name="3d-view" ></td>
-                    </tr>
-                    <tr>
-                        <th><label for="QBD">QBD:</label></th>
-                        <td>Design Space Definition <input type="checkbox" id="design-space-definition" name="design-space-definition" ></td>
-                        <td>Design Space Representation <input type="checkbox" id="design-space-representation" name="design-space-representation" ></td>
-                    </tr>
-                    <tr>
-                        <th><label for="analytics">Analytics:</label></th>
-                        <td>Product Analytics <input type="checkbox" id="product-analytics" name="product-analytics" ></td>
-                        <td>Process QBD Analytics <input type="checkbox" id="process-qbd-analytics" name="process-qbd-analytics" ></td>
-                    </tr>
-                    <tr>
-                        <th><label for="Settings">Settings:</label></th>
-                        <td>Plant Configuration<input type="checkbox" id="plant-configuration" name="plant-configuration" ></td>
-                        <td>Process Configuration<input type="checkbox" id="process-configuration" name="process-configuration" ></td>
-                        <td>Workflow Management<input type="checkbox" id="workflow-management" name="workflow-management" ></td>
-                        <td>User Management<input type="checkbox" id="user-management" name="user-management" ></td>
-                        <td>Role Management<input type="checkbox" id="role-management" name="role-management" ></td>
-                    </tr>
-
-                </table>
+                    <table>
+                        <tr>
+                            <th>Manufacturing Order:</th>
+                            <td>Order Management<input type="checkbox" id="order-management"></td>
+                            <td>Order Overview<input type="checkbox" id="order-overview"></td>
+                        </tr>
+                        <tr>
+                            <th>Workflow Management:</th>
+                            <td>Workflow Overview<input type="checkbox" id="workflow-overview"></td>
+                            <td>Batch <input type="checkbox" id="batch"></td>
+                            <td>Process Instructions<input type="checkbox" id="process-instructions"></td>
+                            <td>Sampling<input type="checkbox" id="sampling"></td>
+                        </tr>
+                        <tr>
+                            <th>SCADA:</th>
+                            <td>Equipment <input type="checkbox" id="equipment"></td>
+                            <td>P&ID<input type="checkbox" id="pid"></td>
+                            <td>3D-View<input type="checkbox" id="3d-view"></td>
+                        </tr>
+                        <tr>
+                            <th>QBD:</th>
+                            <td>Design Space Definition <input type="checkbox" id="design-space-definition"></td>
+                            <td>Design Space Representation <input type="checkbox" id="design-space-representation"></td>
+                        </tr>
+                        <tr>
+                            <th>Analytics:</th>
+                            <td>Product Analytics <input type="checkbox" id="product-analytics"></td>
+                            <td>Process QBD Analytics <input type="checkbox" id="process-qbd-analytics"></td>
+                        </tr>
+                        <tr>
+                            <th>Settings:</th>
+                            <td>Plant Configuration<input type="checkbox" id="plant-configuration"></td>
+                            <td>Process Configuration<input type="checkbox" id="process-configuration"></td>
+                            <td>Workflow Management<input type="checkbox" id="workflow-management"></td>
+                            <td>User Management<input type="checkbox" id="user-management"></td>
+                            <td>Role Management<input type="checkbox" id="role-management"></td>
+                        </tr>
+                    </table>
                 </fieldset>
-            <label for="role-name">Role Name:</label>
-            <input type="text" id="role-name" name="role-name">
-            <button type="submit">Add Role</button>
+
+                <label for="role-name">Role Name:</label>
+                <input type="text" id="role-name" name="role-name">
+
+                <button type="submit" id="add-btn">Add Role</button>
+                <button type="button" id="save-btn" style="display:none;">Save Changes</button>
             </form>
         </div>
-            <h3>Existing Roles</h3>
+
+        <!-- Existing Roles + Dropdown inline -->
+        <div style="display: flex; align-items: center; gap: 15px; margin-top: 20px; margin-bottom: 10px;">
+            <h3 style="margin: 0;">Existing Roles</h3>
+            <label for="role-select">Edit:</label>
+            <select id="role-select">
+                <option value="">-- Choose a Role --</option>
+                {% for role in roles %}
+                    <option value="{{ role.name }}">{{ role.name }}</option>
+                {% endfor %}
+            </select>
+            <button type="button" id="edit-btn">Edit Role</button>
+        </div>
+
         <ul>
             {% for role in roles %}
                 <li>
@@ -78,28 +91,51 @@
             {% endfor %}
         </ul>
     </div>
-<script>
-const addRoleForm = document.getElementById('add-role-form');
-const roleNameInput = document.getElementById('role-name');
-const addRoleButton = document.querySelector('button[type="submit"]');
+</div>
 
-// Disable button if role name is empty
-roleNameInput.addEventListener('input', function() {
-    addRoleButton.disabled = !roleNameInput.value.trim();
+<script>
+const roleForm = document.getElementById('role-form');
+const roleNameInput = document.getElementById('role-name');
+const addBtn = document.getElementById('add-btn');
+const saveBtn = document.getElementById('save-btn');
+const editBtn = document.getElementById('edit-btn');
+const roleSelect = document.getElementById('role-select');
+
+let editingRole = null;
+
+// Disable Add button if no role name
+roleNameInput.addEventListener('input', () => {
+    addBtn.disabled = !roleNameInput.value.trim();
 });
 
-// Handle form submission
-addRoleForm.addEventListener('submit', function(event) {
-    event.preventDefault();
-    const roleName = roleNameInput.value.trim();
-    if (!roleName) return;
-
-    // Collect checked checkbox IDs
-    const checkedBoxes = Array.from(addRoleForm.querySelectorAll('input[type="checkbox"]:checked'))
+// Collect role permissions from checkboxes
+function collectPermissions() {
+    return Array.from(roleForm.querySelectorAll('input[type="checkbox"]:checked'))
         .reduce((acc, cb) => {
             acc[cb.id] = true;
             return acc;
         }, {});
+}
+
+// Populate checkboxes for a role
+function populatePermissions(roleData) {
+    // Reset all checkboxes
+    roleForm.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+    if (roleData && roleData.permissions) {
+        roleData.permissions.forEach(perm => {
+            const cb = document.getElementById(perm.key);
+            if (cb) cb.checked = true;
+        });
+    }
+}
+
+// Add new role
+roleForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const roleName = roleNameInput.value.trim();
+    if (!roleName) return;
+
+    const checkedBoxes = collectPermissions();
 
     fetch('/get-role', {
         method: 'POST',
@@ -110,12 +146,55 @@ addRoleForm.addEventListener('submit', function(event) {
         })
     })
     .then(res => res.json())
-    .then(data => {
-        addRoleForm.reset();
-        addRoleButton.disabled = true;
+    .then(() => {
+        roleForm.reset();
+        addBtn.disabled = true;
     });
-    console.log(roleName ,":", checkedBoxes)
+
+    console.log("Added:", roleName, checkedBoxes);
 });
 
+// Edit existing role
+editBtn.addEventListener('click', () => {
+    const selectedRole = roleSelect.value;
+    if (!selectedRole) return;
+
+    fetch(`/get-role/${selectedRole}`)
+        .then(res => res.json())
+        .then(roleData => {
+            roleNameInput.value = roleData.name;
+            populatePermissions(roleData);
+            editingRole = roleData.name;
+
+            addBtn.style.display = "none";
+            saveBtn.style.display = "inline-block";
+        });
+});
+
+// Save edited role
+saveBtn.addEventListener('click', () => {
+    if (!editingRole) return;
+
+    const checkedBoxes = collectPermissions();
+
+    fetch('/update-role', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            role_name: editingRole,
+            updated_role_apps: checkedBoxes
+        })
+    })
+    .then(res => res.json())
+    .then(() => {
+        editingRole = null;
+        roleForm.reset();
+        saveBtn.style.display = "none";
+        addBtn.style.display = "inline-block";
+        addBtn.disabled = true;
+    });
+
+    console.log("Updated:", editingRole, checkedBoxes);
+});
 </script>
 {% endblock %}
