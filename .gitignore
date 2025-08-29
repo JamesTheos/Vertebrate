@@ -5,5 +5,3 @@ code/UserManagement.db
 *.pyc
 *.pyc
 code/instance/UserManagement.db
-.github
-qodana.yaml
