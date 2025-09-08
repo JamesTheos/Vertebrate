@@ -10,7 +10,7 @@ Industrial Data Centric Tech Stack
  - create a folder in C: called 10_Projects where all the project files will be (PLC; kafka,...)
  - OPTIONAL for Frontend: download and install codesys control win to be able to program and engineer a PLC (https://store.codesys.com/en/codesys-control-win-sl-1.html)
  - OPTIONAL for Frontend: install vscode (https://code.visualstudio.com/)
- - install github desktop and subscribe to our repo and use VScode as the editor
+ - install github desktop and clone our repo and use VScode as the editor
  - install docker desktop (https://www.docker.com/products/docker-desktop/)
  - download the Kafka UI container from Github (https://github.com/provectus/kafka-ui)
  - Install Python from MS store
