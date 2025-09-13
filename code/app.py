@@ -16,10 +16,11 @@ from consumeWorkflows import consumeWorkflows, get_all_workflows
 from colorsettings import colorsettings
 from demo_consumer import tempConsumerChatbot
 from auth import auth
-from models import db, User, Role, RolePermission, Permission
+from models import db, User, Role, RolePermission, Permission, Subscriptions
 from functools import wraps
 from timeout import register_timeout_hook
-
+from subscriptions import subscribed, not_subscribed, subscribed_list, not_subscribed_list
+from utils import permission_required
 
 # User-defined Roles
 
@@ -63,31 +64,55 @@ if os.path.exists(db_path):
 else:
     cluster_id_temp = None
 
-# Kafka consumer configuration
+
+def is_kafka_available(bootstrap_servers):
+    try:
+        admin_client = AdminClient({'bootstrap.servers': bootstrap_servers})
+        admin_client.list_topics(timeout=3)
+        return True
+    except Exception as e:
+        print(f"Kafka not available: {e}")
+        return False
+
+
+
 kafka_cons_conf = {
     'bootstrap.servers': Kafkaserver,
     'group.id': 'flask-consumer-group',
     'auto.offset.reset': 'earliest'
 }
-
-try:
-    consumer = Consumer(kafka_cons_conf)
-    # consumer.subscribe(['ISPEScene1', 'ISPEScene2','ISPEMTemp','ISPESpeed','ISPEPressure','ISPEAmbTemp','ISPEStartPhase1'])  # Kafka topics
-except KafkaException as e:
-    print(f"Kafka consumer could not be initialized: {e}")
-    consumer = None
-
-
-# Kafka producer configuration
 kafka_prod_conf = {
     'bootstrap.servers': Kafkaserver
 }
-producer = Producer(kafka_prod_conf)
+
+consumer = None
+producer = None
+
+if is_kafka_available(Kafkaserver):
+    try:
+        consumer = Consumer(kafka_cons_conf)
+    except KafkaException as e:
+        print(f"Kafka consumer could not be initialized: {e}")
+        consumer = None
+    try:
+        producer = Producer(kafka_prod_conf)
+    except KafkaException as e:
+        print(f"Kafka producer could not be initialized: {e}")
+        producer = None
+else:
+    print("Kafka is unavailable. Consumers and producers will not be started.")
+
+
 
 def send_to_kafka(topic, value):
-    producer.produce(topic, key="FromUX", value=json.dumps(value).encode('utf-8'))
-    producer.flush()
-
+    if producer is not None:
+        try:
+            producer.produce(topic, key="FromUX", value=json.dumps(value).encode('utf-8'))
+            producer.flush()
+        except Exception as e:
+            print(f"Kafka error: {e}")
+    else:
+        print(f"Kafka producer unavailable, message for topic '{topic}' not sent: {value}")
 
 
 data_store = {
@@ -123,7 +148,6 @@ def create_topics_if_not_exist(bootstrap_servers, topics):
     else:
         print("All topics registered.")
 
-create_topics_if_not_exist(Kafkaserver, data_store.keys())
 
 def consume_messages():
     global data_store
@@ -208,17 +232,7 @@ def create_app():
         return dict(appconfig=config)
     
     #######################################################################################
-    #User-defined Roles
-#    @app.route('/get-role',methods = ["POST"])
-#   def define_role():
-#        new_role = request.json.get('created_role')
-#        allowed_apps = request.json.get('role_apps')
-#        if new_role not in Created_Roles.keys():
-#            Created_Roles[new_role] = allowed_apps
-#        else:
-#            Created_Roles[new_role] = allowed_apps
-#        return Created_Roles
-
+    
     #######################################################################################
     #main route
     
@@ -254,33 +268,39 @@ def create_app():
     @app.route('/updated-user')
     def updated_user():
         return render_template('Updated-User.html')
+    
+    @app.errorhandler(403)
+    def forbidden(e):
+        return render_template('access.html'), 403
+
 
     #######################################################################################
     #analytics route
+    @not_subscribed('product-analytics')
+    @permission_required('product-analytics')
     @app.route('/product_analytics')
-    #@roles_required('admin')
     def product_analytics():
         return render_template('product_analytics.html')
 
     @app.route('/process-qbd-analysis')
-    #@roles_required('user')
+    @subscribed("process-qbd-analytics")
+    @permission_required('process-qbd-analytics')
     def trending():
         return render_template('process-qbd-analysis.html')
 
     #######################################################################################
     #Orders route
     @app.route('/manufacturing-orders', methods=['GET', 'POST'])
-    #@roles_required('guest')
+    @subscribed("order-overview")
+    @permission_required('manufacturing-orders')
+
     def manufacturing_orders():
         return render_template('manufacturing-orders.html')
     
-    @app.errorhandler(403)
-    def forbidden(e):
-        return render_template('access.html'), 403
 
-    from utils import permission_required
 
     @app.route('/order-management', methods=['GET', 'POST'])
+    @subscribed("order-management")    
     @permission_required('order-management')
     def order_management():
         if request.method == 'POST':
@@ -318,8 +338,7 @@ def create_app():
                                     send_to_kafka(topic, {'value': False, **order})
                     else:
                         return jsonify({'error': 'Invalid action'}), 400
-                    producer.produce('manufacturing_orders', key="FromOrderManagement", value=json.dumps(order).encode('utf-8'))
-                    producer.flush()
+                    send_to_kafka('manufacturing_orders', order)
                     break
             if not order_found:
                 return jsonify({'error': 'Order not found'}), 404
@@ -358,12 +377,12 @@ def create_app():
             'status': 'Created'
         }
         print(f"Order Submitted: {message}")
-        producer.produce('manufacturing_orders', key="FromOrderCreation", value=json.dumps(message).encode('utf-8'))
-        producer.flush()
+        send_to_kafka('manufacturing_orders', message)
 
         return jsonify({'status': 'Order submitted successfully'})
 
     @app.route('/orders')
+    @permission_required('order-management')
     def get_orders():
         orders = data_store.get('manufacturing_orders', [])
         return jsonify(orders)
@@ -371,38 +390,55 @@ def create_app():
     #######################################################################################
     #Scada route
     @app.route('/scada')
+    @not_subscribed("scada")
+    @permission_required('scada')
     def scada():
         return render_template('scada.html')
+    
+
     @app.route('/equipment-overview')
+    @not_subscribed("equipment")
+    @permission_required('equipment-overview')
     def equipmentoverview():
         return render_template('equipment-overview.html')
+    
+
     @app.route('/3d-view')
+    @subscribed("3d-view")
     def view3d():
         return render_template('3d-view.html')
 
     #######################################################################################
     #design-space route
     @app.route('/design-space-definition')
+    @subscribed("design-space-definition")
+    @permission_required('design-space-definition')
     def designspacedefinition():
         return render_template('design-space-definition.html')
 
     @app.route('/design-space-representation')
+    @subscribed("design-space-representation")
+    @permission_required('design-space-representation')
     def designspacerepresentation():
         return render_template('design-space-representation.html')
 
     ############################################################################################################
     #Workflows route
     @app.route('/batch')
+    @subscribed("batch")
+    @permission_required('batch')
     def batch():
         return render_template('batch.html')
 
-    @app.route('/overview') # Define route for the overview page under workflows
-    def overview():
+    @app.route('/workflow-overview')
+    @subscribed("workflow-overview")
+    @permission_required('workflow-overview')
+    def workflow_overview():
         workflows = get_all_workflows().json
         relStaCom_orders = [order for order in data_store['manufacturing_orders'] if order['status'] == 'Started']
         print(f"Orders: {relStaCom_orders}")
         print(f"Workflows: {workflows}")
-        return render_template('overview.html', running_orders=relStaCom_orders, workflows=workflows)
+        return render_template('workflow-overview.html', running_orders=relStaCom_orders, workflows=workflows)
 
 
     @app.route('/api/released-orders', methods=['GET'])
@@ -569,10 +605,14 @@ def create_app():
             return jsonify({'error': 'Workflow not found'}), 404
 
     @app.route('/sampling')
+    @subscribed("sampling")
+    @permission_required('sampling')
     def sampling():
         return render_template('sampling.html')
 
     @app.route('/process-instructions')
+    @subscribed("process-instructions")
+    @permission_required('process-instructions')
     def processinstructions():
         return render_template('process-instructions.html' )
 
@@ -581,12 +621,16 @@ def create_app():
         return render_template('settings.html')
     
     @app.route('/role-management')
+    @subscribed("role-management")
+    @permission_required('role-management')
     def role_management():
         roles = Role.query.options(db.joinedload(Role.permissions)).all()
-        return render_template('role-management.html', roles=roles)    
+        subscribed_apps = [s.apps for s in Subscriptions.query.filter_by(subscribed=True).all()]
+        return render_template('role-management.html', roles=roles, subscribed_apps=subscribed_apps)
 
     @app.route('/user-management')
-    #@roles_required('admin')
+    @subscribed("user-management")
+    @permission_required('user-management')
     def user_man():
         roles = Role.query.all()
         return render_template('user-management.html', roles=roles)
@@ -596,6 +640,8 @@ def create_app():
         return render_template('user-profile.html')
 
     @app.route('/plantconfig')
+    @not_subscribed("plant-configuration")
+    @permission_required('plant-configuration')
     def plantconfig():
         config_path = os.path.join(os.path.dirname(__file__), 'config.json')
         with open(config_path) as config_file:
@@ -603,10 +649,14 @@ def create_app():
         return render_template('plantconfig.html', config=config)
 
     @app.route('/processconfig')
+    @not_subscribed("process-configuration")
+    @permission_required('process-configuration')
     def processconfig():
         return render_template('processconfig.html')
 
     @app.route('/workflow-management')
+    @subscribed("workflow-management")
+    @permission_required('workflow-management')
     def workflow_management():
         return render_template('workflowmanagement.html')
 
@@ -730,6 +780,7 @@ def create_app():
         return jsonify({'message': f'Role "{role_name}" updated successfully.', 'permissions': perm_keys})
 
     ##########################################################################################################################
+    #LOGIN - USERNAME
     ##########################################################################################################################
 
 
@@ -739,10 +790,6 @@ def create_app():
 
         username = request.json.get('username')
         password = request.json.get('password')
-
-        
-
-        
 
         config_path = os.path.join(os.path.dirname(__file__), 'appconfig.json')
         with open(config_path) as config_file:

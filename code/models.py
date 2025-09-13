@@ -53,3 +53,10 @@ class RolePermission(db.Model):
     role_id = db.Column(db.Integer, db.ForeignKey('roles.id'), primary_key=True)
     permission_id = db.Column(db.Integer, db.ForeignKey('permissions.id'), primary_key=True)
 
+
+# Define subscriptions class
+class Subscriptions(db.Model):
+    __tablename__ = "app_subscriptions"
+    apps = db.Column(db.String, primary_key=True)
+    subscribed = db.Column(db.Boolean, nullable=False, default=False)
+

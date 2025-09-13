@@ -1,8 +1,9 @@
 from app import db, create_app
-from models import User, MetaInfo, Role, RolePermission, Permission, UserRoles
+from models import Subscriptions, User, MetaInfo, Role, RolePermission, Permission, UserRoles
 import os
 import json
 from werkzeug.security import generate_password_hash
+from subscriptions import subscribed_list, not_subscribed_list
 
 # Config laden
 config_path = os.path.join(os.path.dirname(__file__), 'config.json')
@@ -21,48 +22,71 @@ with app.app_context():
     db.create_all()
 
     # Cluster ID in MetaInfo speichern, falls nicht vorhanden
-    id_entry = MetaInfo.query.filter_by(id=cluster_id).first()
-    if not id_entry:
-        cluster_id_entry = MetaInfo(id=cluster_id)
-        db.session.add(cluster_id_entry)
-        db.session.commit()
+    if not MetaInfo.query.filter_by(id=cluster_id).first():
+        db.session.add(MetaInfo(id=cluster_id))
         print("Cluster ID wurde in MetaInfo hinzugefügt.")
 
     # Rollen anlegen, falls noch nicht vorhanden
-    admin_role = Role.query.filter_by(name='creator').first()
-    if not admin_role:
-        admin_role = Role(name='creator')
-        db.session.add(admin_role)
-        db.session.commit()
+    creator_role = Role.query.filter_by(name='creator').first()
+    if not creator_role:
+        creator_role = Role(name='creator')
+        db.session.add(creator_role)
+        db.session.flush()  # ensures creator_role.id is available
         print("Rolle 'creator' wurde erstellt.")
 
-        # Beispiel-Permissions zur Rolle hinzufügen
-        permissions = ['role-management', 'user-management']
-        for perm in permissions:
-            perms = Permission.query.filter_by(key=perm).first()
-            if not perms:
-                perms = Permission(key=perm)
-                db.session.add(perms)
-                db.session.commit()
-            rp = RolePermission.query.filter_by(permission_id=perms.id, role_id=hash('creator')).first()
-            if not rp:
-                rp = RolePermission(permission_id=perms.id, role_id=hash('creator'))
-                db.session.add(rp)
-        db.session.commit()
-        print("Permissions für 'creator' wurden hinzugefügt.")
+    # Beispiel-Permissions zur Rolle hinzufügen
+    permissions = ['role-management', 'user-management']
+    for perm in permissions:
+        perms = Permission.query.filter_by(key=perm).first()
+        if not perms:
+            perms = Permission(key=perm)
+            db.session.add(perms)
+            db.session.flush()
+        rp = RolePermission.query.filter_by(permission_id=perms.id, role_id=creator_role.id).first()
+        if not rp:
+            rp = RolePermission(permission_id=perms.id, role_id=creator_role.id)
+            db.session.add(rp)
+    db.session.flush()
+    print("Permissions für 'creator' wurden hinzugefügt.")
+
+    # Admin-User prüfen/erstellen
     admin_user = User.query.filter_by(username='User_Admin').first()
     if not admin_user:
         admin_user = User(
             username='User_Admin',
             password=admin_password_hash,
-            roles=[admin_role]
+            roles=[creator_role]  # assign ORM role object
         )
         db.session.add(admin_user)
-        db.session.commit()
-        # Assign 'creator' role to admin user
-        admin_user_role = UserRoles.query.filter_by(user_id=admin_user.id, role_id=hash('creator')).first()
+        db.session.flush()
+
+        # Assign 'creator' role to admin user (if UserRoles is separate mapping)
+        admin_user_role = UserRoles.query.filter_by(user_id=admin_user.id, role_id=creator_role.id).first()
         if not admin_user_role:
-            admin_user_role = UserRoles(user_id=admin_user.id, role_id=hash('creator'))
+            admin_user_role = UserRoles(user_id=admin_user.id, role_id=creator_role.id)
             db.session.add(admin_user_role)
-            db.session.commit()
+            db.session.flush()
         print("Admin User 'User_Admin' wurde erstellt.")
+
+    # create user-role mapping using real role id (just to be safe)
+    if not UserRoles.query.filter_by(user_id=admin_user.id, role_id=creator_role.id).first():
+        db.session.add(UserRoles(user_id=admin_user.id, role_id=creator_role.id))
+
+    # Filtering core apps in subscribed and unsubscribed
+    for app_name in subscribed_list:
+        sub = Subscriptions.query.filter_by(apps=app_name).first()
+        if not sub:
+            sub = Subscriptions(apps=app_name, subscribed=True)
+            db.session.add(sub)
+        else:
+            sub.subscribed = True
+
+    for app_name in not_subscribed_list:
+        sub = Subscriptions.query.filter_by(apps=app_name).first()
+        if not sub:
+            sub = Subscriptions(apps=app_name, subscribed=False)
+            db.session.add(sub)
+        else:
+            sub.subscribed = False
+
+    db.session.commit()

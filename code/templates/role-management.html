@@ -4,7 +4,6 @@
 {% block header_title %}Role Management{% endblock %}
 
 {% block content %}
-
 <div class="role-management-container">
     <div id="role-modal" class="modal">
         <div class="modal-content">
@@ -12,43 +11,96 @@
             <form id="role-form">
                 <fieldset>
                     <legend>Role Details</legend>
-
                     <table>
                         <tr>
                             <th>Manufacturing Order:</th>
-                            <td>Order Management<input type="checkbox" id="order-management"></td>
-                            <td>Order Overview<input type="checkbox" id="order-overview"></td>
+                            <td>
+                                <label for="manufacturing-orders">Order Management</label>
+                                <input type="checkbox" id="manufacturing-orders" disabled>
+                            </td>
+                            <td>
+                                <label for="order-management">Order Overview</label>
+                                <input type="checkbox" id="order-management" disabled>
+                            </td>
                         </tr>
                         <tr>
                             <th>Workflow Management:</th>
-                            <td>Workflow Overview<input type="checkbox" id="workflow-overview"></td>
-                            <td>Batch <input type="checkbox" id="batch"></td>
-                            <td>Process Instructions<input type="checkbox" id="process-instructions"></td>
-                            <td>Sampling<input type="checkbox" id="sampling"></td>
+                            <td>
+                                <label for="workflow-overview">Workflow Overview</label>
+                                <input type="checkbox" id="workflow-overview" disabled>
+                            </td>
+                            <td>
+                                <label for="batch">Batch</label>
+                                <input type="checkbox" id="batch" disabled>
+                            </td>
+                            <td>
+                                <label for="process-instructions">Process Instructions</label>
+                                <input type="checkbox" id="process-instructions" disabled>
+                            </td>
+                            <td>
+                                <label for="sampling">Sampling</label>
+                                <input type="checkbox" id="sampling" disabled>
+                            </td>
                         </tr>
                         <tr>
                             <th>SCADA:</th>
-                            <td>Equipment <input type="checkbox" id="equipment"></td>
-                            <td>P&ID<input type="checkbox" id="pid"></td>
-                            <td>3D-View<input type="checkbox" id="3d-view"></td>
+                            <td>
+                                <label for="equipment">Equipment</label>
+                                <input type="checkbox" id="equipment" disabled>
+                            </td>
+                            <td>
+                                <label for="pid">P&ID</label>
+                                <input type="checkbox" id="pid" disabled>
+                            </td>
+                            <td>
+                                <label for="3d-view">3D-View</label>
+                                <input type="checkbox" id="3d-view" disabled>
+                            </td>
                         </tr>
                         <tr>
                             <th>QBD:</th>
-                            <td>Design Space Definition <input type="checkbox" id="design-space-definition"></td>
-                            <td>Design Space Representation <input type="checkbox" id="design-space-representation"></td>
+                            <td>
+                                <label for="design-space-definition">Design Space Definition</label>
+                                <input type="checkbox" id="design-space-definition" disabled>
+                            </td>
+                            <td>
+                                <label for="design-space-representation">Design Space Representation</label>
+                                <input type="checkbox" id="design-space-representation" disabled>
+                            </td>
                         </tr>
                         <tr>
                             <th>Analytics:</th>
-                            <td>Product Analytics <input type="checkbox" id="product-analytics"></td>
-                            <td>Process QBD Analytics <input type="checkbox" id="process-qbd-analytics"></td>
+                            <td>
+                                <label for="product-analytics">Product Analytics</label>
+                                <input type="checkbox" id="product-analytics" disabled>
+                            </td>
+                            <td>
+                                <label for="process-qbd-analytics">Process QBD Analytics</label>
+                                <input type="checkbox" id="process-qbd-analytics" disabled>
+                            </td>
                         </tr>
                         <tr>
                             <th>Settings:</th>
-                            <td>Plant Configuration<input type="checkbox" id="plant-configuration"></td>
-                            <td>Process Configuration<input type="checkbox" id="process-configuration"></td>
-                            <td>Workflow Management<input type="checkbox" id="workflow-management"></td>
-                            <td>User Management<input type="checkbox" id="user-management"></td>
-                            <td>Role Management<input type="checkbox" id="role-management"></td>
+                            <td>
+                                <label for="plant-configuration">Plant Configuration</label>
+                                <input type="checkbox" id="plant-configuration" disabled>
+                            </td>
+                            <td>
+                                <label for="process-configuration">Process Configuration</label>
+                                <input type="checkbox" id="process-configuration" disabled>
+                            </td>
+                            <td>
+                                <label for="workflow-management">Workflow Management</label>
+                                <input type="checkbox" id="workflow-management" disabled>
+                            </td>
+                            <td>
+                                <label for="user-management">User Management</label>
+                                <input type="checkbox" id="user-management" disabled>
+                            </td>
+                            <td>
+                                <label for="role-management">Role Management</label>
+                                <input type="checkbox" id="role-management" disabled>
+                            </td>
                         </tr>
                     </table>
                 </fieldset>
@@ -56,12 +108,11 @@
                 <label for="role-name">Role Name:</label>
                 <input type="text" id="role-name" name="role-name">
 
-                <button type="submit" id="add-btn">Add Role</button>
+                <button type="submit" id="add-btn" disabled>Add Role</button>
                 <button type="button" id="save-btn" style="display:none;">Save Changes</button>
             </form>
         </div>
 
-        <!-- Existing Roles + Dropdown inline -->
         <div style="display: flex; align-items: center; gap: 15px; margin-top: 20px; margin-bottom: 10px;">
             <h3 style="margin: 0;">Existing Roles</h3>
             <label for="role-select">Edit:</label>
@@ -103,12 +154,11 @@ const roleSelect = document.getElementById('role-select');
 
 let editingRole = null;
 
-// Disable Add button if no role name
+// Enable/disable Add button
 roleNameInput.addEventListener('input', () => {
     addBtn.disabled = !roleNameInput.value.trim();
 });
 
-// Collect role permissions from checkboxes
 function collectPermissions() {
     return Array.from(roleForm.querySelectorAll('input[type="checkbox"]:checked'))
         .reduce((acc, cb) => {
@@ -117,9 +167,7 @@ function collectPermissions() {
         }, {});
 }
 
-// Populate checkboxes for a role
 function populatePermissions(roleData) {
-    // Reset all checkboxes
     roleForm.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
     if (roleData && roleData.permissions) {
         roleData.permissions.forEach(perm => {
@@ -129,7 +177,6 @@ function populatePermissions(roleData) {
     }
 }
 
-// Add new role
 roleForm.addEventListener('submit', e => {
     e.preventDefault();
     const roleName = roleNameInput.value.trim();
@@ -154,7 +201,6 @@ roleForm.addEventListener('submit', e => {
     console.log("Added:", roleName, checkedBoxes);
 });
 
-// Edit existing role
 editBtn.addEventListener('click', () => {
     const selectedRole = roleSelect.value;
     if (!selectedRole) return;
@@ -171,17 +217,17 @@ editBtn.addEventListener('click', () => {
         });
 });
 
-// Save edited role
 saveBtn.addEventListener('click', () => {
     if (!editingRole) return;
 
     const checkedBoxes = collectPermissions();
+    const roleToUpdate = editingRole;
 
     fetch('/update-role', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
-            role_name: editingRole,
+            role_name: roleToUpdate,
             updated_role_apps: checkedBoxes
         })
     })
@@ -194,7 +240,15 @@ saveBtn.addEventListener('click', () => {
         addBtn.disabled = true;
     });
 
-    console.log("Updated:", editingRole, checkedBoxes);
+    console.log("Updated:", roleToUpdate, checkedBoxes);
+});
+
+// Enable checkboxes for subscribed apps
+const subscribedAppsList = JSON.parse('{{ subscribed_apps | tojson | safe }}');
+roleForm.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    if (subscribedAppsList.includes(cb.id)) {
+        cb.disabled = false;
+    }
 });
 </script>
 {% endblock %}

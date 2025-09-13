@@ -64,21 +64,49 @@ def load_existing_sets():
             for tp, msgs in raw_msgs.items():
                 for message in msgs:
                     sets_storage[message.value['id']] = message.value
-# Load existing sets from Kafka topic
-load_existing_sets()
 
-# Kafka consumers for ISPEMTemp and ISPESpeed topics
-temp_consumer = KafkaConsumer(
-    bootstrap_servers=Kafkaserver,
-    auto_offset_reset='earliest',  # Read from the beginning of the topic
-    value_deserializer=lambda m: json.loads(m.decode('utf-8'))
-)
 
-speed_consumer = KafkaConsumer(
-    bootstrap_servers=Kafkaserver,
-    auto_offset_reset='earliest',  # Read from the beginning of the topic
-    value_deserializer=lambda m: json.loads(m.decode('utf-8'))
-)
+
+# Kafka consumer for receiving data
+try:
+    consumer = KafkaConsumer(
+        'design-space-topic',
+        bootstrap_servers=Kafkaserver,
+        auto_offset_reset='earliest',  # Read from the beginning of the topic
+        value_deserializer=lambda m: json.loads(m.decode('utf-8'))
+    )
+except NoBrokersAvailable:
+    print("Kafka broker not available. Please check your configuration and broker status.")
+    consumer = None
+
+# Only call load_existing_sets if consumer is defined
+if 'consumer' in locals():
+    try:
+        load_existing_sets()
+    except Exception as e:
+        print(f"Error loading existing sets: {e}")
+else:
+    print("Consumer not defined, skipping load_existing_sets()")
+
+try:
+    temp_consumer = KafkaConsumer(
+        bootstrap_servers=Kafkaserver,
+        auto_offset_reset='earliest',
+        value_deserializer=lambda m: json.loads(m.decode('utf-8'))
+    )
+except NoBrokersAvailable:
+    print("Kafka broker not available for temp_consumer.")
+    temp_consumer = None
+
+try:
+    speed_consumer = KafkaConsumer(
+        bootstrap_servers=Kafkaserver,
+        auto_offset_reset='earliest',
+        value_deserializer=lambda m: json.loads(m.decode('utf-8'))
+    )
+except NoBrokersAvailable:
+    print("Kafka broker not available for speed_consumer.")
+    speed_consumer = None
 
 @design_space_app.route('/design-space-definition')
 def design_space_definition():
@@ -143,51 +171,54 @@ def get_set(set_id):
 @design_space_app.route('/get-latest-values', methods=['GET'])
 def get_latest_values():
     try:
-        #print("DesignSpace:Assigning partitions and getting end offsets")
-        # Assign partitions
-        temp_partition = TopicPartition('ISPEMTemp', 0)
-        speed_partition = TopicPartition('ISPESpeed', 0)
-        
-        temp_consumer.assign([temp_partition])
-        speed_consumer.assign([speed_partition])
-
-        # Get end offsets
-        temp_end_offset = temp_consumer.end_offsets([temp_partition])[temp_partition]
-        speed_end_offset = speed_consumer.end_offsets([speed_partition])[speed_partition]
-        #print(f"DesignSpace:End offsets - ISPEMTemp: {temp_end_offset}, ISPESpeed: {speed_end_offset}")
+        if temp_consumer is None or speed_consumer is None:
+            return jsonify({'status': 'error', 'message': 'Kafka not available'}), 503
+        else:
+            #print("DesignSpace:Assigning partitions and getting end offsets")
+            # Assign partitions
+            temp_partition = TopicPartition('ISPEMTemp', 0)
+            speed_partition = TopicPartition('ISPESpeed', 0)
             
-        # Seek to the latest message
-        temp_consumer.seek(temp_partition, temp_end_offset - 1)
-        speed_consumer.seek(speed_partition, speed_end_offset - 1)
-        
-        #print("DesignSpace:Polling for the latest messages")
-        # Poll for the latest messages
-        temp_records = temp_consumer.poll(timeout_ms=1000)
-        speed_records = speed_consumer.poll(timeout_ms=1000)
-        
-        latest_temp = None
-        latest_speed = None
-        
-        #print("DesignSpace:Processing messages from ISPEMTemp")
-        # Get the latest message from ISPEMTemp
-        for tp, messages in temp_records.items():
-            for message in messages:
-                latest_temp = message.value['value']
-                #print(f"Value for ISPEMTemp: {latest_temp}")
+            temp_consumer.assign([temp_partition])
+            speed_consumer.assign([speed_partition])
 
-        #print("DesignSpace:Processing messages from ISPESpeed")
-        # Get the latest message from ISPESpeed
-        for tp, messages in speed_records.items():
-            for message in messages:
-                latest_speed = message.value['value']
-                #print(f"Value for ISPESpeed: {latest_speed}")
-        
-        if latest_temp is None or latest_speed is None:
-            #print("DesignSpace:No data available from ISPEMTemp or ISPESpeed topics")
-            return jsonify({'status': 'error', 'message': 'No data available'}), 404
-        
-        #print(f"DesignSpace:Returning latest values: ISPESpeed={latest_speed}, ISPEMTemp={latest_temp}")
-        return jsonify({'ispespeed': latest_speed, 'ispetemp': latest_temp})
+            # Get end offsets
+            temp_end_offset = temp_consumer.end_offsets([temp_partition])[temp_partition]
+            speed_end_offset = speed_consumer.end_offsets([speed_partition])[speed_partition]
+            #print(f"DesignSpace:End offsets - ISPEMTemp: {temp_end_offset}, ISPESpeed: {speed_end_offset}")
+                
+            # Seek to the latest message
+            temp_consumer.seek(temp_partition, temp_end_offset - 1)
+            speed_consumer.seek(speed_partition, speed_end_offset - 1)
+            
+            #print("DesignSpace:Polling for the latest messages")
+            # Poll for the latest messages
+            temp_records = temp_consumer.poll(timeout_ms=1000)
+            speed_records = speed_consumer.poll(timeout_ms=1000)
+            
+            latest_temp = None
+            latest_speed = None
+            
+            #print("DesignSpace:Processing messages from ISPEMTemp")
+            # Get the latest message from ISPEMTemp
+            for tp, messages in temp_records.items():
+                for message in messages:
+                    latest_temp = message.value['value']
+                    #print(f"Value for ISPEMTemp: {latest_temp}")
+
+            #print("DesignSpace:Processing messages from ISPESpeed")
+            # Get the latest message from ISPESpeed
+            for tp, messages in speed_records.items():
+                for message in messages:
+                    latest_speed = message.value['value']
+                    #print(f"Value for ISPESpeed: {latest_speed}")
+            
+            if latest_temp is None or latest_speed is None:
+                #print("DesignSpace:No data available from ISPEMTemp or ISPESpeed topics")
+                return jsonify({'status': 'error', 'message': 'No data available'}), 404
+            
+            #print(f"DesignSpace:Returning latest values: ISPESpeed={latest_speed}, ISPEMTemp={latest_temp}")
+            return jsonify({'ispespeed': latest_speed, 'ispetemp': latest_temp})
     except Exception as e:
         #print(f"DesignSpace:Error fetching latest values: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
