@@ -1,0 +1,281 @@
+{% extends "basesettings.html" %}
+
+{% block title %}Settings{% endblock %}
+{% block header_title %}Subscriptions Management{% endblock %}
+{% block content %}To update your subscriptions, please choose the subscriptions below and send your changes to our support team.
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        .subscription-management-container {
+            max-width: 1000px;
+            margin: 50px auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        th {
+            width: 200px;
+        }
+
+        button#save-btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+
+        button#save-btn:hover {
+            background-color: #45a049;
+        }
+
+        /* Popup overlay */
+        .popup-overlay {
+            display: none; /* hidden by default */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        /* Popup box */
+        .popup-box {
+            background: #fff;
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            font-size: 18px;
+            text-align: center;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        /* Smooth fade-in */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="subscription-management-container">
+    <div class="modal-content">
+        <h3>Add / Manage Subscriptions</h3>
+        <form id="subscription-form" class="subscription-management-form">
+            <fieldset>
+                <legend>Subscription Details</legend>
+                <table>
+                    <tr>
+                        <th>Manufacturing Order:</th>
+                        <td>
+                            <label for="manufacturing-orders">Order Management</label>
+                            <input type="checkbox" id="manufacturing-orders" 
+                                {% if subscription_status['manufacturing-orders'] %} checked {% endif %}>
+                        </td>
+                        <td>
+                            <label for="order-management">Order Overview</label>
+                            <input type="checkbox" id="order-management" 
+                                {% if subscription_status['order-management'] %} checked {% endif %}>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Workflow Management:</th>
+                        <td>
+                            <label for="workflow-overview">Workflow Overview</label>
+                            <input type="checkbox" id="workflow-overview" 
+                                {% if subscription_status['workflow-overview'] %} checked {% endif %}>
+                        </td>
+                        <td>
+                            <label for="batch">Batch</label>
+                            <input type="checkbox" id="batch" 
+                                {% if subscription_status['batch'] %} checked {% endif %}>
+                        </td>
+                        <td>
+                            <label for="process-instructions">Process Instructions</label>
+                            <input type="checkbox" id="process-instructions" 
+                                {% if subscription_status['process-instructions'] %} checked {% endif %}>
+                        </td>
+                        <td>
+                            <label for="sampling">Sampling</label>
+                            <input type="checkbox" id="sampling" 
+                                {% if subscription_status['sampling'] %} checked {% endif %}>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>SCADA:</th>
+                        <td>
+                            <label for="equipment">Equipment</label>
+                            <input type="checkbox" id="equipment" 
+                                {% if subscription_status['equipment'] %} checked {% endif %}>
+                        </td>
+                        <td>
+                            <label for="pid">P&amp;ID</label>
+                            <input type="checkbox" id="pid" 
+                                {% if subscription_status['pid'] %} checked {% endif %}>
+                        </td>
+                        <td>
+                            <label for="3d-view">3D-View</label>
+                            <input type="checkbox" id="3d-view" 
+                                {% if subscription_status['3d-view'] %} checked {% endif %}>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>QBD:</th>
+                        <td>
+                            <label for="design-space-definition">Design Space Definition</label>
+                            <input type="checkbox" id="design-space-definition" 
+                                {% if subscription_status['design-space-definition'] %} checked {% endif %}>
+                        </td>
+                        <td>
+                            <label for="design-space-representation">Design Space Representation</label>
+                            <input type="checkbox" id="design-space-representation" 
+                                {% if subscription_status['design-space-representation'] %} checked {% endif %}>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Analytics:</th>
+                        <td>
+                            <label for="product-analytics">Product Analytics</label>
+                            <input type="checkbox" id="product-analytics" 
+                                {% if subscription_status['product-analytics'] %} checked {% endif %}>
+                        </td>
+                        <td>
+                            <label for="process-qbd-analytics">Process QBD Analytics</label>
+                            <input type="checkbox" id="process-qbd-analytics" 
+                                {% if subscription_status['process-qbd-analytics'] %} checked {% endif %}>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Settings:</th>
+                        <td>
+                            <label for="plant-configuration">Plant Configuration</label>
+                            <input type="checkbox" id="plant-configuration" 
+                                {% if subscription_status['plant-configuration'] %} checked {% endif %}>
+                        </td>
+                        <td>
+                            <label for="process-configuration">Process Configuration</label>
+                            <input type="checkbox" id="process-configuration" 
+                                {% if subscription_status['process-configuration'] %} checked {% endif %}>
+                        </td>
+                        <td>
+                            <label for="workflow-management">Workflow Management</label>
+                            <input type="checkbox" id="workflow-management" 
+                                {% if subscription_status['workflow-management'] %} checked {% endif %}>
+                        </td>
+                        <td>
+                            <label for="user-management">User Management</label>
+                            <input type="checkbox" id="user-management" 
+                                {% if subscription_status['user-management'] %} checked {% endif %}>
+                        </td>
+                        <td>
+                            <label for="role-management">Role Management</label>
+                            <input type="checkbox" id="role-management" 
+                                {% if subscription_status['role-management'] %} checked {% endif %}>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+
+            <!-- Save button -->
+            <button type="button" id="save-btn">Save</button>
+        </form>
+    </div>
+</div>
+
+<!-- Popup Modal -->
+<div id="popup-message" class="popup-overlay">
+    <div class="popup-box">
+        <p>Your subscriptions will be updated soon</p>
+    </div>
+</div>
+<div id="popup-error" class="popup-overlay">
+    <div class="popup-box">
+        <p>An Error has occured. Please try again later.</p>
+    </div>
+</div>
+
+<script>
+    const checkboxes = document.querySelectorAll("#subscription-form input[type='checkbox']");
+    let unsubscribed_list = Array.from(checkboxes).map(cb => cb.id);
+    let subscribed_list = [];
+
+    document.getElementById("save-btn").addEventListener("click", function () {
+        // Clear lists before recalculating
+        subscribed_list = [];
+        unsubscribed_list = [];
+
+        checkboxes.forEach(cb => {
+            if (cb.checked) {
+                subscribed_list.push(cb.id);
+            } else {
+                unsubscribed_list.push(cb.id);
+            }
+        });
+        // Send data to the server
+        fetch('/subscription-management', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                subscribed: subscribed_list,
+                not_subscribed: unsubscribed_list
+            })
+        }).then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        }).then(data => {
+            // Show popup
+            const popup = document.getElementById("popup-message");
+            popup.style.display = "flex";
+
+            // Refresh after 2 seconds
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        }).catch((error) => {
+            // Show popup
+            const popup = document.getElementById("popup-error");
+            popup.style.display = "flex";
+
+            // Refresh after 2 seconds
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        });
+    });
+</script>
+
+</body>
+</html>
+
+{%endblock%}
