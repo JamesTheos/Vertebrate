@@ -19,7 +19,7 @@ from auth import auth
 from models import db, User, Role, RolePermission, Permission, Subscriptions
 from functools import wraps
 from timeout import register_timeout_hook
-from subscriptions import subscribed, not_subscribed, subscribed_list, not_subscribed_list
+from subscriptions import check_subscription,subscriptions
 from utils import permission_required
 
 # User-defined Roles
@@ -222,6 +222,7 @@ def create_app():
     app.register_blueprint(consumeWorkflows)
     app.register_blueprint(colorsettings)
     app.register_blueprint(tempConsumerChatbot)
+    app.register_blueprint(subscriptions)
 #app.register_blueprint(nexus2plc)
 
     @app.context_processor
@@ -276,14 +277,14 @@ def create_app():
 
     #######################################################################################
     #analytics route
-    @not_subscribed('product-analytics')
+    @check_subscription('product-analytics')
     @permission_required('product-analytics')
     @app.route('/product_analytics')
     def product_analytics():
         return render_template('product_analytics.html')
 
     @app.route('/process-qbd-analysis')
-    @subscribed("process-qbd-analytics")
+    @check_subscription("process-qbd-analytics")
     @permission_required('process-qbd-analytics')
     def trending():
         return render_template('process-qbd-analysis.html')
@@ -291,7 +292,7 @@ def create_app():
     #######################################################################################
     #Orders route
     @app.route('/manufacturing-orders', methods=['GET', 'POST'])
-    @subscribed("order-overview")
+    @check_subscription("order-overview")
     @permission_required('manufacturing-orders')
 
     def manufacturing_orders():
@@ -300,7 +301,7 @@ def create_app():
 
 
     @app.route('/order-management', methods=['GET', 'POST'])
-    @subscribed("order-management")    
+    @check_subscription("order-management")    
     @permission_required('order-management')
     def order_management():
         if request.method == 'POST':
@@ -390,34 +391,34 @@ def create_app():
     #######################################################################################
     #Scada route
     @app.route('/scada')
-    @not_subscribed("scada")
-    @permission_required('scada')
+    @check_subscription("pid")
+    @permission_required('pid')
     def scada():
         return render_template('scada.html')
     
 
     @app.route('/equipment-overview')
-    @not_subscribed("equipment")
+    @check_subscription("equipment")
     @permission_required('equipment-overview')
     def equipmentoverview():
         return render_template('equipment-overview.html')
     
 
     @app.route('/3d-view')
-    @subscribed("3d-view")
+    @check_subscription("3d-view")
     def view3d():
         return render_template('3d-view.html')
 
     #######################################################################################
     #design-space route
     @app.route('/design-space-definition')
-    @subscribed("design-space-definition")
+    @check_subscription("design-space-definition")
     @permission_required('design-space-definition')
     def designspacedefinition():
         return render_template('design-space-definition.html')
 
     @app.route('/design-space-representation')
-    @subscribed("design-space-representation")
+    @check_subscription("design-space-representation")
     @permission_required('design-space-representation')
     def designspacerepresentation():
         return render_template('design-space-representation.html')
@@ -425,13 +426,13 @@ def create_app():
     ############################################################################################################
     #Workflows route
     @app.route('/batch')
-    @subscribed("batch")
+    @check_subscription("batch")
     @permission_required('batch')
     def batch():
         return render_template('batch.html')
 
     @app.route('/workflow-overview')
-    @subscribed("workflow-overview")
+    @check_subscription("workflow-overview")
     @permission_required('workflow-overview')
     def workflow_overview():
         workflows = get_all_workflows().json
@@ -605,13 +606,13 @@ def create_app():
             return jsonify({'error': 'Workflow not found'}), 404
 
     @app.route('/sampling')
-    @subscribed("sampling")
+    @check_subscription("sampling")
     @permission_required('sampling')
     def sampling():
         return render_template('sampling.html')
 
     @app.route('/process-instructions')
-    @subscribed("process-instructions")
+    @check_subscription("process-instructions")
     @permission_required('process-instructions')
     def processinstructions():
         return render_template('process-instructions.html' )
@@ -621,7 +622,7 @@ def create_app():
         return render_template('settings.html')
     
     @app.route('/role-management')
-    @subscribed("role-management")
+    @check_subscription('role-management')
     @permission_required('role-management')
     def role_management():
         roles = Role.query.options(db.joinedload(Role.permissions)).all()
@@ -629,7 +630,7 @@ def create_app():
         return render_template('role-management.html', roles=roles, subscribed_apps=subscribed_apps)
 
     @app.route('/user-management')
-    @subscribed("user-management")
+    @check_subscription("user-management")
     @permission_required('user-management')
     def user_man():
         roles = Role.query.all()
@@ -638,9 +639,23 @@ def create_app():
     @app.route('/user-profile')
     def user_profile():
         return render_template('user-profile.html')
+    
+    @app.route('/subscription-management')
+    def subscription_management():
+        # Fetch all subscriptions from DB
+        subscriptions = Subscriptions.query.all()
+        
+        # Build a dict for easier lookup in the template
+        subscription_status = {sub.apps: sub.subscribed for sub in subscriptions}
+        
+        return render_template(
+            'subscription-management.html', 
+            subscription_status=subscription_status
+        )
+
 
     @app.route('/plantconfig')
-    @not_subscribed("plant-configuration")
+    @check_subscription("plant-configuration")
     @permission_required('plant-configuration')
     def plantconfig():
         config_path = os.path.join(os.path.dirname(__file__), 'config.json')
@@ -649,13 +664,13 @@ def create_app():
         return render_template('plantconfig.html', config=config)
 
     @app.route('/processconfig')
-    @not_subscribed("process-configuration")
+    @check_subscription("process-configuration")
     @permission_required('process-configuration')
     def processconfig():
         return render_template('processconfig.html')
 
     @app.route('/workflow-management')
-    @subscribed("workflow-management")
+    @check_subscription("workflow-management")
     @permission_required('workflow-management')
     def workflow_management():
         return render_template('workflowmanagement.html')

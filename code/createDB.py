@@ -3,7 +3,7 @@ from models import Subscriptions, User, MetaInfo, Role, RolePermission, Permissi
 import os
 import json
 from werkzeug.security import generate_password_hash
-from subscriptions import subscribed_list, not_subscribed_list
+
 
 # Config laden
 config_path = os.path.join(os.path.dirname(__file__), 'config.json')
@@ -72,16 +72,30 @@ with app.app_context():
     if not UserRoles.query.filter_by(user_id=admin_user.id, role_id=creator_role.id).first():
         db.session.add(UserRoles(user_id=admin_user.id, role_id=creator_role.id))
 
-    # Filtering core apps in subscribed and unsubscribed
-    for app_name in subscribed_list:
-        sub = Subscriptions.query.filter_by(apps=app_name).first()
-        if not sub:
-            sub = Subscriptions(apps=app_name, subscribed=True)
-            db.session.add(sub)
-        else:
-            sub.subscribed = True
+    
+    # Seed all core apps as unsubscribed by default
+    core_apps = [
+        "manufacturing-orders",
+        "order-management",
+        "workflow-overview",
+        "batch",
+        "process-instructions",
+        "sampling",
+        "equipment",
+        "pid",
+        "3d-view",
+        "design-space-definition",
+        "design-space-representation",
+        "product-analytics",
+        "process-qbd-analytics",
+        "plant-configuration",
+        "process-configuration",
+        "workflow-management",
+        "user-management",
+        "role-management"
+    ]
 
-    for app_name in not_subscribed_list:
+    for app_name in core_apps:
         sub = Subscriptions.query.filter_by(apps=app_name).first()
         if not sub:
             sub = Subscriptions(apps=app_name, subscribed=False)
@@ -90,3 +104,5 @@ with app.app_context():
             sub.subscribed = False
 
     db.session.commit()
+    print("All apps seeded as unsubscribed (False) by default.")
+

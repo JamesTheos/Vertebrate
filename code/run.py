@@ -1,4 +1,4 @@
-from app import create_app, create_topics_if_not_exist, consume_messages, data_store, Kafkaserver,Subscriptions, subscribed_list,not_subscribed_list, db
+from app import create_app, create_topics_if_not_exist, consume_messages, data_store, Kafkaserver,Subscriptions, db
 import threading
 import subprocess
 import sys
@@ -6,7 +6,7 @@ import json
 import os
 import sqlite3
 
-flask_app = create_app()
+
 #Always check if database exists, if not create it. No need to constantly check for database existence
 db_path = os.path.join(os.path.dirname(__file__), 'instance', 'UserManagement.db')
 if not os.path.exists(db_path):
@@ -39,37 +39,38 @@ if cluster_id != cluster_id_temp:
     # Run createDB.py to recreate the database
     subprocess.run([sys.executable, os.path.join(os.path.dirname(__file__), 'createDB.py')])
 #Database has been reset after cluster_id change
-else:
-    print("Cluster ID has not changed.")
-    print("Checking for updates in subscriptions...")
-    # Update the subscriptions table based on subscribed_list and not_subscribed_list
-    with flask_app.app_context():
-        subscribed_only = set(subscribed_list) - set(not_subscribed_list)
-        not_subscribed_only = set(not_subscribed_list) - set(subscribed_list)
+flask_app = create_app()
+# if cluster_id == cluster_id_temp:
+#     print("Cluster ID has not changed.")
+#     print("Checking for updates in subscriptions...")
+#     # Update the subscriptions table based on subscribed_list and not_subscribed_list
+#     with flask_app.app_context():
+#         subscribed_only = set(subscribed_list) - set(not_subscribed_list)
+#         not_subscribed_only = set(not_subscribed_list) - set(subscribed_list)
 
-        for app_name in subscribed_only:
-            sub = Subscriptions.query.filter_by(apps=app_name).first()
-            if sub:
-                if not sub.subscribed:
-                    print(f"Updating {app_name} to subscribed=True")
-                    sub.subscribed = True
-            else:
-                print(f"Adding new subscription: {app_name} subscribed=True")
-                sub = Subscriptions(apps=app_name, subscribed=True)
-                db.session.add(sub)
+#         for app_name in subscribed_only:
+#             sub = Subscriptions.query.filter_by(apps=app_name).first()
+#             if sub:
+#                 if not sub.subscribed:
+#                     print(f"Updating {app_name} to subscribed=True")
+#                     sub.subscribed = True
+#             else:
+#                 print(f"Adding new subscription: {app_name} subscribed=True")
+#                 sub = Subscriptions(apps=app_name, subscribed=True)
+#                 db.session.add(sub)
 
-        for app_name in not_subscribed_only:
-            sub = Subscriptions.query.filter_by(apps=app_name).first()
-            if sub:
-                if sub.subscribed:
-                    print(f"Updating {app_name} to subscribed=False")
-                    sub.subscribed = False
-            else:
-                print(f"Adding new subscription: {app_name} subscribed=False")
-                sub = Subscriptions(apps=app_name, subscribed=False)
-                db.session.add(sub)
+#         for app_name in not_subscribed_only:
+#             sub = Subscriptions.query.filter_by(apps=app_name).first()
+#             if sub:
+#                 if sub.subscribed:
+#                     print(f"Updating {app_name} to subscribed=False")
+#                     sub.subscribed = False
+#             else:
+#                 print(f"Adding new subscription: {app_name} subscribed=False")
+#                 sub = Subscriptions(apps=app_name, subscribed=False)
+#                 db.session.add(sub)
 
-        db.session.commit()
+#         db.session.commit()
     # No need to recreate the database, it remains intact
 
 if __name__ == "__main__":
