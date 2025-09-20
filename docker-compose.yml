@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  zookeeper:
+    image: bitnami/zookeeper:latest
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+    volumes:
+      - zookeeper_data:/bitnami
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: bitnami/kafka:latest
+    environment:
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    depends_on:
+      - zookeeper
+    volumes:
+      - kafka_data:/bitnami
+    ports:
+      - "9092:9092"
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    environment:
+      KAFKA_CLUSTERS_0_NAME: "local"
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "kafka:9092"
+      KAFKA_CLUSTERS_0_ZOOKEEPER: "zookeeper:2181"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - kafka
+      - zookeeper
+
+  flask:
+    build:
+      context: .
+      dockerfile: Dockerfile.flask
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - FLASK_RUN_HOST=0.0.0.0
+      - FLASK_RUN_PORT=5000
+    ports:
+      - "5000:5000"
+    depends_on:
+      - kafka
+
+volumes:
+  zookeeper_data:
+  kafka_data:
