@@ -1,9 +1,0 @@
-FROM python:3.11-slim
-WORKDIR /app
-COPY Requirements.txt /app/Requirements.txt
-RUN pip install --no-cache-dir -r /app/Requirements.txt
-COPY code /app/code
-WORKDIR /app/code
-ENV PYTHONUNBUFFERED=1
-EXPOSE 5000
-CMD ["python", "run.py"]
