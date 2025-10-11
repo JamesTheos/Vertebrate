@@ -41,8 +41,8 @@ config_path = os.path.join(os.path.dirname(__file__), 'config.json')
 with open(config_path) as config_file:
         config = json.load(config_file)
     
-Kafkaserver= config['Kafkaserver']
-clusterid= config['clusterid']
+Kafkaserver = os.environ.get('KAFKASERVER', 'kafka:9092')
+clusterid = os.environ.get('CLUSTERID', config.get('clusterid'))
 enterprise = config['enterprise']
 site = config['site']
 area = config['area']
@@ -50,7 +50,7 @@ process_cell = config['process_cell']
 unit= config['unit'] 
 
 #Get clusterid saved in Database
-db_path = 'C:/Users/User/Documents/GitHub/Vertebrate/code/instance/UserManagement.db'
+db_path = os.path.join(os.path.dirname(__file__), 'instance', 'UserManagement.db')
 if os.path.exists(db_path):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()

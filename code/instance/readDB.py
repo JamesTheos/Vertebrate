@@ -1,5 +1,8 @@
 import sqlite3
 
+
+#todo: delete this file because it is trivial and not used
+
 conn = sqlite3.connect('C:/Users/User/Documents/GitHub/Vertebrate/code/instance/UserManagement.db')
 cursor = conn.cursor()
 cursor2 = conn.cursor()
