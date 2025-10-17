@@ -43,9 +43,10 @@ with open(config_path) as config_file:
     
 # Determine Kafka bootstrap servers from env or config
 Kafkaserver = os.environ.get('KAFKASERVER', config.get('Kafkaserver', 'localhost:9092'))
-# If someone set a Docker-internal hostname like 'kafka:*' while running on the host,
-# normalize it to the host-accessible address from config/default to avoid DNS resolution errors.
-if isinstance(Kafkaserver, str) and Kafkaserver.startswith('kafka:'):
+# When running inside Docker, we want to keep Docker-internal hostnames like 'kafka:29092'.
+# Allow overriding this behavior on the host by not setting IN_DOCKER.
+IN_DOCKER = os.environ.get('IN_DOCKER', '').lower() in ['1', 'true', 'yes']
+if isinstance(Kafkaserver, str) and Kafkaserver.startswith('kafka:') and not IN_DOCKER:
     print(f"Warning: KAFKASERVER='{Kafkaserver}' is a Docker-internal hostname. Using host address from config instead.")
     Kafkaserver = config.get('Kafkaserver', 'localhost:9092')
 
@@ -265,17 +266,17 @@ def create_app():
     #login-error route
     @app.route('/login-error')
     def Login_error():
-        return render_template('Login-error.html')
+        return render_template('login-error.html')
     
     #logout-message route
     @app.route('/logout-message')
     def Logout_message():
-        return render_template('Logout-message.html')
+        return render_template('logout-message.html')
     
     #Updated User Info route
     @app.route('/updated-user')
     def updated_user():
-        return render_template('Updated-User.html')
+        return render_template('updated-User.html')
     
     @app.errorhandler(403)
     def forbidden(e):

@@ -69,4 +69,4 @@ if __name__ == "__main__":
         threading.Thread(target=consume_messages, daemon=True).start()
     else:
         print("Not starting consume_messages thread because Kafka is unavailable.")
-    flask_app.run(debug=True, use_reloader=False, port=5001)
+    flask_app.run(debug=True, use_reloader=False, host="0.0.0.0", port=5001)

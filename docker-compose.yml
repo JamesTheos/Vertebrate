@@ -25,3 +25,15 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     logging:
       driver: "none"
+
+  vertebrate-app:
+    build: .
+    depends_on:
+      - kafka
+    environment:
+      KAFKASERVER: kafka:29092
+      IN_DOCKER: "true"
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./code/instance:/app/code/instance
