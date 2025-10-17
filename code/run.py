@@ -5,6 +5,7 @@ import sys
 import json
 import os
 import sqlite3
+from confluent_kafka.admin import AdminClient
 
 
 #Always check if database exists, if not create it. No need to constantly check for database existence
@@ -22,13 +23,24 @@ else:
     cluster_id_temp = None
 conn.close()
 
-# Load config.json to fetch current active cluster_id
+# Load config.json (fallback) and attempt to fetch Kafka cluster_id from broker
 config_path = os.path.join(os.path.dirname(__file__), 'config.json')
 with open(config_path, 'r') as f:
     config = json.load(f)
 
-cluster_id = config.get("clusterid")
-print("Cluster ID:", cluster_id)
+# Try to get cluster ID directly from Kafka (container)
+def get_kafka_cluster_id(bootstrap_servers: str):
+    try:
+        admin = AdminClient({'bootstrap.servers': bootstrap_servers})
+        md = admin.list_topics(timeout=5)
+        # md.cluster_id is available in recent librdkafka; fallback if missing
+        return getattr(md, 'cluster_id', None)
+    except Exception as e:
+        print(f"Warning: Could not fetch cluster ID from Kafka at '{bootstrap_servers}': {e}")
+        return None
+
+cluster_id = get_kafka_cluster_id(Kafkaserver) or config.get("clusterid")
+print("Cluster ID (active):", cluster_id)
 
 
 if cluster_id != cluster_id_temp:

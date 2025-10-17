@@ -41,7 +41,14 @@ config_path = os.path.join(os.path.dirname(__file__), 'config.json')
 with open(config_path) as config_file:
         config = json.load(config_file)
     
-Kafkaserver = os.environ.get('KAFKASERVER', 'kafka:9092')
+# Determine Kafka bootstrap servers from env or config
+Kafkaserver = os.environ.get('KAFKASERVER', config.get('Kafkaserver', 'localhost:9092'))
+# If someone set a Docker-internal hostname like 'kafka:*' while running on the host,
+# normalize it to the host-accessible address from config/default to avoid DNS resolution errors.
+if isinstance(Kafkaserver, str) and Kafkaserver.startswith('kafka:'):
+    print(f"Warning: KAFKASERVER='{Kafkaserver}' is a Docker-internal hostname. Using host address from config instead.")
+    Kafkaserver = config.get('Kafkaserver', 'localhost:9092')
+
 clusterid = os.environ.get('CLUSTERID', config.get('clusterid'))
 enterprise = config['enterprise']
 site = config['site']
