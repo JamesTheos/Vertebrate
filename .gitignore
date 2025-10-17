@@ -5,3 +5,7 @@ code/UserManagement.db
 *.pyc
 *.pyc
 code/instance/UserManagement.db
+.idea
+code/instance/UserManagement.db
+/code/__pycache__
+*.pyc
