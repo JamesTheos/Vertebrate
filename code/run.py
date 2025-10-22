@@ -8,20 +8,24 @@ import sqlite3
 from confluent_kafka.admin import AdminClient
 
 
-#Always check if database exists, if not create it. No need to constantly check for database existence
-db_path = os.path.join(os.path.dirname(__file__), 'instance', 'UserManagement.db')
-if not os.path.exists(db_path):
-    print("Database does not exist. Creating a new one.")
-    subprocess.run([sys.executable, os.path.join(os.path.dirname(__file__), 'createDB.py')])
-conn = sqlite3.connect(db_path)
-cursor = conn.cursor()
-cursor.execute("SELECT * FROM metainfo")
-Metainfo = cursor.fetchall()
-if Metainfo and len(Metainfo[0]) > 0:
-    cluster_id_temp = Metainfo[0][0]
+# Always check if database exists for local SQLite only.
+# When DATABASE_URL is provided (e.g., in Docker), skip SQLite setup.
+if os.environ.get('DATABASE_URL') or os.environ.get('SQLALCHEMY_DATABASE_URI'):
+    cluster_id_temp = None  # Will be handled by the app/DB itself
 else:
-    cluster_id_temp = None
-conn.close()
+    db_path = os.path.join(os.path.dirname(__file__), 'instance', 'UserManagement.db')
+    if not os.path.exists(db_path):
+        print("Database does not exist. Creating a new one.")
+        subprocess.run([sys.executable, os.path.join(os.path.dirname(__file__), 'createDB.py')])
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM metainfo")
+    Metainfo = cursor.fetchall()
+    if Metainfo and len(Metainfo[0]) > 0:
+        cluster_id_temp = Metainfo[0][0]
+    else:
+        cluster_id_temp = None
+    conn.close()
 
 # Load config.json (fallback) and attempt to fetch Kafka cluster_id from broker
 config_path = os.path.join(os.path.dirname(__file__), 'config.json')
@@ -43,8 +47,9 @@ cluster_id = get_kafka_cluster_id(Kafkaserver) or config.get("clusterid")
 print("Cluster ID (active):", cluster_id)
 
 
-if cluster_id != cluster_id_temp:
-    print("Cluster ID has changed.")
+# Only perform SQLite reset logic when not using an external DB
+if not (os.environ.get('DATABASE_URL') or os.environ.get('SQLALCHEMY_DATABASE_URI')) and cluster_id != cluster_id_temp:
+    print("Cluster ID has changed (SQLite mode). Resetting local DB.")
     db_path = os.path.join(os.path.dirname(__file__), 'instance', 'UserManagement.db')
     if os.path.exists(db_path):
         os.remove(db_path)

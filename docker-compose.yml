@@ -26,14 +26,35 @@ services:
     logging:
       driver: "none"
 
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: vertebrate
+      POSTGRES_PASSWORD: vertebrate
+      POSTGRES_DB: vertebrate
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vertebrate"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
   vertebrate-app:
     build: .
     depends_on:
-      - kafka
+      kafka:
+        condition: service_started
+      db:
+        condition: service_healthy
     environment:
       KAFKASERVER: kafka:29092
       IN_DOCKER: "true"
+      DATABASE_URL: postgresql+psycopg2://vertebrate:vertebrate@db:5432/vertebrate
     ports:
       - "5001:5001"
     volumes:
       - ./code/instance:/app/code/instance
+
+volumes:
+  db_data:

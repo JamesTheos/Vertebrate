@@ -57,20 +57,25 @@ area = config['area']
 process_cell = config['process_cell']
 unit= config['unit'] 
 
-#Get clusterid saved in Database
-db_path = os.path.join(os.path.dirname(__file__), 'instance', 'UserManagement.db')
-if os.path.exists(db_path):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM metainfo")
-    Metainfo = cursor.fetchall()
-    if Metainfo and len(Metainfo[0]) > 0:
-        cluster_id_temp = Metainfo[0][0]
+# Get clusterid saved in Database
+_DB_URL_ENV = os.environ.get('DATABASE_URL') or os.environ.get('SQLALCHEMY_DATABASE_URI')
+if _DB_URL_ENV:
+    # When using external DB (e.g., Postgres in Docker), defer to runtime DB and default to current config
+    cluster_id_temp = clusterid
+else:
+    db_path = os.path.join(os.path.dirname(__file__), 'instance', 'UserManagement.db')
+    if os.path.exists(db_path):
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM metainfo")
+        Metainfo = cursor.fetchall()
+        if Metainfo and len(Metainfo[0]) > 0:
+            cluster_id_temp = Metainfo[0][0]
+        else:
+            cluster_id_temp = None
+        conn.close()
     else:
         cluster_id_temp = None
-    conn.close()
-else:
-    cluster_id_temp = None
 
 
 def is_kafka_available(bootstrap_servers):
@@ -207,11 +212,27 @@ def consume_messages():
 def create_app():
 # Create Flask application with custom static folder
     app = Flask(__name__)
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///UserManagement.db'  # Example URI, change as needed
+
+    # Determine database URL (prefer env for containerized DB)
+    db_url = os.environ.get('DATABASE_URL') or os.environ.get('SQLALCHEMY_DATABASE_URI')
+    if not db_url:
+        # Use SQLite file in code/instance as fallback for local development
+        instance_dir = os.path.join(os.path.dirname(__file__), 'instance')
+        os.makedirs(instance_dir, exist_ok=True)
+        db_file = os.path.join(instance_dir, 'UserManagement.db')
+        # SQLAlchemy SQLite URI must use forward slashes
+        db_url = 'sqlite:///' + db_file.replace('\\', '/')
+    app.config['SQLALCHEMY_DATABASE_URI'] = db_url
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
     app.secret_key = 'your_secret_key'  # Set a secret key for session management
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes = 10) #generalt time session
 
     db.init_app(app)
+
+    # Ensure tables exist (idempotent)
+    with app.app_context():
+        db.create_all()
 
     login_manager = LoginManager()
     login_manager.init_app(app)
