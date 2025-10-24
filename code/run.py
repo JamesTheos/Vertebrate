@@ -5,6 +5,7 @@ import sys
 import json
 import os
 import sqlite3
+from confluent_kafka import KafkaException
 from confluent_kafka.admin import AdminClient
 
 
@@ -39,8 +40,11 @@ def get_kafka_cluster_id(bootstrap_servers: str):
         md = admin.list_topics(timeout=5)
         # md.cluster_id is available in recent librdkafka; fallback if missing
         return getattr(md, 'cluster_id', None)
+    except KafkaException as e:
+        print(f"Warning: Could not fetch cluster ID from Kafka at '{bootstrap_servers}' (KafkaException): {e}")
+        return None
     except Exception as e:
-        print(f"Warning: Could not fetch cluster ID from Kafka at '{bootstrap_servers}': {e}")
+        print(f"Warning: Could not fetch cluster ID from Kafka at '{bootstrap_servers}' (Unexpected): {e}")
         return None
 
 cluster_id = get_kafka_cluster_id(Kafkaserver) or config.get("clusterid")
@@ -61,8 +65,10 @@ flask_app = create_app()
 if __name__ == "__main__":
     try:
         create_topics_if_not_exist(Kafkaserver, data_store.keys())
+    except KafkaException as e:
+        print(f"Warning: Could not connect to Kafka to create topics (KafkaException): {e}")
     except Exception as e:
-        print(f"Warning: Could not connect to Kafka to create topics: {e}")
+        print(f"Warning: Could not connect to Kafka to create topics (Unexpected): {e}")
 
     try:
         from app import consumer

@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request  # Import Flask and related modules for web server and request handling
 from confluent_kafka import KafkaError, Consumer, Producer ,OFFSET_BEGINNING  # Import Kafka modules for consuming messages
+from confluent_kafka import KafkaException
 from confluent_kafka.admin import AdminClient  # Import Kafka Admin module for managing Kafka topics
 import json  # Import JSON module for data serialization
 import logging  # Import logging module for logging
@@ -52,8 +53,13 @@ producer = Producer(kafka_produce_conf)
 
 
 def send_to_kafka(topic, value):
-    producer.produce(topic, key="FromWorkflowRelease", value=json.dumps(value).encode('utf-8'))
-    producer.flush()
+    try:
+        producer.produce(topic, key="FromWorkflowRelease", value=json.dumps(value).encode('utf-8'))
+        producer.flush()
+    except KafkaException as e:
+        logging.error(f"KafkaException while producing workflow event: {e}")
+    except Exception as e:
+        logging.error(f"Unexpected error while producing workflow event: {e}")
 
 
 
@@ -64,8 +70,11 @@ def get_all_topics(bootstrap_servers):
         cluster_metadata = admin_client.list_topics(timeout=10)
         topics = sorted([topic for topic in cluster_metadata.topics.keys() if topic != '__consumer_offsets'])
         return topics
+    except KafkaException as e:
+        print(f"Error retrieving topics (KafkaException): {e}")
+        return []
     except Exception as e:
-        print(f"Error retrieving topics: {e}")
+        print(f"Error retrieving topics (Unexpected): {e}")
         return []
 
 
@@ -211,6 +220,9 @@ def consume_workflows():
                     del released_workflows[workflow_name]
                     print(f"Manufacturing Order: Workflow {workflow_name} removed", flush=True)
 
+    except KafkaException as e:
+        print("KafkaException in consume_workflows:", e, flush=True)
+        pass
     except Exception as e:
         print("Exception in consume_workflows:", e, flush=True)  # Log any exceptions that occur
         pass

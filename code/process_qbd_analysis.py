@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, jsonify
 from confluent_kafka import KafkaError, Consumer, OFFSET_BEGINNING
+from confluent_kafka import KafkaException
 from datetime import datetime
 import json
 import logging
@@ -134,6 +135,9 @@ def orders_consumers_qbd():
             else:
                 print(f"QBD: Order status not actionable",order_number,order_status, flush=True)  
                                     
+    except KafkaException as e:
+        logging.error(f"KafkaException in orders_consumers_qbd: {e}")
+        pass
     except Exception as e:
         logging.error(f"Error in orders_consumers_qbd: {e}")
         pass

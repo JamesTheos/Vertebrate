@@ -103,6 +103,9 @@ def consume_messages():
                                         product = None
                                         print(f"\nNexus Order not running", order_data.get('orderNumber'))
 
+    except KafkaException as e:
+        print("KafkaException in PLC2Nexus:consume_messages:", e, flush=True)
+        pass
     except Exception as e:
         print("Exception in PLC2Nexus:consume_messages:", e, flush=True)
         pass

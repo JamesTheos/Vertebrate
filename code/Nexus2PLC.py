@@ -1,5 +1,6 @@
 from flask import Blueprint
 from confluent_kafka import Consumer    # Import the Kafka consumer class
+from confluent_kafka import KafkaException
 import threading
 import json
 from opcua import Client

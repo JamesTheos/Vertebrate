@@ -83,8 +83,12 @@ def is_kafka_available(bootstrap_servers):
         admin_client = AdminClient({'bootstrap.servers': bootstrap_servers})
         admin_client.list_topics(timeout=3)
         return True
+    except KafkaException as e:
+        print(f"Kafka not available (KafkaException): {e}")
+        return False
     except Exception as e:
-        print(f"Kafka not available: {e}")
+        # Fallback for any unexpected non-Kafka exceptions
+        print(f"Kafka not available (Unexpected): {e}")
         return False
 
 
@@ -122,8 +126,11 @@ def send_to_kafka(topic, value):
         try:
             producer.produce(topic, key="FromUX", value=json.dumps(value).encode('utf-8'))
             producer.flush()
+        except KafkaException as e:
+            print(f"Kafka error (KafkaException): {e}")
         except Exception as e:
-            print(f"Kafka error: {e}")
+            # Fallback for non-Kafka related exceptions
+            print(f"Kafka error (Unexpected): {e}")
     else:
         print(f"Kafka producer unavailable, message for topic '{topic}' not sent: {value}")
 
@@ -156,8 +163,10 @@ def create_topics_if_not_exist(bootstrap_servers, topics):
             try:
                 future.result()  
                 print(f"Topic '{topic}' created.")
+            except KafkaException as e:
+                print(f"Error when creating Topic (KafkaException): '{topic}': {e}")
             except Exception as e:
-                print(f"Error when creating Topic: '{topic}': {e}")
+                print(f"Error when creating Topic (Unexpected): '{topic}': {e}")
     else:
         print("All topics registered.")
 
@@ -204,6 +213,9 @@ def consume_messages():
                 else:
                     data_store[topic].append(data)
             #print(f"New data for {topic}: {data['value']} at {timestamp}", flush=True)  # Debugging log
+        except KafkaException as e:
+            print("KafkaException in APP:Consume_Messages:", e, flush=True)
+            pass
         except Exception as e:
             print("Exception in APP:Consume_Messages:", e, flush=True)
             pass

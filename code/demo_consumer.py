@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request  
 from confluent_kafka import KafkaError, Consumer, Producer, OFFSET_BEGINNING  
+from confluent_kafka import KafkaException
 import json  
 import logging  
 import threading  
@@ -103,6 +104,9 @@ def consume_temp_data_chatbot():
                 # Optional: Print extracted values
                 print(f"Received Order: {order_number}, Value: {value}, timestamp: {timestamp}, Producertime: {Producertime}", flush=True)
 
+    except KafkaException as e:
+        print("KafkaException in Demo_consumer:consume_temp_data_chatbot:", e, flush=True)
+        pass
     except Exception as e:
         print("Exception in Demo_consumer:consume_temp_data_chatbot:", e, flush=True)
         pass
@@ -149,6 +153,9 @@ def consume_man_orders():
                 print(f"max number for each product name",{product_name},{order_number_dict[product_name]}, flush =True)
                 
                 
+    except KafkaException as e:
+        print("KafkaException in Demo_consumer:consume_man_orders:", e, flush=True)
+        pass
     except Exception as e:
         print("Exception in Demo_consumer:consume_man_orders:", e, flush=True)
         pass
