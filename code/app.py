@@ -41,28 +41,41 @@ config_path = os.path.join(os.path.dirname(__file__), 'config.json')
 with open(config_path) as config_file:
         config = json.load(config_file)
     
-Kafkaserver= config['Kafkaserver']
-clusterid= config['clusterid']
+# Determine Kafka bootstrap servers from env or config
+Kafkaserver = os.environ.get('KAFKASERVER', config.get('Kafkaserver', 'localhost:9092'))
+# When running inside Docker, we want to keep Docker-internal hostnames like 'kafka:29092'.
+# Allow overriding this behavior on the host by not setting IN_DOCKER.
+IN_DOCKER = os.environ.get('IN_DOCKER', '').lower() in ['1', 'true', 'yes']
+if isinstance(Kafkaserver, str) and Kafkaserver.startswith('kafka:') and not IN_DOCKER:
+    print(f"Warning: KAFKASERVER='{Kafkaserver}' is a Docker-internal hostname. Using host address from config instead.")
+    Kafkaserver = config.get('Kafkaserver', 'localhost:9092')
+
+clusterid = os.environ.get('CLUSTERID', config.get('clusterid'))
 enterprise = config['enterprise']
 site = config['site']
 area = config['area']
 process_cell = config['process_cell']
 unit= config['unit'] 
 
-#Get clusterid saved in Database
-db_path = 'C:/Users/User/Documents/GitHub/Vertebrate/code/instance/UserManagement.db'
-if os.path.exists(db_path):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM metainfo")
-    Metainfo = cursor.fetchall()
-    if Metainfo and len(Metainfo[0]) > 0:
-        cluster_id_temp = Metainfo[0][0]
+# Get clusterid saved in Database
+_DB_URL_ENV = os.environ.get('DATABASE_URL') or os.environ.get('SQLALCHEMY_DATABASE_URI')
+if _DB_URL_ENV:
+    # When using external DB (e.g., Postgres in Docker), defer to runtime DB and default to current config
+    cluster_id_temp = clusterid
+else:
+    db_path = os.path.join(os.path.dirname(__file__), 'instance', 'UserManagement.db')
+    if os.path.exists(db_path):
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM metainfo")
+        Metainfo = cursor.fetchall()
+        if Metainfo and len(Metainfo[0]) > 0:
+            cluster_id_temp = Metainfo[0][0]
+        else:
+            cluster_id_temp = None
+        conn.close()
     else:
         cluster_id_temp = None
-    conn.close()
-else:
-    cluster_id_temp = None
 
 
 def is_kafka_available(bootstrap_servers):
@@ -70,8 +83,12 @@ def is_kafka_available(bootstrap_servers):
         admin_client = AdminClient({'bootstrap.servers': bootstrap_servers})
         admin_client.list_topics(timeout=3)
         return True
+    except KafkaException as e:
+        print(f"Kafka not available (KafkaException): {e}")
+        return False
     except Exception as e:
-        print(f"Kafka not available: {e}")
+        # Fallback for any unexpected non-Kafka exceptions
+        print(f"Kafka not available (Unexpected): {e}")
         return False
 
 
@@ -109,8 +126,11 @@ def send_to_kafka(topic, value):
         try:
             producer.produce(topic, key="FromUX", value=json.dumps(value).encode('utf-8'))
             producer.flush()
+        except KafkaException as e:
+            print(f"Kafka error (KafkaException): {e}")
         except Exception as e:
-            print(f"Kafka error: {e}")
+            # Fallback for non-Kafka related exceptions
+            print(f"Kafka error (Unexpected): {e}")
     else:
         print(f"Kafka producer unavailable, message for topic '{topic}' not sent: {value}")
 
@@ -143,8 +163,10 @@ def create_topics_if_not_exist(bootstrap_servers, topics):
             try:
                 future.result()  
                 print(f"Topic '{topic}' created.")
+            except KafkaException as e:
+                print(f"Error when creating Topic (KafkaException): '{topic}': {e}")
             except Exception as e:
-                print(f"Error when creating Topic: '{topic}': {e}")
+                print(f"Error when creating Topic (Unexpected): '{topic}': {e}")
     else:
         print("All topics registered.")
 
@@ -191,6 +213,9 @@ def consume_messages():
                 else:
                     data_store[topic].append(data)
             #print(f"New data for {topic}: {data['value']} at {timestamp}", flush=True)  # Debugging log
+        except KafkaException as e:
+            print("KafkaException in APP:Consume_Messages:", e, flush=True)
+            pass
         except Exception as e:
             print("Exception in APP:Consume_Messages:", e, flush=True)
             pass
@@ -199,11 +224,27 @@ def consume_messages():
 def create_app():
 # Create Flask application with custom static folder
     app = Flask(__name__)
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///UserManagement.db'  # Example URI, change as needed
+
+    # Determine database URL (prefer env for containerized DB)
+    db_url = os.environ.get('DATABASE_URL') or os.environ.get('SQLALCHEMY_DATABASE_URI')
+    if not db_url:
+        # Use SQLite file in code/instance as fallback for local development
+        instance_dir = os.path.join(os.path.dirname(__file__), 'instance')
+        os.makedirs(instance_dir, exist_ok=True)
+        db_file = os.path.join(instance_dir, 'UserManagement.db')
+        # SQLAlchemy SQLite URI must use forward slashes
+        db_url = 'sqlite:///' + db_file.replace('\\', '/')
+    app.config['SQLALCHEMY_DATABASE_URI'] = db_url
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
     app.secret_key = 'your_secret_key'  # Set a secret key for session management
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes = 10) #generalt time session
 
     db.init_app(app)
+
+    # Ensure tables exist (idempotent)
+    with app.app_context():
+        db.create_all()
 
     login_manager = LoginManager()
     login_manager.init_app(app)
@@ -258,17 +299,17 @@ def create_app():
     #login-error route
     @app.route('/login-error')
     def Login_error():
-        return render_template('Login-error.html')
+        return render_template('login-error.html')
     
     #logout-message route
     @app.route('/logout-message')
     def Logout_message():
-        return render_template('Logout-message.html')
+        return render_template('logout-message.html')
     
     #Updated User Info route
     @app.route('/updated-user')
     def updated_user():
-        return render_template('Updated-User.html')
+        return render_template('updated-User.html')
     
     @app.errorhandler(403)
     def forbidden(e):

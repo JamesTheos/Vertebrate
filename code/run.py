@@ -5,81 +5,71 @@ import sys
 import json
 import os
 import sqlite3
+from confluent_kafka import KafkaException
+from confluent_kafka.admin import AdminClient
 
 
-#Always check if database exists, if not create it. No need to constantly check for database existence
-db_path = os.path.join(os.path.dirname(__file__), 'instance', 'UserManagement.db')
-if not os.path.exists(db_path):
-    print("Database does not exist. Creating a new one.")
-    subprocess.run([sys.executable, os.path.join(os.path.dirname(__file__), 'createDB.py')])
-conn = sqlite3.connect('C:/Users/User/Documents/GitHub/Vertebrate/code/instance/UserManagement.db')
-cursor = conn.cursor()
-cursor.execute("SELECT * FROM metainfo")
-Metainfo = cursor.fetchall()
-if Metainfo and len(Metainfo[0]) > 0:
-    cluster_id_temp = Metainfo[0][0]
+# Always check if database exists for local SQLite only.
+# When DATABASE_URL is provided (e.g., in Docker), skip SQLite setup.
+if os.environ.get('DATABASE_URL') or os.environ.get('SQLALCHEMY_DATABASE_URI'):
+    cluster_id_temp = None  # Will be handled by the app/DB itself
 else:
-    cluster_id_temp = None
-conn.close()
+    db_path = os.path.join(os.path.dirname(__file__), 'instance', 'UserManagement.db')
+    if not os.path.exists(db_path):
+        print("Database does not exist. Creating a new one.")
+        subprocess.run([sys.executable, os.path.join(os.path.dirname(__file__), 'createDB.py')])
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM metainfo")
+    Metainfo = cursor.fetchall()
+    if Metainfo and len(Metainfo[0]) > 0:
+        cluster_id_temp = Metainfo[0][0]
+    else:
+        cluster_id_temp = None
+    conn.close()
 
-# Load config.json to fetch current active cluster_id
+# Load config.json (fallback) and attempt to fetch Kafka cluster_id from broker
 config_path = os.path.join(os.path.dirname(__file__), 'config.json')
 with open(config_path, 'r') as f:
     config = json.load(f)
 
-cluster_id = config.get("clusterid")
-print("Cluster ID:", cluster_id)
+# Try to get cluster ID directly from Kafka (container)
+def get_kafka_cluster_id(bootstrap_servers: str):
+    try:
+        admin = AdminClient({'bootstrap.servers': bootstrap_servers})
+        md = admin.list_topics(timeout=5)
+        # md.cluster_id is available in recent librdkafka; fallback if missing
+        return getattr(md, 'cluster_id', None)
+    except KafkaException as e:
+        print(f"Warning: Could not fetch cluster ID from Kafka at '{bootstrap_servers}' (KafkaException): {e}")
+        return None
+    except Exception as e:
+        print(f"Warning: Could not fetch cluster ID from Kafka at '{bootstrap_servers}' (Unexpected): {e}")
+        return None
 
-#check if cluster_id has changed
-if cluster_id != cluster_id_temp:
-    print("Cluster ID has changed.")
+cluster_id = get_kafka_cluster_id(Kafkaserver) or config.get("clusterid")
+print("Cluster ID (active):", cluster_id)
+
+
+# Only perform SQLite reset logic when not using an external DB
+if not (os.environ.get('DATABASE_URL') or os.environ.get('SQLALCHEMY_DATABASE_URI')) and cluster_id != cluster_id_temp:
+    print("Cluster ID has changed (SQLite mode). Resetting local DB.")
     db_path = os.path.join(os.path.dirname(__file__), 'instance', 'UserManagement.db')
     if os.path.exists(db_path):
         os.remove(db_path)
-    # Run createDB.py to recreate the database
     subprocess.run([sys.executable, os.path.join(os.path.dirname(__file__), 'createDB.py')])
-#Database has been reset after cluster_id change
+
 flask_app = create_app()
-# if cluster_id == cluster_id_temp:
-#     print("Cluster ID has not changed.")
-#     print("Checking for updates in subscriptions...")
-#     # Update the subscriptions table based on subscribed_list and not_subscribed_list
-#     with flask_app.app_context():
-#         subscribed_only = set(subscribed_list) - set(not_subscribed_list)
-#         not_subscribed_only = set(not_subscribed_list) - set(subscribed_list)
 
-#         for app_name in subscribed_only:
-#             sub = Subscriptions.query.filter_by(apps=app_name).first()
-#             if sub:
-#                 if not sub.subscribed:
-#                     print(f"Updating {app_name} to subscribed=True")
-#                     sub.subscribed = True
-#             else:
-#                 print(f"Adding new subscription: {app_name} subscribed=True")
-#                 sub = Subscriptions(apps=app_name, subscribed=True)
-#                 db.session.add(sub)
-
-#         for app_name in not_subscribed_only:
-#             sub = Subscriptions.query.filter_by(apps=app_name).first()
-#             if sub:
-#                 if sub.subscribed:
-#                     print(f"Updating {app_name} to subscribed=False")
-#                     sub.subscribed = False
-#             else:
-#                 print(f"Adding new subscription: {app_name} subscribed=False")
-#                 sub = Subscriptions(apps=app_name, subscribed=False)
-#                 db.session.add(sub)
-
-#         db.session.commit()
-    # No need to recreate the database, it remains intact
 
 if __name__ == "__main__":
     try:
         create_topics_if_not_exist(Kafkaserver, data_store.keys())
+    except KafkaException as e:
+        print(f"Warning: Could not connect to Kafka to create topics (KafkaException): {e}")
     except Exception as e:
-        print(f"Warning: Could not connect to Kafka to create topics: {e}")
+        print(f"Warning: Could not connect to Kafka to create topics (Unexpected): {e}")
 
-    # Define or import 'consumer' here
     try:
         from app import consumer
     except ImportError:
@@ -90,4 +80,4 @@ if __name__ == "__main__":
         threading.Thread(target=consume_messages, daemon=True).start()
     else:
         print("Not starting consume_messages thread because Kafka is unavailable.")
-    flask_app.run(debug=True, use_reloader=False, port=5001)
+    flask_app.run(debug=True, use_reloader=False, host="0.0.0.0", port=5001)

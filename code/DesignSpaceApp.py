@@ -41,7 +41,7 @@ try:
     )
 except NoBrokersAvailable:
     print("Kafka broker not available. Please check your configuration and broker status.")
-    producer = None
+    consumer = None
 
 
 # Initialize storage for sets

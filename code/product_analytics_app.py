@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify  # Import Flask and related modules for web server and request handling
 from confluent_kafka import KafkaError, Consumer, OFFSET_BEGINNING  # Import Kafka modules for consuming messages
+from confluent_kafka import KafkaException
 import json  # Import JSON module for data serialization
 import logging  # Import logging module for logging
 import threading  # Import threading module for running background tasks
@@ -154,6 +155,9 @@ def consume_orders():
                         ord['status'] = order['status']
                         ord['timestamp'] = order['timestamp']
                 #print(f"Prodcut Analytics:\n\nOrders in Consume Orders: {orders}\n\n", flush=True)  # Print message to indicate orders list
+    except KafkaException as e:
+        print("KafkaException in PAA:consume_orders:", e, flush=True)
+        pass
     except Exception as e:
         print("Exception in PAA:consume_orders:", e, flush=True)
         pass
@@ -198,6 +202,9 @@ def consume_temp():
                                 order['data'] = []  # Initialize data list if not already present
                             order['data'].append({'time': temp_data['timestamp'], 'value': temp_data['value']})  # Add the temperature data to the order
                             #print(f"Prodcut Analytics:Updated order data: {order['data']}", flush=True)
+    except KafkaException as e:
+        print("KafkaException in PAA:consume_temp", e, flush=True)
+        pass
     except Exception as e:
         print("Exception in PAA:consume_temp", e, flush=True)
         pass

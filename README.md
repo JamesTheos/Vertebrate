@@ -29,6 +29,21 @@ Industrial Data Centric Tech Stack
 
 # Running the Program
 
+Option A: Docker Compose (recommended)
+- Prerequisites: Install Docker Desktop.
+- From the project root, run:
+  - docker compose up --build
+- Services started:
+  - Zookeeper (internal)
+  - Kafka (exposes 9092 for host, 29092 for internal broker-to-broker and containers)
+  - Vertebrate Flask app (exposes http://localhost:5001)
+- Data persistence:
+  - The SQLite database file is stored in code/instance/UserManagement.db and is bind-mounted into the container. Your data persists across container restarts.
+- Stop stack:
+  - docker compose down
+
+Option B: Manual (legacy)
+
 --------------Kafka - Terminal --------------
 C:\10_Projects\Kafka\kafka
 - .\bin\windows\zookeeper-server-start.bat .\config\zookeeper.properties
@@ -48,6 +63,6 @@ Run the Docker for the Kafka UI
 --------------Kafka producer and consumer - VScode --------------
 - Run the producer PLCtoKafka python app
 - Run the consumer App.py app 
-- open trending at http://localhost:5000/
+- open trending at http://localhost:5001/
  
  
