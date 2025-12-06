@@ -4,7 +4,7 @@ from opcua.common.subscription import Subscription
 from confluent_kafka import Producer, Consumer, KafkaException, OFFSET_BEGINNING
 import json
 #import time
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 
 # Load the configuration for the ISA95 model

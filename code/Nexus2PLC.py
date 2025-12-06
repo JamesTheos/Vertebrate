@@ -5,6 +5,7 @@ import json
 from opcua import Client
 #from datetime import datetime
 import os
+import time
 
 
 # Load the configuration for the ISA95 model
@@ -97,3 +98,10 @@ def consume_messages():
 
 # Start the consumer thread
 threading.Thread(target=consume_messages, daemon=True).start()
+
+# NEU: Haupt-Thread am Leben halten
+try:
+    while True:
+        time.sleep(1)
+except KeyboardInterrupt:
+    print("Beende Skript...")
