@@ -1,11 +1,63 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 
+#Main operational database
 db = SQLAlchemy()
+
+#audit DB
+audit_db = SQLAlchemy()
+
 # Define metainfo
+
 class MetaInfo(db.Model):
     __tablename__ = 'metainfo'
     id = db.Column(db.String, primary_key=True)
+
+#Define Audit Logs in AuditDB
+
+class AuditLog(audit_db.Model):
+    __tablename__ = 'audit_logs'
+    __bind_key__ = 'audit' 
+    
+    # Primary identification
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    
+    # Timestamp (server-generated, immutable)
+    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    
+    # WHO - User identification
+    user_id = db.Column(db.Integer, db.ForeignKey('users.uid'), nullable=False)
+    username = db.Column(db.String, nullable=False)  # Denormalized for immutability
+    
+    # WHAT - Action details
+    action_type = db.Column(db.String, nullable=False)  # CREATE, UPDATE, DELETE, LOGIN, LOGOUT
+    record_type = db.Column(db.String, nullable=False)  # USER, ROLE, PROCESS_PARAMETER, PLC_CONFIG, etc.
+    record_id = db.Column(db.String, nullable=True)     # ID of affected record
+    
+    # Change tracking
+    field_name = db.Column(db.String, nullable=True)    # Specific field changed
+    old_value = db.Column(db.Text, nullable=True)       # Previous value
+    new_value = db.Column(db.Text, nullable=True)       # New value
+    
+    # WHY - Reason for change (21 CFR Part 11 requirement)
+    change_reason = db.Column(db.Text, nullable=True)
+    
+    # Additional context
+    ip_address = db.Column(db.String, nullable=True)
+    session_id = db.Column(db.String, nullable=True)
+    request_method = db.Column(db.String, nullable=True)  # POST, PUT, DELETE
+    endpoint = db.Column(db.String, nullable=True)        # Flask route
+    
+    # Integrity protection
+    checksum = db.Column(db.String, nullable=True)  # SHA-256 hash of record
+    
+    # Prevent modifications
+    def __setattr__(self, name, value):
+        if hasattr(self, 'id') and self.id is not None:
+            raise AttributeError("Audit logs are immutable")
+        super().__setattr__(name, value)
+
+
 
 #Define user class
 
