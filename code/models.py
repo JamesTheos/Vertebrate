@@ -1,11 +1,41 @@
+from datetime import datetime, timezone
+
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 
 db = SQLAlchemy()
+audit_db = SQLAlchemy()
+
 # Define metainfo
 class MetaInfo(db.Model):
     __tablename__ = 'metainfo'
     id = db.Column(db.String, primary_key=True)
+
+
+# Define Audit Model
+
+class AuditLog(db.Model):
+    __tablename__ = 'audit_logs'
+    __table_args__ = {'schema': 'audit_trail'}
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    timestamp = db.Column(db.DateTime(timezone=True), nullable=False,
+                          default=lambda: datetime.now(timezone.utc))
+    user_id = db.Column(db.Integer, nullable=False)
+    username = db.Column(db.String(255), nullable=False)
+    action_type = db.Column(db.String(50), nullable=False)
+    record_type = db.Column(db.String(100), nullable=False)
+    record_id = db.Column(db.String(100), nullable=True)
+    field_name = db.Column(db.String(255), nullable=True)
+    old_value = db.Column(db.Text, nullable=True)
+    new_value = db.Column(db.Text, nullable=True)
+    change_reason = db.Column(db.Text, nullable=True)
+    ip_address = db.Column(db.String(45), nullable=True)
+    session_id = db.Column(db.String(255), nullable=True)
+    request_method = db.Column(db.String(10), nullable=True)
+    endpoint = db.Column(db.String(255), nullable=True)
+    checksum = db.Column(db.String(64), nullable=True)
+
 
 #Define user class
 

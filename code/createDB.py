@@ -3,7 +3,7 @@ from models import Subscriptions, User, MetaInfo, Role, RolePermission, Permissi
 import os
 import json
 from werkzeug.security import generate_password_hash
-
+from sqlalchemy import text
 
 # Config laden
 config_path = os.path.join(os.path.dirname(__file__), 'config.json')
@@ -20,6 +20,14 @@ app = create_app()
 with app.app_context():
     # Tabellen anlegen
     db.create_all()
+
+    # Create separate schema for audit logs
+    db.session.execute(text('CREATE SCHEMA IF NOT EXISTS audit_trail'))
+    db.session.commit()
+
+    # Create audit tables
+    db.create_all()
+    print("Audit trail schema and tables created")
 
     # Cluster ID in MetaInfo speichern, falls nicht vorhanden
     if not MetaInfo.query.filter_by(id=cluster_id).first():
