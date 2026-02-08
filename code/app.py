@@ -242,8 +242,19 @@ def create_app():
 
     db.init_app(app)
 
+
     # Ensure tables exist (idempotent)
     with app.app_context():
+        # Create audit_trail schema if it doesn't exist (for 21 CFR Part 11 compliance)
+        from sqlalchemy import text
+        try:
+            db.session.execute(text('CREATE SCHEMA IF NOT EXISTS audit_trail'))
+            db.session.commit()
+        except Exception as e:
+            print(f"Note: Could not create audit_trail schema (may already exist): {e}")
+            db.session.rollback()
+
+        # Now create all tables
         db.create_all()
 
     login_manager = LoginManager()
