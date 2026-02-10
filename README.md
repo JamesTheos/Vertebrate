@@ -66,3 +66,23 @@ Run the Docker for the Kafka UI
 - open trending at http://localhost:5001/
  
  
+
+
+# Testing
+
+This project includes a comprehensive test suite for both application functionality and 21 CFR Part 11 audit trail compliance.
+
+## Running Tests in Docker (Recommended)
+
+### Prerequisites
+- Docker Desktop running
+- Containers started: `docker compose up -d`
+
+### Audit Trail Tests
+```bash
+# Run all audit trail compliance tests (Tests 1-5)
+docker compose exec vertebrate-app python /app/code/tests/run_all_tests.py
+
+# Run individual test suites
+docker compose exec vertebrate-app python /app/code/tests/test_audit_setup.py
+docker compose exec vertebrate-app python /app/code/tests/test_audit_connection.py
