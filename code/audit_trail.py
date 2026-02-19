@@ -3,12 +3,12 @@ Core audit trail logging functions for 21 CFR Part 11 compliance
 Provides functions to create audit log entries with all required fields
 """
 
+
 from models import db, AuditLog
 from datetime import datetime, timezone
 import hashlib
 import json
 from flask import request, session, has_request_context
-from flask_login import current_user
 from audit_config import (
     AUDIT_ENABLED,
     EXCLUDE_FIELDS,
@@ -53,8 +53,16 @@ def log_audit(action_type, record_type, record_id=None, **kwargs):
     _validate_change_reason(action_type, record_type, kwargs.get('field_name'), kwargs.get('change_reason'))
 
     # Get user context
-    user_id = current_user.uid if current_user.is_authenticated else None
-    username = current_user.username if current_user.is_authenticated else 'SYSTEM'
+    from flask_login import current_user
+
+    try:
+        from flask_login import current_user
+        user_id = current_user.uid if current_user and current_user.is_authenticated else None
+        username = current_user.username if current_user and current_user.is_authenticated else 'SYSTEM'
+    except (AttributeError, RuntimeError):
+        # Outside request context or current_user not available
+        user_id = None
+        username = 'SYSTEM'
 
     # Get request context (if available)
     ip_address = kwargs.get('ip_address')
