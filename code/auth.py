@@ -5,6 +5,7 @@ from models import User
 from models import db
 from flask_login import login_user, logout_user, current_user
 from models import Role
+from audit_trail import log_audit, log_field_change
 
 auth = Blueprint('auth', __name__) 
 
@@ -46,6 +47,14 @@ def register_user():
     db.session.add(new_user)
     db.session.commit()
 
+    # Audit: log new user creation after successful commit
+    log_audit(
+        action_type='CREATE',
+        record_type='USER',
+        record_id=str(new_user.id),
+        change_reason='New user registration'
+    )
+
     print("User registered successfully")
     return "User registered successfully", 201
 
@@ -59,16 +68,39 @@ def loginUser():
 
     if user and check_password_hash(user.password, password) and not current_user.is_authenticated:
         print("Login successful")
-        login_user(user)        
+        login_user(user)
+        # Audit: log successful login after login_user() so current_user is set
+        log_audit(
+            action_type='LOGIN',
+            record_type='USER',
+            record_id=str(user.id),
+            change_reason='Successful login'
+        )
         # Return a JSON response with the redirect URL
         return jsonify({'redirect': url_for('index')})
 
     else:
         print("Login failed")
+        # Audit: log failed attempt; record_id is user.id if account exists, else None
+        log_audit(
+            action_type='LOGIN_FAILED',
+            record_type='USER',
+            record_id=str(user.id) if user else None,
+            change_reason='Invalid credentials'
+        )
         return jsonify({'redirect': url_for('Login_error')})
+
 
 @auth.route('/logoutUser', methods=['POST'])
 def logoutUser():
+    # Audit: capture user id BEFORE logout_user() clears current_user
+    user_id = str(current_user.id) if current_user.is_authenticated else None
+    log_audit(
+        action_type='LOGOUT',
+        record_type='USER',
+        record_id=user_id,
+        change_reason='User logout'
+    )
     logout_user()
     session.permanent = False
     print("User logged out")
@@ -91,6 +123,11 @@ def update_user():
 
     print(f"Updating user: {current_user.username}")
 
+    # Capture old values BEFORE any mutations so audit records are accurate
+    user_id = str(current_user.id)
+    old_username = current_user.username
+    old_role_names = [r.name for r in current_user.roles] if new_role_ids is not None else None
+
     # Username aktualisieren
     if new_username:
         current_user.username = new_username
@@ -112,5 +149,43 @@ def update_user():
         current_user.roles = roles
 
     db.session.commit()
+
+    # Audit: log username change
+    if new_username:
+        log_field_change(
+            action_type='UPDATE',
+            record_type='USER',
+            record_id=user_id,
+            field_name='username',
+            old_value=old_username,
+            new_value=new_username,
+            change_reason='Username updated'
+        )
+
+    # Audit: log password change — _sanitize_value() auto-redacts to [REDACTED]
+    if new_password:
+        log_field_change(
+            action_type='UPDATE',
+            record_type='USER',
+            record_id=user_id,
+            field_name='password',
+            old_value='old_password_value',
+            new_value='new_password_value',
+            change_reason='User password change'
+        )
+
+    # Audit: log role changes
+    if new_role_ids is not None:
+        new_role_names = [r.name for r in roles]
+        log_field_change(
+            action_type='UPDATE',
+            record_type='USER',
+            record_id=user_id,
+            field_name='role',
+            old_value=str(old_role_names),
+            new_value=str(new_role_names),
+            change_reason='Role updated by admin'
+        )
+
     print("User updated successfully")
     return jsonify({'redirect': url_for('updated_user')})
