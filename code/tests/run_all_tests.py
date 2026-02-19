@@ -4,6 +4,9 @@ Runs all tests in sequence
 """
 
 import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from test_audit_setup import run_all_setup_tests
 from test_audit_connection import test_audit_write
 

@@ -3,6 +3,9 @@ Test suite for 21 CFR Part 11 audit trail database setup
 Tests 1-4: Schema and table verification
 """
 
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app import create_app, db
 from sqlalchemy import text, inspect
 from models import AuditLog
