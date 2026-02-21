@@ -1,0 +1,13 @@
+{
+    "workflowName": "test_workflow",
+    "options": [
+        {
+            "step": 1,
+            "label": "Start",
+            "actions": [
+                {"action": "release", "external": false},
+                {"action": "abort", "external": false}
+            ]
+        }
+    ]
+}
