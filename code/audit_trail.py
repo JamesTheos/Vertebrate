@@ -57,10 +57,13 @@ def log_audit(action_type, record_type, record_id=None, **kwargs):
 
     try:
         from flask_login import current_user
-        user_id = current_user.uid if current_user and current_user.is_authenticated else None
-        username = current_user.username if current_user and current_user.is_authenticated else 'SYSTEM'
+        if current_user and current_user.is_authenticated:
+            user_id = current_user.uid
+            username = current_user.username
+        else:
+            user_id = None
+            username = 'SYSTEM'
     except (AttributeError, RuntimeError):
-        # Outside request context or current_user not available
         user_id = None
         username = 'SYSTEM'
 
