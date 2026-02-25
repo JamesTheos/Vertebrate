@@ -1,41 +1,61 @@
-from code.models import User, Role, Permission, Subscriptions, db
+import sys
+import os
+import time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from models import User, Role, Permission, Subscriptions, RolePermission
 
 
 def test_user_role_permission_crud(db):
+    ts = int(time.time())
+    role_name = f'test_creator_{ts}'
+    perm_key = f'test-perm-{ts}'
+    username = f'test_alice_{ts}'
+
     # Create role and permission
-    role = Role(name='creator')
-    perm = Permission(key='user-management')
+    role = Role(name=role_name)
+    perm = Permission(key=perm_key)
     db.session.add_all([role, perm])
     db.session.commit()
 
-    # Assign permission to role using relationship
     role.permissions.append(perm)
     db.session.commit()
 
-    # Verify association
-    r = Role.query.filter_by(name='creator').first()
+    r = Role.query.filter_by(name=role_name).first()
     assert r is not None
-    assert any(p.key == 'user-management' for p in r.permissions)
+    assert any(p.key == perm_key for p in r.permissions)
 
-    # Create user with role
-    user = User(username='alice', password='hash')
+    user = User(username=username, password='hash')
     user.roles.append(role)
     db.session.add(user)
     db.session.commit()
 
-    u = User.query.filter_by(username='alice').first()
+    u = User.query.filter_by(username=username).first()
     assert u is not None
-    # property id returns uid
     assert isinstance(u.id, int)
-    assert any(ro.name == 'creator' for ro in u.roles)
+    assert any(ro.name == role_name for ro in u.roles)
+
+    # Cleanup
+    u.roles.clear()
+    db.session.commit()
+    db.session.delete(u)
+    RolePermission.query.filter_by(role_id=r.id).delete()
+    db.session.delete(perm)
+    db.session.delete(r)
+    db.session.commit()
 
 
 def test_subscriptions_default_false(db):
-    # By default subscribed should be False
-    s = Subscriptions(apps='order-management')
+    ts = int(time.time())
+    app_name = f'test-app-{ts}'
+
+    s = Subscriptions(apps=app_name)
     db.session.add(s)
     db.session.commit()
 
-    got = Subscriptions.query.get('order-management')
+    got = db.session.get(Subscriptions, app_name)
     assert got is not None
     assert got.subscribed is False
+
+    # Cleanup
+    db.session.delete(got)
+    db.session.commit()
