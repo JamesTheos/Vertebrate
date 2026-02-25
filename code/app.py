@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from product_analytics_app import product_analytics_app
 from DesignSpaceApp import design_space_app  # Import the blueprint from the DesignSpaceApp module
 from process_qbd_analysis import process_qbd_analysis  # Import the process QbD analysis blueprint
-from consumeWorkflows import consumeWorkflows, get_all_workflows
+from consumeWorkflows import consumeWorkflows, get_all_workflows_route as get_all_workflows
 from colorsettings import colorsettings
 from demo_consumer import tempConsumerChatbot
 from auth import auth
@@ -20,6 +20,7 @@ from models import db, User, Role, RolePermission, Permission, Subscriptions
 from functools import wraps
 from timeout import register_timeout_hook
 from subscriptions import check_subscription,subscriptions
+from audit_trail import log_audit, log_field_change
 from utils import permission_required
 
 # User-defined Roles
@@ -373,26 +374,31 @@ def create_app():
             with open(workflow_path) as workflow_file:
                 workflow_data = json.load(workflow_file)
 
-            
             order_found = False
             for order in data_store['manufacturing_orders']:
                 if order['orderNumber'] == order_id:
                     order_found = True
+                    old_status = order.get('status', 'Unknown')
                     if action == 'release':
                         order['status'] = 'Released'
                     elif action == 'abort':
                         order['status'] = 'Aborted'
-
-                        # Reset all values to null for all external topics
                         for step in workflow_data['options']:
-                            for action in step.get('actions', []):
-                                if action.get('external'):
-                                    topic = action.get('topic')
+                            for step_action in step.get('actions', []):
+                                if step_action.get('external'):
+                                    topic = step_action.get('topic')
                                     send_to_kafka(topic, {'value': False, **order})
                     else:
                         return jsonify({'error': 'Invalid action'}), 400
                     send_to_kafka('manufacturing_orders', order)
+                    log_field_change(
+                        action_type='UPDATE', record_type='ORDER',
+                        record_id=order_id, field_name='status',
+                        old_value=old_status, new_value=order['status'],
+                        change_reason=f'Order {action}d by user'
+                    )
                     break
+
             if not order_found:
                 return jsonify({'error': 'Order not found'}), 404
             return jsonify({'status': 'Action Completed'}), 200
@@ -403,6 +409,7 @@ def create_app():
         data = data_store.get(topic, [])
         #print(f"Serving data for {topic}: {data}", flush=True)  # Debugging log
         return jsonify(data)
+
 
     @app.route('/submit-order', methods=['POST'])
     def submit_order():
@@ -417,22 +424,21 @@ def create_app():
             return jsonify({'error': 'Missing data'}), 400
 
         message = {
-            'Enterprise': enterprise,
-            'Site': site,
-            'Area': area,
-            'Process Cell': process_cell,
-            'Unit': unit,
-            'orderNumber': order_number,
-            'product': product,
-            'lotNumber': lot_number,
-            'workflow': workflow,
-            'timestamp': datetime.now().isoformat(),
-            'status': 'Created'
+            'Enterprise': enterprise, 'Site': site, 'Area': area,
+            'Process Cell': process_cell, 'Unit': unit,
+            'orderNumber': order_number, 'product': product,
+            'lotNumber': lot_number, 'workflow': workflow,
+            'timestamp': datetime.now().isoformat(), 'status': 'Created'
         }
         print(f"Order Submitted: {message}")
         send_to_kafka('manufacturing_orders', message)
 
+        log_audit(
+            action_type='CREATE', record_type='ORDER', record_id=order_number,
+            change_reason=f'Manufacturing order created for product {product}, lot {lot_number}'
+        )
         return jsonify({'status': 'Order submitted successfully'})
+
 
     @app.route('/orders')
     @permission_required('order-management')
@@ -732,24 +738,33 @@ def create_app():
     def save_plant_config():
         new_config = request.json
         config_path = os.path.join(os.path.dirname(__file__), 'config.json')
-        
-        # Ensure Kafkaserver and clusterid remain unchanged
+
+        with open(config_path) as config_file:
+            old_config = json.load(config_file)
+
         new_config['Kafkaserver'] = Kafkaserver
         new_config['clusterid'] = clusterid
-        
+
         with open(config_path, 'w') as config_file:
             json.dump(new_config, config_file, indent=4)
-        
-        # Update the global config variable
+
         global enterprise, site, area, process_cell, unit
         enterprise = new_config['enterprise']
         site = new_config['site']
         area = new_config['area']
         process_cell = new_config['process_cell']
         unit = new_config['unit']
-        
-        return jsonify({'status': 'Configuration saved successfully'})
 
+        for field in ['enterprise', 'site', 'area', 'process_cell', 'unit']:
+            if old_config.get(field) != new_config.get(field):
+                log_field_change(
+                    action_type='UPDATE', record_type='SETTING',
+                    record_id='plant_config', field_name=field,
+                    old_value=old_config.get(field), new_value=new_config.get(field),
+                    change_reason='Plant configuration updated'
+                )
+
+        return jsonify({'status': 'Configuration saved successfully'})
 
     ###########################################################################################################################
     #ROLES EDITING
@@ -793,6 +808,14 @@ def create_app():
             db.session.add(rp)
 
         db.session.commit()
+        # Audit: log role creation or update
+        action_type = 'UPDATE' if Role.query.filter_by(name=new_role).first() else 'CREATE'
+        log_audit(
+            action_type='CREATE',
+            record_type='ROLE',
+            record_id=str(role.id),
+            change_reason=f'Role "{new_role}" created/updated with permissions: {perm_keys}'
+        )
         return jsonify({'message': f'Role \"{new_role}\" saved in database.', 'role_id': role.id, 'permissions': perm_keys})
     
     @app.route('/get-role/<role_name>', methods=["GET"])
@@ -844,6 +867,17 @@ def create_app():
             db.session.add(rp)
 
         db.session.commit()
+
+        log_field_change(
+            action_type='UPDATE',
+            record_type='ROLE',
+            record_id=str(role.id),
+            field_name='permissions',
+            old_value='previous permissions',
+            new_value=str(perm_keys),
+            change_reason=f'Role "{role_name}" permissions updated'
+        )
+
         return jsonify({'message': f'Role "{role_name}" updated successfully.', 'permissions': perm_keys})
 
     ##########################################################################################################################

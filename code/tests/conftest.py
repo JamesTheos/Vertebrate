@@ -1,25 +1,26 @@
 import os
+import sys
 import pytest
 
-# Ensure Kafka setup is disabled before importing the app module
-os.environ.setdefault('DISABLE_KAFKA', '1')
+# Set test environment BEFORE importing anything
+os.environ['DISABLE_KAFKA'] = '1'
+os.environ['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
 
-from code.app import create_app  # noqa: E402
-from code.models import db as _db  # noqa: E402
+# Make 'code/' importable regardless of where pytest is invoked from
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from app import create_app  # noqa: E402
+from models import db as _db  # noqa: E402
 
 
 @pytest.fixture(scope="session")
 def app():
-    app = create_app({
-        'TESTING': True,
-        'SQLALCHEMY_DATABASE_URI': 'sqlite:///:memory:',
-        'SQLALCHEMY_TRACK_MODIFICATIONS': False,
-        'SECRET_KEY': 'test-secret'
-    })
+    app = create_app()
+    app.config['TESTING'] = True
+    app.config['SECRET_KEY'] = 'test-secret'
     with app.app_context():
         _db.create_all()
     yield app
-    # no explicit teardown needed for in-memory
 
 
 @pytest.fixture()
@@ -29,6 +30,5 @@ def client(app):
 
 @pytest.fixture()
 def db(app):
-    # Provide the database handle within an application context
     with app.app_context():
         yield _db
