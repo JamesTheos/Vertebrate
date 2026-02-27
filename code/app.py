@@ -770,6 +770,7 @@ def create_app():
     #ROLES EDITING
     ###########################################################################################################################
 
+
     @app.route('/get-role', methods=["POST"])
     def define_role():
         data = request.get_json()
@@ -779,45 +780,44 @@ def create_app():
         if not new_role or not allowed_apps:
             return jsonify({'message': 'Role name and at least one function required.'}), 400
 
-        # Normalize allowed_apps to a list of permission keys (strings)
         if isinstance(allowed_apps, dict):
             perm_keys = list(allowed_apps.keys())
         else:
             perm_keys = list(allowed_apps)
 
-        # Check if role already exists
-        role = Role.query.filter_by(name=new_role).first()
-        if role:
-            # Remove existing role_permission entries for this role
-            RolePermission.query.filter_by(role_id=role.id).delete()
+        # Capture existence BEFORE any mutations
+        existing_role = Role.query.filter_by(name=new_role).first()
+        is_existing = existing_role is not None
+
+        if is_existing:
+            RolePermission.query.filter_by(role_id=existing_role.id).delete()
             db.session.flush()
+            role = existing_role
         else:
             role = Role(name=new_role)
             db.session.add(role)
-            db.session.flush()  # get role.id
+            db.session.flush()
 
-        # For each permission key ensure a Permission row exists and link it
         for key in perm_keys:
             perm = Permission.query.filter_by(key=key).first()
             if not perm:
                 perm = Permission(key=key)
                 db.session.add(perm)
-                db.session.flush()  # get perm.id
-            # create association record
+                db.session.flush()
             rp = RolePermission(role_id=role.id, permission_id=perm.id)
             db.session.add(rp)
 
         db.session.commit()
-        # Audit: log role creation or update
-        action_type = 'UPDATE' if Role.query.filter_by(name=new_role).first() else 'CREATE'
+
+        action_type = 'UPDATE' if is_existing else 'CREATE'
         log_audit(
-            action_type='CREATE',
+            action_type=action_type,
             record_type='ROLE',
             record_id=str(role.id),
-            change_reason=f'Role "{new_role}" created/updated with permissions: {perm_keys}'
+            change_reason=f'Role "{new_role}" {"updated" if is_existing else "created"} with permissions: {perm_keys}'
         )
-        return jsonify({'message': f'Role \"{new_role}\" saved in database.', 'role_id': role.id, 'permissions': perm_keys})
-    
+        return jsonify({'message': f'Role "{new_role}" saved in database.', 'role_id': role.id, 'permissions': perm_keys})
+
     @app.route('/get-role/<role_name>', methods=["GET"])
     def get_role(role_name):
         role = Role.query.filter_by(name=role_name).first()

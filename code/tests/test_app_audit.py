@@ -253,7 +253,18 @@ class TestPlantConfigAudit:
 
 class TestRoleManagementAudit:
 
+    def _cleanup_role(self, app, role_name):
+        from models import db, Role, RolePermission, AuditLog
+        with app.app_context():
+            role = Role.query.filter_by(name=role_name).first()
+            if role:
+                RolePermission.query.filter_by(role_id=role.id).delete()
+                AuditLog.query.filter_by(record_type='ROLE', record_id=str(role.id)).delete()
+                db.session.delete(role)
+                db.session.commit()
+
     def test_create_role_creates_audit_entry(self, app, client):
+        self._cleanup_role(app, 'pytest_test_role')   # ← ensure clean state
         from models import AuditLog
         with app.app_context():
             before = AuditLog.query.filter_by(
@@ -270,28 +281,32 @@ class TestRoleManagementAudit:
             after = AuditLog.query.filter_by(
                 action_type='CREATE', record_type='ROLE').count()
         assert after > before, "CREATE audit entry missing for new role"
+        self._cleanup_role(app, 'pytest_test_role')   # ← clean up after
 
-    def test_update_role_creates_update_entry(self, app, client):
-        from models import AuditLog
+    def test_overwrite_existing_role_logs_update(self, app, client):
+        # First create it so overwrite is genuinely an UPDATE
+        self._cleanup_role(app, 'pytest_existing_role')
         client.post('/get-role',
                     data=json.dumps({
-                        'created_role': 'pytest_update_role',
-                        'role_apps': ['order-management']
+                        'created_role': 'pytest_existing_role',
+                        'role_apps': ['batch']
                     }),
                     content_type='application/json')
 
+        from models import AuditLog
         with app.app_context():
             before = AuditLog.query.filter_by(
                 action_type='UPDATE', record_type='ROLE').count()
 
-        client.post('/update-role',
+        client.post('/get-role',
                     data=json.dumps({
-                        'role_name': 'pytest_update_role',
-                        'updated_role_apps': ['order-management', 'batch', 'scada']
+                        'created_role': 'pytest_existing_role',
+                        'role_apps': ['batch', 'scada']
                     }),
                     content_type='application/json')
 
         with app.app_context():
             after = AuditLog.query.filter_by(
                 action_type='UPDATE', record_type='ROLE').count()
-        assert after > before, "UPDATE audit entry missing for role update"
+        assert after > before, "UPDATE audit entry missing for overwrite"
+        self._cleanup_role(app, 'pytest_existing_role')
