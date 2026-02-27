@@ -110,14 +110,15 @@ def log_audit(action_type, record_type, record_id=None, **kwargs):
         audit_entry.checksum = _generate_checksum(audit_entry)
 
     # Save to database
+    # FIXED — dedicated session, never interferes with caller
     try:
-        db.session.add(audit_entry)
-        db.session.commit()
-        return audit_entry.id
+        from sqlalchemy.orm import Session
+        with Session(db.engine) as audit_session:
+            audit_session.add(audit_entry)
+            audit_session.commit()
+            return audit_entry.id
     except Exception as e:
-        db.session.rollback()
         print(f"⚠️  Audit logging failed: {e}")
-        # Don't raise - audit logging should never break the application
         return None
 
 
