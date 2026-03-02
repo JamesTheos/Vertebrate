@@ -53,31 +53,34 @@ def test_table_structure():
         assert not missing, f"Missing columns: {missing}"
 
 
-def test_manual_insert():
-    """Test 4: Verify can insert and query records"""
+def test_no_audit_entry_has_null_checksum():
+    """21 CFR Part 11: every audit row must have a checksum — no exceptions."""
     app = create_app()
     with app.app_context():
-        db.session.execute(text(
-            "INSERT INTO audit_trail.audit_logs "
-            "(timestamp, user_id, username, action_type, record_type, ip_address) "
-            "VALUES (NOW(), 1, 'test_user', 'TEST', 'MANUAL_TEST', '127.0.0.1')"
-        ))
-        db.session.commit()
+        null_rows = AuditLog.query.filter(AuditLog.checksum == None).all()
+        null_ids = [r.id for r in null_rows]
+        assert len(null_rows) == 0, \
+            f"{len(null_rows)} audit entries missing checksum (IDs: {null_ids})"
 
-        result = db.session.execute(text(
-            "SELECT id, username, action_type FROM audit_trail.audit_logs "
-            "WHERE action_type = 'TEST' LIMIT 1"
-        ))
-        row = result.fetchone()
 
-        # Cleanup before asserting so DB stays clean even on failure
-        db.session.execute(text(
-            "DELETE FROM audit_trail.audit_logs WHERE action_type = 'TEST'"
-        ))
-        db.session.commit()
+def test_manual_insert():
+    """Test 4: Verify log_audit() can write and query records via ORM."""
+    app = create_app()
+    with app.app_context():
+        from audit_trail import log_audit
+        entry_id = log_audit(
+            action_type='CONNECTION_TEST',
+            record_type='SYSTEM',
+            record_id='manual-insert-test',
+            change_reason='Testing audit write via log_audit()'
+        )
+        assert entry_id is not None, "log_audit() returned None — write failed"
 
-        assert row is not None, "Failed to retrieve inserted record"
-        assert row[1] == 'test_user', "Username mismatch"
+        retrieved = AuditLog.query.filter_by(record_id='manual-insert-test').first()
+        assert retrieved is not None, "Failed to retrieve inserted audit entry"
+        assert retrieved.action_type == 'CONNECTION_TEST', "Action type mismatch"
+        assert retrieved.checksum is not None, "Checksum must not be NULL"
+        # No cleanup — audit rows are immutable by design (21 CFR Part 11)
 
 
 if __name__ == '__main__':

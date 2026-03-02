@@ -29,6 +29,29 @@ with app.app_context():
     db.create_all()
     print("Audit trail schema and tables created")
 
+    # 21 CFR Part 11 — immutability trigger on audit_logs
+    db.session.execute(text('''
+        CREATE OR REPLACE FUNCTION audit_trail.prevent_audit_modification()
+        RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN
+            RAISE EXCEPTION '21 CFR Part 11: audit log records are immutable and cannot be modified or deleted';
+        END;
+        $$;
+    '''))
+
+    # Drop first in case it already exists, then recreate
+    db.session.execute(text('''
+        DROP TRIGGER IF EXISTS trg_audit_logs_immutable ON audit_trail.audit_logs;
+    '''))
+    db.session.execute(text('''
+        CREATE TRIGGER trg_audit_logs_immutable
+        BEFORE UPDATE OR DELETE ON audit_trail.audit_logs
+        FOR EACH ROW EXECUTE FUNCTION audit_trail.prevent_audit_modification();
+    '''))
+    db.session.commit()
+    print("21 CFR Part 11: audit_logs immutability trigger installed")
+
+
     # Cluster ID in MetaInfo speichern, falls nicht vorhanden
     if not MetaInfo.query.filter_by(id=cluster_id).first():
         db.session.add(MetaInfo(id=cluster_id))

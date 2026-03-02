@@ -254,14 +254,14 @@ class TestPlantConfigAudit:
 class TestRoleManagementAudit:
 
     def _cleanup_role(self, app, role_name):
-        from models import db, Role, RolePermission, AuditLog
+        from models import db, Role, RolePermission
         with app.app_context():
             role = Role.query.filter_by(name=role_name).first()
             if role:
                 RolePermission.query.filter_by(role_id=role.id).delete()
-                AuditLog.query.filter_by(record_type='ROLE', record_id=str(role.id)).delete()
                 db.session.delete(role)
                 db.session.commit()
+
 
     def test_create_role_creates_audit_entry(self, app, client):
         self._cleanup_role(app, 'pytest_test_role')   # ← ensure clean state

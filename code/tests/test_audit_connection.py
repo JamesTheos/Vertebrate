@@ -13,31 +13,28 @@ from datetime import datetime, timezone
 
 
 def test_audit_write():
-    """Test 5: Verify Python ORM can write and read audit entries"""
+    """Test 5: Verify log_audit() can write and read audit entries via ORM."""
     app = create_app()
 
     with app.app_context():
-        test_entry = AuditLog(
-            timestamp=datetime.now(timezone.utc),
-            user_id=999,
-            username='test_connection',
+        from audit_trail import log_audit
+        entry_id = log_audit(
             action_type='CONNECTION_TEST',
             record_type='SYSTEM',
-            ip_address='192.168.1.1',
+            record_id='connection-test-entry',
             change_reason='Testing Python to PostgreSQL audit connection'
         )
-        db.session.add(test_entry)
-        db.session.commit()
+        assert entry_id is not None, "log_audit() returned None — write failed"
 
-        retrieved = AuditLog.query.filter_by(user_id=999).first()
-
-        # Cleanup before asserting
-        AuditLog.query.filter_by(user_id=999).delete()
-        db.session.commit()
+        retrieved = AuditLog.query.filter_by(
+            record_id='connection-test-entry'
+        ).first()
 
         assert retrieved is not None, "Failed to retrieve test audit entry"
-        assert retrieved.username == 'test_connection', "Username mismatch"
+        assert retrieved.username is not None, "Username must not be NULL"
         assert retrieved.action_type == 'CONNECTION_TEST', "Action type mismatch"
+        assert retrieved.checksum is not None, "Checksum must not be NULL"
+        # No cleanup — audit rows are immutable by design (21 CFR Part 11)
 
 
 if __name__ == '__main__':
