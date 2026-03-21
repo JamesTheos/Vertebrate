@@ -48,7 +48,11 @@ kafka_produce_conf = {'bootstrap.servers': Kafkaserver}
 workflowsConsumer = None
 producer = None
 
-if _is_kafka_available(Kafkaserver):
+_kafka_disabled = os.environ.get('DISABLE_KAFKA', '0') == '1'
+
+if _kafka_disabled:
+    print("Kafka disabled via DISABLE_KAFKA env var — consumer/producer not started.")
+elif _is_kafka_available(Kafkaserver):
     try:
         workflowsConsumer = Consumer(kafka_workflows_conf)
     except KafkaException as e:
@@ -59,7 +63,6 @@ if _is_kafka_available(Kafkaserver):
         print(f"Workflow producer could not be initialized: {e}")
 else:
     print("Kafka unavailable — workflow consumer/producer not started.")
-
 
 def send_to_kafka(topic, value):
     if producer is not None:
@@ -162,6 +165,13 @@ def delete_workflow(workflow_name):
 
 @consumeWorkflows.route('/deactivate-workflow/<workflow_name>', methods=['POST'])
 def deactivate_workflow(workflow_name):
+    # Derive real current state from the in-memory store before changing it
+    current_info = all_workflows.get(workflow_name)
+    if current_info is not None:
+        old_status = 'Released' if current_info.get('released') == 1 else 'Deactivated'
+    else:
+        old_status = 'Unknown'  # workflow not yet seen via Kafka
+
     send_to_kafka('workflows', {
         'workflow_name': workflow_name, 'released': 0,
         'timestamp': datetime.now().isoformat()
@@ -172,7 +182,7 @@ def deactivate_workflow(workflow_name):
         record_type='WORKFLOW',
         record_id=workflow_name,
         field_name='status',
-        old_value='Released',
+        old_value=old_status,
         new_value='Deactivated',
         change_reason=f'Workflow "{workflow_name}" deactivated'
     )
@@ -182,6 +192,13 @@ def deactivate_workflow(workflow_name):
 
 @consumeWorkflows.route('/release-workflow/<workflow_name>', methods=['POST'])
 def release_workflow(workflow_name):
+    # Derive real current state from the in-memory store before changing it
+    current_info = all_workflows.get(workflow_name)
+    if current_info is not None:
+        old_status = 'Released' if current_info.get('released') == 1 else 'Deactivated'
+    else:
+        old_status = 'Unknown'  # workflow not yet seen via Kafka
+
     send_to_kafka('workflows', {
         'workflow_name': workflow_name, 'released': 1,
         'timestamp': datetime.now().isoformat()
@@ -192,7 +209,7 @@ def release_workflow(workflow_name):
         record_type='WORKFLOW',
         record_id=workflow_name,
         field_name='status',
-        old_value='Deactivated',
+        old_value=old_status,
         new_value='Released',
         change_reason=f'Workflow "{workflow_name}" released for production use'
     )
@@ -269,4 +286,5 @@ def consume_workflows():
         workflowsConsumer.close()
 
 
-threading.Thread(target=consume_workflows, daemon=True).start()
+if not _kafka_disabled:
+    threading.Thread(target=consume_workflows, daemon=True).start()

@@ -283,30 +283,34 @@ class TestRoleManagementAudit:
         assert after > before, "CREATE audit entry missing for new role"
         self._cleanup_role(app, 'pytest_test_role')   # ← clean up after
 
-    def test_overwrite_existing_role_logs_update(self, app, client):
-        # First create it so overwrite is genuinely an UPDATE
-        self._cleanup_role(app, 'pytest_existing_role')
+    def test_overwrite_existing_role_logs_real_old_permissions(self, app, client):
+        self._cleanup_role(app, 'pytest_perm_capture')
+
+        # Create with known permissions first
         client.post('/get-role',
                     data=json.dumps({
-                        'created_role': 'pytest_existing_role',
+                        'created_role': 'pytest_perm_capture',
                         'role_apps': ['batch']
+                    }),
+                    content_type='application/json')
+
+        # Now overwrite with different permissions
+        client.post('/get-role',
+                    data=json.dumps({
+                        'created_role': 'pytest_perm_capture',
+                        'role_apps': ['batch', 'scada']
                     }),
                     content_type='application/json')
 
         from models import AuditLog
         with app.app_context():
-            before = AuditLog.query.filter_by(
-                action_type='UPDATE', record_type='ROLE').count()
+            entry = AuditLog.query.filter_by(
+                action_type='UPDATE', record_type='ROLE'
+            ).order_by(AuditLog.id.desc()).first()
 
-        client.post('/get-role',
-                    data=json.dumps({
-                        'created_role': 'pytest_existing_role',
-                        'role_apps': ['batch', 'scada']
-                    }),
-                    content_type='application/json')
-
-        with app.app_context():
-            after = AuditLog.query.filter_by(
-                action_type='UPDATE', record_type='ROLE').count()
-        assert after > before, "UPDATE audit entry missing for overwrite"
-        self._cleanup_role(app, 'pytest_existing_role')
+        assert entry is not None
+        assert 'batch' in entry.old_value, \
+            f"old_value should contain previous permissions, got: {entry.old_value}"
+        assert entry.old_value != 'previous permissions', \
+            "old_value must not be a hardcoded placeholder"
+        self._cleanup_role(app, 'pytest_perm_capture')

@@ -5,3 +5,4 @@ code/UserManagement.db
 code/instance/UserManagement.db
 .idea
 __init__.py
+code/test_audit_manual.py

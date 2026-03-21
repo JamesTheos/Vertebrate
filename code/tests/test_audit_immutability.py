@@ -1,18 +1,26 @@
 """
 test_audit_immutability.py
 21 CFR Part 11 — immutability tests for audit_trail.audit_logs
-TDD: these tests are written BEFORE the trigger is installed.
-Expected to FAIL (RED) until createDB.py installs the trigger.
+
+These tests verify that:
+  1. Direct UPDATE/DELETE on audit_trail.audit_logs is blocked by the DB trigger
+  2. Tampered rows are detectable via checksum mismatch
+
+All tests in this file require a live PostgreSQL instance with the
+immutability trigger installed by createDB.py. They are automatically
+skipped when running against SQLite (see conftest.py postgres_only marker).
 
 Usage:
     docker compose exec vertebrate-app python -m pytest \
         tests/test_audit_immutability.py -v
 """
+pytestmark = pytest.mark.postgres_only
 import os
 import time
-import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import ProgrammingError, InternalError
+import pytest
+pytestmark = pytest.mark.postgres_only
 
 os.environ.setdefault('DISABLE_KAFKA', '1')
 
@@ -85,21 +93,35 @@ class TestAuditImmutability:
         """A row whose fields were changed must not match its stored checksum."""
         from models import AuditLog, db
         import hashlib
+        import json
         with app.app_context():
             from sqlalchemy.orm import Session
             with Session(db.engine) as s:
                 entry = s.get(AuditLog, seed_entry)
                 assert entry is not None, f"Entry {seed_entry} not found"
 
-                data_string = (
-                    f"{entry.timestamp}{entry.user_id}TAMPERED"
-                    f"{entry.record_type}{entry.record_id}"
-                )
-                tampered_checksum = hashlib.sha256(data_string.encode()).hexdigest()
+                # Simulate tampering — change action_type in the payload
+                payload = {
+                    "timestamp": entry.timestamp.isoformat() if entry.timestamp else None,
+                    "user_id": entry.user_id,
+                    "username": entry.username,
+                    "action_type": "TAMPERED",  # ← altered field
+                    "record_type": entry.record_type,
+                    "record_id": entry.record_id,
+                    "field_name": entry.field_name,
+                    "old_value": entry.old_value,
+                    "new_value": entry.new_value,
+                    "change_reason": entry.change_reason,
+                    "ip_address": entry.ip_address,
+                    "endpoint": entry.endpoint,
+                }
+                tampered_checksum = hashlib.sha256(
+                    json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+                    .encode("utf-8")
+                ).hexdigest()
 
                 assert tampered_checksum != entry.checksum, \
                     "Tampered checksum should not match the stored checksum"
-
 
 class TestChecksumCompleteness:
 

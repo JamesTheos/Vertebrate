@@ -5,6 +5,3 @@ confluent-kafka==2.3.0
 python-dotenv==1.0.0
 kafka-python==2.0.2
 psycopg2-binary==2.9.9
-pytest>=7.0
-pytest-timeout
-pytest-cov>=4.0

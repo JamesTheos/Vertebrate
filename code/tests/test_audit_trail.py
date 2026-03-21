@@ -30,16 +30,31 @@ def app():
 class TestValidateChangeReason:
 
     def test_missing_reason_for_required_action_raises(self, app):
-        """line 50 + 172: DELETE and UPDATE require change_reason."""
+        """DELETE always requires change_reason."""
         from audit_trail import log_audit
         with app.app_context():
             with pytest.raises(ValueError, match="change_reason is required for action type: DELETE"):
                 log_audit(
                     action_type='DELETE',
-                    record_type='SYSTEM',
+                    record_type='SYSTEM',  # non-sensitive record type
                     record_id='test-001'
                     # change_reason intentionally omitted
                 )
+
+    def test_update_on_non_sensitive_record_does_not_raise(self, app):
+        """UPDATE on a non-sensitive record type without change_reason must NOT raise."""
+        from audit_trail import log_audit
+        with app.app_context():
+            entry_id = log_audit(
+                action_type='UPDATE',
+                record_type='SETTING',  # not in REQUIRE_REASON_RECORDS
+                record_id='appconfig',
+                field_name='TextColor',
+                old_value='#000000',
+                new_value='#ffffff'
+                # no change_reason — should be fine
+            )
+            assert entry_id is not None
 
     def test_missing_reason_for_required_record_type_raises(self, app):
         """line 177-178: ROLE record type requires change_reason."""
@@ -90,6 +105,45 @@ class TestValidateChangeReason:
                 change_reason='Should not be written'
             )
             assert result is None
+
+    def test_record_id_zero_is_stored_not_dropped(self, app):
+        """record_id=0 must not be treated as missing and stored as NULL."""
+        from audit_trail import log_audit
+        from models import AuditLog, db
+        from sqlalchemy.orm import Session
+
+        with app.app_context():
+            entry_id = log_audit(
+                action_type='SYSTEM',
+                record_type='SYSTEM',
+                record_id=0,
+                change_reason='Testing falsy record_id=0'
+            )
+            assert entry_id is not None
+
+            with Session(db.engine) as s:
+                entry = s.get(AuditLog, entry_id)
+                assert entry.record_id == '0', \
+                    f"Expected '0', got {entry.record_id!r} — falsy check bug"
+
+    def test_record_id_none_is_stored_as_null(self, app):
+        """record_id=None should genuinely store NULL."""
+        from audit_trail import log_audit
+        from models import AuditLog, db
+        from sqlalchemy.orm import Session
+
+        with app.app_context():
+            entry_id = log_audit(
+                action_type='SYSTEM',
+                record_type='SYSTEM',
+                record_id=None,
+                change_reason='Testing explicit None record_id'
+            )
+            assert entry_id is not None
+
+            with Session(db.engine) as s:
+                entry = s.get(AuditLog, entry_id)
+                assert entry.record_id is None
 
 
 # ─── 2. User context fallback — lines 66-68 ──────────────────────────────────
@@ -332,3 +386,42 @@ class TestCurrentUserExceptionFallback:
                 entry = s.get(AuditLog, entry_id)
                 assert entry.username == 'SYSTEM'
                 assert entry.user_id is None
+
+
+class TestRequireReasonFieldAlignment:
+    """
+    Ensure REQUIRE_REASON_FIELDS entries exactly match the field_name
+    strings emitted by the application. A mismatch means enforcement
+    silently does nothing — this test catches that at the config level.
+    """
+
+    KNOWN_EMITTED_FIELD_NAMES = {
+        'role',         # auth.py — user role changes
+        'permissions',  # app.py — update_role / define_role
+        'password',     # auth.py — password changes
+        'subscribed',   # subscriptions.py
+    }
+
+    def test_all_require_reason_fields_are_actually_emitted(self):
+        from audit_config import REQUIRE_REASON_FIELDS
+        for field in REQUIRE_REASON_FIELDS:
+            assert field in self.KNOWN_EMITTED_FIELD_NAMES, (
+                f"'{field}' is in REQUIRE_REASON_FIELDS but is never emitted as a "
+                f"field_name in the codebase — enforcement will silently do nothing. "
+                f"Either fix the field name in the config or update this test."
+            )
+
+    def test_role_field_requires_change_reason(self, app):
+        """field_name='role' must trigger change_reason enforcement."""
+        from audit_trail import log_audit
+        with app.app_context():
+            with pytest.raises(ValueError, match="change_reason is required for field: role"):
+                log_audit(
+                    action_type='UPDATE',
+                    record_type='USER',
+                    record_id='42',
+                    field_name='role',
+                    old_value='viewer',
+                    new_value='admin'
+                    # change_reason intentionally omitted
+                )

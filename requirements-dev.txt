@@ -1,0 +1,4 @@
+# Dev/test dependencies — NOT for production Docker image
+pytest==8.3.5
+pytest-timeout==2.3.1
+pytest-cov==6.0.0

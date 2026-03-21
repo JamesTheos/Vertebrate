@@ -9,7 +9,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app import create_app, db
 from sqlalchemy import text, inspect
 from models import AuditLog
-
+import pytest
+pytestmark = pytest.mark.postgres_only
 
 def test_schema_exists():
     """Test 1: Verify audit_trail schema exists"""

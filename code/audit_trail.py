@@ -9,16 +9,18 @@ from datetime import datetime, timezone
 import hashlib
 import json
 from flask import request, session, has_request_context
+from flask_login import current_user
 from audit_config import (
     AUDIT_ENABLED,
     EXCLUDE_FIELDS,
     REDACTED_VALUE,
     GENERATE_CHECKSUMS,
     LOG_REQUEST_DETAILS,
-    REQUIRE_REASON_ACTIONS,
     REQUIRE_REASON_RECORDS,
-    REQUIRE_REASON_FIELDS
+    REQUIRE_REASON_FIELDS,
+    ACTION_DELETE,
 )
+
 
 
 def log_audit(action_type, record_type, record_id=None, **kwargs):
@@ -52,11 +54,7 @@ def log_audit(action_type, record_type, record_id=None, **kwargs):
     # Validate change_reason requirement
     _validate_change_reason(action_type, record_type, kwargs.get('field_name'), kwargs.get('change_reason'))
 
-    # Get user context
-    from flask_login import current_user
-
     try:
-        from flask_login import current_user
         if current_user and current_user.is_authenticated:
             user_id = current_user.uid
             username = current_user.username
@@ -94,7 +92,7 @@ def log_audit(action_type, record_type, record_id=None, **kwargs):
         username=username,
         action_type=action_type,
         record_type=record_type,
-        record_id=str(record_id) if record_id else None,
+        record_id=str(record_id) if record_id is not None else None,
         field_name=kwargs.get('field_name'),
         old_value=old_value,
         new_value=new_value,
@@ -187,21 +185,26 @@ def log_multiple_changes(action_type, record_type, record_id, changes, change_re
 
 def _validate_change_reason(action_type, record_type, field_name, change_reason):
     """
-    Check if change_reason is required and raise error if missing
+    Enforce change_reason for sensitive operations per 21 CFR Part 11.
 
-    Raises:
-        ValueError: If change_reason is required but not provided
+    Rules (in order):
+    1. DELETE always requires a reason (any record type).
+    2. Sensitive record types (ROLE, PERMISSION, PASSWORD) always require a reason.
+    3. Sensitive field names (password, permissions, subscribed) always require a reason.
     """
-    # Check if action requires reason
-    if action_type in REQUIRE_REASON_ACTIONS and not change_reason:
+    if change_reason:
+        return  # Fast path — reason provided, nothing to check
+
+    # Rule 1: DELETE always requires a reason
+    if action_type == ACTION_DELETE:
         raise ValueError(f"change_reason is required for action type: {action_type}")
 
-    # Check if record type requires reason
-    if record_type in REQUIRE_REASON_RECORDS and not change_reason:
+    # Rule 2: Sensitive record types always require a reason (regardless of action)
+    if record_type in REQUIRE_REASON_RECORDS:
         raise ValueError(f"change_reason is required for record type: {record_type}")
 
-    # Check if field requires reason
-    if field_name and field_name in REQUIRE_REASON_FIELDS and not change_reason:
+    # Rule 3: Sensitive field names always require a reason
+    if field_name and field_name in REQUIRE_REASON_FIELDS:
         raise ValueError(f"change_reason is required for field: {field_name}")
 
 
@@ -227,14 +230,28 @@ def _sanitize_value(field_name, value):
 
 def _generate_checksum(audit_entry):
     """
-    Generate SHA-256 checksum for audit entry integrity
+    Generate SHA-256 checksum for audit entry integrity.
+    Covers all audit-relevant fields so any tampering invalidates the hash.
 
     Args:
-        audit_entry (AuditLog): Audit log entry
+        audit_entry (AuditLog): Audit log entry (before DB commit)
 
     Returns:
         str: SHA-256 hex digest
     """
-    # Concatenate key fields for checksum
-    data_string = f"{audit_entry.timestamp}{audit_entry.user_id}{audit_entry.action_type}{audit_entry.record_type}{audit_entry.record_id}"
-    return hashlib.sha256(data_string.encode()).hexdigest()
+    payload = {
+        "timestamp": audit_entry.timestamp.isoformat() if audit_entry.timestamp else None,
+        "user_id": audit_entry.user_id,
+        "username": audit_entry.username,
+        "action_type": audit_entry.action_type,
+        "record_type": audit_entry.record_type,
+        "record_id": audit_entry.record_id,
+        "field_name": audit_entry.field_name,
+        "old_value": audit_entry.old_value,
+        "new_value": audit_entry.new_value,
+        "change_reason": audit_entry.change_reason,
+        "ip_address": audit_entry.ip_address,
+        "endpoint": audit_entry.endpoint,
+    }
+    data_string = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(data_string.encode("utf-8")).hexdigest()

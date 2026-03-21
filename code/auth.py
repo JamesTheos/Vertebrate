@@ -15,7 +15,7 @@ def register_user():
 
     username = data.get('username')
     password = data.get('password')
-    role_ids = data.get('roles')  # ⬅️ Erwartet Liste von Rollen-IDs
+    role_ids = data.get('roles')
 
     print(f"Registering user: {username}, Roles: {role_ids}")
 
@@ -119,7 +119,7 @@ def update_user():
 
     new_username = data.get('username')
     new_password = data.get('password')
-    new_role_ids = data.get('roles')  # Erwartet Liste von Rollen-IDs
+    new_role_ids = data.get('roles')
 
     print(f"Updating user: {current_user.username}")
 
@@ -169,8 +169,8 @@ def update_user():
             record_type='USER',
             record_id=user_id,
             field_name='password',
-            old_value='old_password_value',
-            new_value='new_password_value',
+            old_value='[REDACTED]',
+            new_value='[REDACTED]',
             change_reason='User password change'
         )
 

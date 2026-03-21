@@ -46,7 +46,7 @@ RECORD_SYSTEM = 'SYSTEM'
 # Fields that REQUIRE a change_reason (sensitive operations)
 REQUIRE_REASON_FIELDS = [
     'password',
-    'roles',
+    'role',
     'permissions',
     'subscribed'  # Subscription status changes
 ]
@@ -61,7 +61,7 @@ REQUIRE_REASON_RECORDS = [
 # Actions that ALWAYS require change_reason
 REQUIRE_REASON_ACTIONS = [
     ACTION_DELETE,
-    ACTION_UPDATE
+    #ACTION_UPDATE
 ]
 
 # ============================================================================

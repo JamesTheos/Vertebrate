@@ -6,8 +6,13 @@ Provides convenient decorators to add audit logging to any Flask endpoint
 from functools import wraps
 from flask import request
 from audit_trail import log_audit, log_field_change
-from audit_config import *
-
+from audit_config import (
+    ACTION_LOGIN,
+    ACTION_LOGIN_FAILED,
+    ACTION_LOGOUT,
+    ACTION_UPDATE,
+    RECORD_USER,
+)
 
 def audit_action(action_type, record_type, get_record_id=None):
     """
@@ -56,11 +61,11 @@ def audit_action(action_type, record_type, get_record_id=None):
                     pass
 
             # Option 2: Check common parameter names in kwargs
-            if not record_id:
+            if record_id is None:
                 record_id = kwargs.get('id') or kwargs.get('user_id') or kwargs.get('record_id')
 
             # Option 3: Check route parameters
-            if not record_id and request.view_args:
+            if record_id is None and request.view_args:
                 record_id = request.view_args.get('id') or request.view_args.get('user_id')
 
             # Get change_reason from request body
