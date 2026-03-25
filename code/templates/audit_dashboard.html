@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Audit Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+    header { padding: 1.2rem 2rem; background: #1a1d27; border-bottom: 1px solid #2d3148;
+             display: flex; align-items: center; justify-content: space-between; }
+    header h1 { font-size: 1.3rem; font-weight: 600; color: #a78bfa; }
+    header span { font-size: 0.8rem; color: #64748b; }
+    .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem 2rem; }
+
+    /* ── Summary Cards ── */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .card { background: #1a1d27; border: 1px solid #2d3148; border-radius: 10px; padding: 1.2rem; }
+    .card .label { font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: .05em; }
+    .card .value { font-size: 2rem; font-weight: 700; margin-top: .3rem; }
+    .card.danger .value { color: #f87171; }
+    .card.ok    .value { color: #34d399; }
+    .card.info  .value { color: #60a5fa; }
+    .card.warn  .value { color: #fbbf24; }
+
+    /* ── Charts Row ── */
+    .charts { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+    .chart-box { background: #1a1d27; border: 1px solid #2d3148; border-radius: 10px; padding: 1.2rem; }
+    .chart-box h3 { font-size: 0.85rem; color: #94a3b8; margin-bottom: 1rem; }
+    .chart-box canvas { max-height: 220px; }
+
+    /* ── Integrity Banner ── */
+    #integrity-banner { border-radius: 8px; padding: .8rem 1.2rem; margin-bottom: 1.5rem;
+                        font-size: .85rem; display: none; }
+    #integrity-banner.ok     { background: #14532d; border: 1px solid #22c55e; color: #86efac; }
+    #integrity-banner.tamper { background: #7f1d1d; border: 1px solid #ef4444; color: #fca5a5; }
+
+    /* ── Filters ── */
+    .filters { display: flex; gap: .75rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: flex-end; }
+    .filters label { font-size: .75rem; color: #64748b; display: flex; flex-direction: column; gap: .25rem; }
+    .filters select, .filters input {
+      background: #1a1d27; border: 1px solid #2d3148; color: #e2e8f0;
+      padding: .4rem .7rem; border-radius: 6px; font-size: .85rem; }
+    .filters button {
+      padding: .45rem 1rem; background: #6d28d9; color: #fff;
+      border: none; border-radius: 6px; cursor: pointer; font-size: .85rem; }
+    .filters button:hover { background: #7c3aed; }
+    .filters button.secondary {
+      background: #1e293b; border: 1px solid #334155; color: #94a3b8; }
+
+    /* ── Table ── */
+    .table-wrap { background: #1a1d27; border: 1px solid #2d3148; border-radius: 10px; overflow: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    thead th { padding: .7rem 1rem; text-align: left; background: #12151f;
+               color: #64748b; font-weight: 600; text-transform: uppercase;
+               font-size: .7rem; letter-spacing: .05em; white-space: nowrap; }
+    tbody tr { border-top: 1px solid #1e2235; }
+    tbody tr:hover { background: #1e2235; }
+    tbody td { padding: .6rem 1rem; vertical-align: top; max-width: 200px;
+               overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .badge { display: inline-block; padding: .15rem .55rem; border-radius: 4px;
+             font-size: .72rem; font-weight: 600; }
+    .badge-LOGIN        { background:#1e3a5f; color:#60a5fa; }
+    .badge-LOGOUT       { background:#1e2a3a; color:#94a3b8; }
+    .badge-LOGIN_FAILED { background:#4c1d1d; color:#f87171; }
+    .badge-CREATE       { background:#14532d; color:#4ade80; }
+    .badge-UPDATE       { background:#713f12; color:#fcd34d; }
+    .badge-DELETE       { background:#7f1d1d; color:#fca5a5; }
+    .badge-VIEW         { background:#1e2a3a; color:#94a3b8; }
+    .badge-SYSTEM       { background:#2d1b69; color:#a78bfa; }
+
+    /* ── Pagination ── */
+    .pagination { display: flex; gap: .5rem; justify-content: center;
+                  align-items: center; margin-top: 1rem; }
+    .pagination button { padding: .35rem .8rem; background: #1e293b;
+      border: 1px solid #334155; color: #94a3b8; border-radius: 5px; cursor: pointer; }
+    .pagination button:disabled { opacity: .3; cursor: default; }
+    .pagination button:hover:not(:disabled) { background: #334155; }
+    #page-info { font-size: .82rem; color: #64748b; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🔍 Audit Trail Dashboard</h1>
+  <span id="last-updated">Loading…</span>
+</header>
+
+<div class="container">
+
+  <!-- Summary Cards -->
+  <div class="cards">
+    <div class="card info">
+      <div class="label">Total Logs</div>
+      <div class="value" id="c-total">—</div>
+    </div>
+    <div class="card warn">
+      <div class="label">Failed Logins</div>
+      <div class="value" id="c-failed">—</div>
+    </div>
+    <div class="card" id="c-integrity-card">
+      <div class="label">Integrity</div>
+      <div class="value" id="c-integrity">—</div>
+    </div>
+    <div class="card info">
+      <div class="label">Action Types</div>
+      <div class="value" id="c-actions">—</div>
+    </div>
+  </div>
+
+  <!-- Integrity Banner -->
+  <div id="integrity-banner"></div>
+
+  <!-- Charts -->
+  <div class="charts">
+    <div class="chart-box" style="grid-column: span 2;">
+      <h3>Log Volume by Day</h3>
+      <canvas id="chart-timeline"></canvas>
+    </div>
+    <div class="chart-box">
+      <h3>Action Breakdown</h3>
+      <canvas id="chart-actions"></canvas>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters">
+    <label>Action Type
+      <select id="f-action">
+        <option value="">All</option>
+        <option>LOGIN</option><option>LOGOUT</option><option>LOGIN_FAILED</option>
+        <option>CREATE</option><option>UPDATE</option><option>DELETE</option>
+        <option>VIEW</option><option>SYSTEM</option>
+      </select>
+    </label>
+    <label>Record Type
+      <select id="f-record">
+        <option value="">All</option>
+        <option>USER</option><option>ROLE</option><option>PERMISSION</option>
+        <option>PASSWORD</option><option>ORDER</option><option>WORKFLOW</option>
+        <option>SUBSCRIPTION</option><option>SYSTEM</option>
+      </select>
+    </label>
+    <label>Username
+      <input type="text" id="f-username" placeholder="e.g. User_Admin" style="width:160px"/>
+    </label>
+    <label>From
+      <input type="date" id="f-from"/>
+    </label>
+    <label>To
+      <input type="date" id="f-to"/>
+    </label>
+    <button onclick="applyFilters()">Apply</button>
+    <button class="secondary" onclick="resetFilters()">Reset</button>
+  </div>
+
+  <!-- Log Table -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th><th>Timestamp</th><th>User</th><th>Action</th>
+          <th>Record Type</th><th>Record ID</th><th>Field</th>
+          <th>Old Value</th><th>New Value</th><th>Reason</th>
+          <th>IP</th><th>Endpoint</th>
+        </tr>
+      </thead>
+      <tbody id="log-tbody">
+        <tr><td colspan="12" style="text-align:center;padding:2rem;color:#475569">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <div class="pagination">
+    <button id="btn-prev" onclick="changePage(-1)" disabled>← Prev</button>
+    <span id="page-info">Page 1</span>
+    <button id="btn-next" onclick="changePage(1)">Next →</button>
+  </div>
+
+</div>
+
+<script>
+  let currentPage = 1;
+  let totalPages  = 1;
+  const perPage   = 50;
+
+  // ── Chart instances ─────────────────────────────────────────────────────────
+  const PALETTE = ['#6d28d9','#2563eb','#059669','#d97706','#dc2626',
+                   '#7c3aed','#0891b2','#65a30d','#ea580c','#db2777'];
+
+  let timelineChart = null;
+  let actionsChart  = null;
+
+  function buildTimeline(labels, data) {
+    const ctx = document.getElementById('chart-timeline').getContext('2d');
+    if (timelineChart) timelineChart.destroy();
+    timelineChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Log entries',
+          data,
+          borderColor: '#6d28d9',
+          backgroundColor: 'rgba(109,40,217,.15)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 3,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#64748b' }, grid: { color: '#1e2235' } },
+          y: { ticks: { color: '#64748b' }, grid: { color: '#1e2235' }, beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  function buildActionsChart(labels, data) {
+    const ctx = document.getElementById('chart-actions').getContext('2d');
+    if (actionsChart) actionsChart.destroy();
+    actionsChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{ data, backgroundColor: PALETTE }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 12 } }
+        }
+      }
+    });
+  }
+
+  // ── Stats ───────────────────────────────────────────────────────────────────
+  async function loadStats() {
+    const res  = await fetch('/audit/api/stats');
+    const data = await res.json();
+
+    document.getElementById('c-total').textContent   = data.total_logs.toLocaleString();
+    document.getElementById('c-failed').textContent  = data.failed_logins;
+    document.getElementById('c-actions').textContent = Object.keys(data.by_action).length;
+
+    buildTimeline(
+      data.logs_by_day.map(d => d.date),
+      data.logs_by_day.map(d => d.count)
+    );
+    buildActionsChart(
+      Object.keys(data.by_action),
+      Object.values(data.by_action)
+    );
+  }
+
+  // ── Integrity ───────────────────────────────────────────────────────────────
+  async function loadIntegrity() {
+    const res  = await fetch('/audit/api/integrity');
+    const data = await res.json();
+    const card    = document.getElementById('c-integrity-card');
+    const val     = document.getElementById('c-integrity');
+    const banner  = document.getElementById('integrity-banner');
+
+    if (data.tampered === 0) {
+      val.textContent = '✓ OK';
+      card.classList.add('ok');
+      banner.className  = 'ok';
+      banner.textContent = `✓ All ${data.total_checked} checksums verified — no tampering detected.`;
+    } else {
+      val.textContent = `⚠ ${data.tampered} tampered`;
+      card.classList.add('danger');
+      banner.className  = 'tamper';
+      banner.textContent =
+        `⚠ ${data.tampered} tampered record(s) detected! IDs: ${data.tampered_ids.join(', ')}`;
+    }
+    banner.style.display = 'block';
+  }
+
+  // ── Log Table ───────────────────────────────────────────────────────────────
+  function badgeHtml(action) {
+    return `<span class="badge badge-${action}">${action}</span>`;
+  }
+
+  function cell(val) {
+    return `<td title="${val ?? ''}">${val ?? ''}</td>`;
+  }
+
+  async function loadLogs() {
+    const params = new URLSearchParams({
+      page: currentPage, per_page: perPage,
+      ...(document.getElementById('f-action').value   && { action_type:  document.getElementById('f-action').value }),
+      ...(document.getElementById('f-record').value   && { record_type:  document.getElementById('f-record').value }),
+      ...(document.getElementById('f-username').value && { username:     document.getElementById('f-username').value }),
+      ...(document.getElementById('f-from').value     && { date_from:    document.getElementById('f-from').value }),
+      ...(document.getElementById('f-to').value       && { date_to:      document.getElementById('f-to').value }),
+    });
+
+    const res  = await fetch(`/audit/api/logs?${params}`);
+    const data = await res.json();
+    totalPages = data.pages || 1;
+
+    document.getElementById('page-info').textContent =
+      `Page ${data.page} of ${data.pages}  (${data.total.toLocaleString()} entries)`;
+    document.getElementById('btn-prev').disabled = currentPage <= 1;
+    document.getElementById('btn-next').disabled = currentPage >= totalPages;
+
+    const tbody = document.getElementById('log-tbody');
+    if (!data.logs.length) {
+      tbody.innerHTML =
+        '<tr><td colspan="12" style="text-align:center;padding:2rem;color:#475569">No entries found.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.logs.map(e => `
+      <tr>
+        <td>${e.id}</td>
+        <td style="white-space:nowrap">${e.timestamp ? e.timestamp.replace('T',' ').slice(0,19) : ''}</td>
+        <td>${e.username ?? ''}</td>
+        <td>${badgeHtml(e.action_type)}</td>
+        ${cell(e.record_type)}
+        ${cell(e.record_id)}
+        ${cell(e.field_name)}
+        ${cell(e.old_value)}
+        ${cell(e.new_value)}
+        ${cell(e.change_reason)}
+        ${cell(e.ip_address)}
+        ${cell(e.endpoint)}
+      </tr>`).join('');
+  }
+
+  // ── Controls ────────────────────────────────────────────────────────────────
+  function applyFilters() { currentPage = 1; loadLogs(); }
+  function resetFilters() {
+    ['f-action','f-record','f-username','f-from','f-to']
+      .forEach(id => document.getElementById(id).value = '');
+    applyFilters();
+  }
+  function changePage(delta) {
+    currentPage = Math.max(1, Math.min(totalPages, currentPage + delta));
+    loadLogs();
+  }
+
+  // ── Init ────────────────────────────────────────────────────────────────────
+  document.getElementById('last-updated').textContent =
+    'Last updated: ' + new Date().toLocaleTimeString();
+
+  loadStats();
+  loadIntegrity();
+  loadLogs();
+</script>
+</body>
+</html>

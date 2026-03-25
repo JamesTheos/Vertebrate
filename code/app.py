@@ -260,9 +260,17 @@ def create_app():
 
     login_manager = LoginManager()
     login_manager.init_app(app)
+    login_manager.login_view = 'auth.login'
     app.register_blueprint(auth)
-    
+
     register_timeout_hook(app)
+
+
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        if request.path.startswith('/audit/api/'):
+            return jsonify({'error': 'Authentication required'}), 401
+        return redirect(url_for('auth.login'))
 
     @login_manager.user_loader
     def load_user(user_id):
@@ -767,153 +775,154 @@ def create_app():
 
         return jsonify({'status': 'Configuration saved successfully'})
 
+
     ###########################################################################################################################
     #ROLES EDITING
     ###########################################################################################################################
 
 
-@app.route('/get-role', methods=["POST"])
-def define_role():
-    data = request.get_json()
-    new_role = data.get('created_role')
-    allowed_apps = data.get('role_apps')
+    @app.route('/get-role', methods=["POST"])
+    def define_role():
+        data = request.get_json()
+        new_role = data.get('created_role')
+        allowed_apps = data.get('role_apps')
 
-    if not new_role or not allowed_apps:
-        return jsonify({'message': 'Role name and at least one function required.'}), 400
+        if not new_role or not allowed_apps:
+            return jsonify({'message': 'Role name and at least one function required.'}), 400
 
-    if isinstance(allowed_apps, dict):
-        perm_keys = list(allowed_apps.keys())
-    else:
-        perm_keys = list(allowed_apps)
+        if isinstance(allowed_apps, dict):
+            perm_keys = list(allowed_apps.keys())
+        else:
+            perm_keys = list(allowed_apps)
 
-    # Capture existence BEFORE any mutations
-    existing_role = Role.query.filter_by(name=new_role).first()
-    is_existing = existing_role is not None
+        # Capture existence BEFORE any mutations
+        existing_role = Role.query.filter_by(name=new_role).first()
+        is_existing = existing_role is not None
 
-    if is_existing:
+        if is_existing:
+            # Capture real old permissions BEFORE deletion
+            old_perm_keys = [
+                row[0] for row in
+                db.session.query(Permission.key)
+                .join(RolePermission, RolePermission.permission_id == Permission.id)
+                .filter(RolePermission.role_id == existing_role.id)
+                .all()
+            ]
+            RolePermission.query.filter_by(role_id=existing_role.id).delete()
+            db.session.flush()
+            role = existing_role
+        else:
+            old_perm_keys = []
+            role = Role(name=new_role)
+            db.session.add(role)
+            db.session.flush()
+
+        for key in perm_keys:
+            perm = Permission.query.filter_by(key=key).first()
+            if not perm:
+                perm = Permission(key=key)
+                db.session.add(perm)
+                db.session.flush()
+            rp = RolePermission(role_id=role.id, permission_id=perm.id)
+            db.session.add(rp)
+
+        db.session.commit()
+
+        action_type = 'UPDATE' if is_existing else 'CREATE'
+        log_audit(
+            action_type=action_type,
+            record_type='ROLE',
+            record_id=str(role.id),
+            change_reason=f'Role "{new_role}" {"updated" if is_existing else "created"} with permissions: {perm_keys}'
+        )
+
+        # Log field-level change for UPDATE so old vs new permissions are captured
+        if is_existing:
+            log_field_change(
+                action_type='UPDATE',
+                record_type='ROLE',
+                record_id=str(role.id),
+                field_name='permissions',
+                old_value=str(old_perm_keys),
+                new_value=str(perm_keys),
+                change_reason=f'Role "{new_role}" permissions updated'
+            )
+
+        return jsonify({'message': f'Role "{new_role}" saved in database.', 'role_id': role.id, 'permissions': perm_keys})
+
+        @app.route('/get-role/<role_name>', methods=["GET"])
+        def get_role(role_name):
+            role = Role.query.filter_by(name=role_name).first()
+            if not role:
+                return jsonify({'message': 'Role not found'}), 404
+
+            permissions = [
+                {'key': perm.key} for perm in
+                Permission.query.join(RolePermission, Permission.id == RolePermission.permission_id)
+                .filter(RolePermission.role_id == role.id).all()
+            ]
+
+            return jsonify({'name': role.name, 'permissions': permissions})
+
+
+    @app.route('/update-role', methods=["POST"])
+    def update_role():
+        data = request.get_json()
+        role_name = data.get('role_name')
+        updated_apps = data.get('updated_role_apps')
+
+        if not role_name or not updated_apps:
+            return jsonify({'message': 'Role name and at least one function required.'}), 400
+
+        role = Role.query.filter_by(name=role_name).first()
+        if not role:
+            return jsonify({'message': 'Role not found'}), 404
+
+        if isinstance(updated_apps, dict):
+            perm_keys = list(updated_apps.keys())
+        else:
+            perm_keys = list(updated_apps)
+
         # Capture real old permissions BEFORE deletion
         old_perm_keys = [
             row[0] for row in
             db.session.query(Permission.key)
             .join(RolePermission, RolePermission.permission_id == Permission.id)
-            .filter(RolePermission.role_id == existing_role.id)
+            .filter(RolePermission.role_id == role.id)
             .all()
         ]
-        RolePermission.query.filter_by(role_id=existing_role.id).delete()
-        db.session.flush()
-        role = existing_role
-    else:
-        old_perm_keys = []
-        role = Role(name=new_role)
-        db.session.add(role)
+
+        # Remove existing permissions
+        RolePermission.query.filter_by(role_id=role.id).delete()
         db.session.flush()
 
-    for key in perm_keys:
-        perm = Permission.query.filter_by(key=key).first()
-        if not perm:
-            perm = Permission(key=key)
-            db.session.add(perm)
-            db.session.flush()
-        rp = RolePermission(role_id=role.id, permission_id=perm.id)
-        db.session.add(rp)
+        # Recreate permissions
+        for key in perm_keys:
+            perm = Permission.query.filter_by(key=key).first()
+            if not perm:
+                perm = Permission(key=key)
+                db.session.add(perm)
+                db.session.flush()
+            rp = RolePermission(role_id=role.id, permission_id=perm.id)
+            db.session.add(rp)
 
-    db.session.commit()
+        db.session.commit()
 
-    action_type = 'UPDATE' if is_existing else 'CREATE'
-    log_audit(
-        action_type=action_type,
-        record_type='ROLE',
-        record_id=str(role.id),
-        change_reason=f'Role "{new_role}" {"updated" if is_existing else "created"} with permissions: {perm_keys}'
-    )
-
-    # Log field-level change for UPDATE so old vs new permissions are captured
-    if is_existing:
         log_field_change(
             action_type='UPDATE',
             record_type='ROLE',
             record_id=str(role.id),
             field_name='permissions',
-            old_value=str(old_perm_keys),
+            old_value=str(old_perm_keys),  # ← real previous state
             new_value=str(perm_keys),
-            change_reason=f'Role "{new_role}" permissions updated'
+            change_reason=f'Role "{role_name}" permissions updated'
         )
 
-    return jsonify({'message': f'Role "{new_role}" saved in database.', 'role_id': role.id, 'permissions': perm_keys})
+        return jsonify({'message': f'Role "{role_name}" updated successfully.', 'permissions': perm_keys})
 
-    @app.route('/get-role/<role_name>', methods=["GET"])
-    def get_role(role_name):
-        role = Role.query.filter_by(name=role_name).first()
-        if not role:
-            return jsonify({'message': 'Role not found'}), 404
-
-        permissions = [
-            {'key': perm.key} for perm in 
-            Permission.query.join(RolePermission, Permission.id == RolePermission.permission_id)
-            .filter(RolePermission.role_id == role.id).all()
-        ]
-
-        return jsonify({'name': role.name, 'permissions': permissions})
-
-
-@app.route('/update-role', methods=["POST"])
-def update_role():
-    data = request.get_json()
-    role_name = data.get('role_name')
-    updated_apps = data.get('updated_role_apps')
-
-    if not role_name or not updated_apps:
-        return jsonify({'message': 'Role name and at least one function required.'}), 400
-
-    role = Role.query.filter_by(name=role_name).first()
-    if not role:
-        return jsonify({'message': 'Role not found'}), 404
-
-    if isinstance(updated_apps, dict):
-        perm_keys = list(updated_apps.keys())
-    else:
-        perm_keys = list(updated_apps)
-
-    # Capture real old permissions BEFORE deletion
-    old_perm_keys = [
-        row[0] for row in
-        db.session.query(Permission.key)
-        .join(RolePermission, RolePermission.permission_id == Permission.id)
-        .filter(RolePermission.role_id == role.id)
-        .all()
-    ]
-
-    # Remove existing permissions
-    RolePermission.query.filter_by(role_id=role.id).delete()
-    db.session.flush()
-
-    # Recreate permissions
-    for key in perm_keys:
-        perm = Permission.query.filter_by(key=key).first()
-        if not perm:
-            perm = Permission(key=key)
-            db.session.add(perm)
-            db.session.flush()
-        rp = RolePermission(role_id=role.id, permission_id=perm.id)
-        db.session.add(rp)
-
-    db.session.commit()
-
-    log_field_change(
-        action_type='UPDATE',
-        record_type='ROLE',
-        record_id=str(role.id),
-        field_name='permissions',
-        old_value=str(old_perm_keys),  # ← real previous state
-        new_value=str(perm_keys),
-        change_reason=f'Role "{role_name}" permissions updated'
-    )
-
-    return jsonify({'message': f'Role "{role_name}" updated successfully.', 'permissions': perm_keys})
-
-    ##########################################################################################################################
-    #LOGIN - USERNAME
-    ##########################################################################################################################
+        ##########################################################################################################################
+        #LOGIN - USERNAME
+        ##########################################################################################################################
 
 
 
@@ -933,14 +942,10 @@ def update_role():
             json.dump(config, config_file, indent=4)
 
         return jsonify({'status': 'Username saved successfully'})
-    
+
+
+    from audit_dashboard import audit_bp
+    app.register_blueprint(audit_bp)
+
 
     return app
-    
-
-
-
-#if __name__ == '__main__':
-    #threading.Thread(target=consume_messages, daemon=True).start()
-
-    #app.run(debug=True, use_reloader=False,port=5001)
