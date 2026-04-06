@@ -2,7 +2,7 @@
 test_audit_dashboard.py
 TDD tests for the Audit Dashboard Blueprint — 21 CFR Part 11
 Run: docker compose exec vertebrate-app sh -c \
-     "cd /app/code && python -m pytest tests/test_audit_dashboard.py -v"
+     "cd /app && python -m pytest code/tests/test_audit_dashboard.py -v --tb=short"
 """
 import os
 import json
@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 os.environ.setdefault('DISABLE_KAFKA', '1')
 
 
-# ── Fixtures ─────────────────────────────────────────────────────────────────
+# ── Fixtures ──────────────────────────────────────────────────────────────────
 
 @pytest.fixture(scope='module')
 def app():
@@ -29,11 +29,22 @@ def client(app):
     return app.test_client()
 
 
+@pytest.fixture()
+def anon_client():
+    """Completely isolated app instance — guaranteed unauthenticated."""
+    import os
+    os.environ.setdefault('DISABLE_KAFKA', '1')
+    from app import create_app
+    fresh_app = create_app()
+    fresh_app.config['TESTING'] = True
+    with fresh_app.app_context():
+        yield fresh_app.test_client()
+
+
 @pytest.fixture(scope='module')
 def logged_in_client(app, client):
-    """Authenticated client (User_Admin)."""
     client.post(
-        '/loginUser',
+        '/loginUser',                          # ← matches auth.loginUser route
         data=json.dumps({'username': 'User_Admin', 'password': '12345'}),
         content_type='application/json'
     )
@@ -42,39 +53,41 @@ def logged_in_client(app, client):
 
 @pytest.fixture(scope='module')
 def seeded_logs(app):
-    """Seed a known set of AuditLog rows for dashboard queries.
-    Note: no teardown — audit_trail.audit_logs is immutable per 21 CFR Part 11.
-    Rows seeded here persist in the DB, which is correct compliance behaviour.
-    """
     from models import db, AuditLog
+    from audit_trail import _generate_checksum
+
+    def make_entry(**kwargs):
+        e = AuditLog(**kwargs)
+        e.checksum = _generate_checksum(e)
+        return e
+
     entries = [
-        AuditLog(
+        make_entry(
             timestamp=datetime(2026, 3, 1, 10, 0, 0, tzinfo=timezone.utc),
             username='User_Admin', action_type='LOGIN',
-            record_type='USER', checksum='abc'
+            record_type='USER'
         ),
-        AuditLog(
+        make_entry(
             timestamp=datetime(2026, 3, 1, 11, 0, 0, tzinfo=timezone.utc),
             username='User_Admin', action_type='CREATE',
-            record_type='ORDER', record_id='ORD-001', checksum='def'
+            record_type='ORDER', record_id='ORD-001'
         ),
-        AuditLog(
+        make_entry(
             timestamp=datetime(2026, 3, 2, 9, 0, 0, tzinfo=timezone.utc),
             username='User_Admin', action_type='UPDATE',
             record_type='ORDER', record_id='ORD-001',
-            field_name='status', old_value='Created', new_value='Released',
-            checksum='ghi'
+            field_name='status', old_value='Created', new_value='Released'
         ),
-        AuditLog(
+        make_entry(
             timestamp=datetime(2026, 3, 2, 9, 30, 0, tzinfo=timezone.utc),
             username='User_Admin', action_type='LOGIN_FAILED',
-            record_type='USER', checksum='jkl'
+            record_type='USER'
         ),
-        AuditLog(
+        make_entry(
             timestamp=datetime(2026, 3, 3, 8, 0, 0, tzinfo=timezone.utc),
             username='User_Admin', action_type='DELETE',
             record_type='ROLE', record_id='5',
-            change_reason='Role decommissioned', checksum='mno'
+            change_reason='Role decommissioned'
         ),
     ]
     with app.app_context():
@@ -82,15 +95,15 @@ def seeded_logs(app):
             db.session.add(e)
         db.session.commit()
     yield
-
+    # No teardown — immutable by 21 CFR Part 11 DB trigger
 
 
 # ── Route: GET /audit/ ────────────────────────────────────────────────────────
 
 class TestDashboardIndexRoute:
 
-    def test_unauthenticated_redirects_to_login(self, client):
-        resp = client.get('/audit/')
+    def test_unauthenticated_redirects_to_login(self, app, anon_client):
+        resp = anon_client.get('/audit/')
         assert resp.status_code in (302, 401), \
             "Unauthenticated request must be redirected or rejected"
 
@@ -111,8 +124,8 @@ class TestDashboardIndexRoute:
 
 class TestStatsAPI:
 
-    def test_unauthenticated_returns_401_or_redirect(self, client):
-        resp = client.get('/audit/api/stats')
+    def test_unauthenticated_returns_401_or_redirect(self, anon_client):
+        resp = anon_client.get('/audit/api/stats')
         assert resp.status_code in (302, 401)
 
     def test_returns_200_and_json(self, logged_in_client, seeded_logs):
@@ -152,8 +165,8 @@ class TestStatsAPI:
 
 class TestLogsAPI:
 
-    def test_unauthenticated_returns_401_or_redirect(self, client):
-        resp = client.get('/audit/api/logs')
+    def test_unauthenticated_returns_401_or_redirect(self, anon_client):
+        resp = anon_client.get('/audit/api/logs')
         assert resp.status_code in (302, 401)
 
     def test_returns_200_and_json(self, logged_in_client, seeded_logs):
@@ -211,8 +224,8 @@ class TestLogsAPI:
 
 class TestIntegrityAPI:
 
-    def test_unauthenticated_returns_401_or_redirect(self, client):
-        resp = client.get('/audit/api/integrity')
+    def test_unauthenticated_returns_401_or_redirect(self, anon_client):
+        resp = anon_client.get('/audit/api/integrity')
         assert resp.status_code in (302, 401)
 
     def test_returns_200_and_json(self, logged_in_client):

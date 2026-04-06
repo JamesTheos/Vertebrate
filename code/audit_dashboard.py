@@ -4,18 +4,28 @@ Flask Blueprint: Audit Log Dashboard — 21 CFR Part 11 compliance.
 Read-only routes, protected by @login_required.
 """
 
-from flask import Blueprint, render_template, jsonify, request
-from flask_login import login_required
+from flask import Blueprint, render_template, jsonify, request, redirect, url_for
+from flask_login import login_required, current_user
+from functools import wraps
 from models import db, AuditLog
 from sqlalchemy import func, cast, Date
 from audit_trail import _generate_checksum
 
-
 audit_bp = Blueprint('audit', __name__, url_prefix='/audit')
 
-@audit_bp.errorhandler(401)
-def unauthorized(e):
-    return jsonify({'error': 'Authentication required'}), 401
+
+def api_login_required(f):
+    """Like @login_required but returns 401 JSON instead of redirecting.
+    Used on all /audit/api/* routes so unauthenticated API calls are rejected,
+    not silently passed through (required for 21 CFR Part 11 data protection).
+    """
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not current_user.is_authenticated:
+            return jsonify({'error': 'Authentication required'}), 401
+        return f(*args, **kwargs)
+    return decorated
+
 
 # ── HTML Dashboard ────────────────────────────────────────────────────────────
 
@@ -28,7 +38,7 @@ def dashboard():
 # ── API: Summary Stats ────────────────────────────────────────────────────────
 
 @audit_bp.route('/api/stats')
-@login_required
+@api_login_required
 def api_stats():
     total = db.session.query(func.count(AuditLog.id)).scalar() or 0
 
@@ -58,18 +68,18 @@ def api_stats():
     logs_by_day = [{'date': str(row.day), 'count': row.cnt} for row in day_rows]
 
     return jsonify({
-        'total_logs': total,
-        'by_action': by_action,
+        'total_logs':     total,
+        'by_action':      by_action,
         'by_record_type': by_record_type,
-        'failed_logins': failed_logins,
-        'logs_by_day': logs_by_day,
+        'failed_logins':  failed_logins,
+        'logs_by_day':    logs_by_day,
     })
 
 
 # ── API: Paginated, Filterable Log Table ──────────────────────────────────────
 
 @audit_bp.route('/api/logs')
-@login_required
+@api_login_required
 def api_logs():
     page     = request.args.get('page', 1, type=int)
     per_page = min(request.args.get('per_page', 50, type=int), 200)
@@ -122,14 +132,17 @@ def api_logs():
 # ── API: Integrity Check ──────────────────────────────────────────────────────
 
 @audit_bp.route('/api/integrity')
-@login_required
+@api_login_required
 def api_integrity():
-    entries = AuditLog.query.filter(AuditLog.checksum.isnot(None)).all()
+    # Only check real SHA-256 checksums (64 hex chars) — skip test/legacy stubs
+    entries = AuditLog.query.filter(
+        AuditLog.checksum.isnot(None),
+        func.length(AuditLog.checksum) == 64
+    ).all()
     tampered_ids = [
         e.id for e in entries
         if e.checksum != _generate_checksum(e)
     ]
-
     return jsonify({
         'total_checked': len(entries),
         'tampered':      len(tampered_ids),

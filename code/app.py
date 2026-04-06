@@ -1,4 +1,4 @@
-from flask import Flask, app, render_template, jsonify, request, abort
+from flask import Flask, app, render_template, jsonify, request, abort, redirect, url_for
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_sqlalchemy import SQLAlchemy
 import sqlite3
@@ -270,7 +270,7 @@ def create_app():
     def unauthorized():
         if request.path.startswith('/audit/api/'):
             return jsonify({'error': 'Authentication required'}), 401
-        return redirect(url_for('auth.login'))
+        return redirect(url_for('auth.loginUser'))  # ← was 'auth.login'
 
     @login_manager.user_loader
     def load_user(user_id):
