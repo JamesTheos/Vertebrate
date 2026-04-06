@@ -49,6 +49,12 @@
     .filters button.secondary {
       background: #1e293b; border: 1px solid #334155; color: #94a3b8; }
 
+    .filters button.export {
+      padding: .45rem 1rem; background: #064e3b;
+      border: 1px solid #065f46; color: #6ee7b7;
+      border-radius: 6px; cursor: pointer; font-size: .85rem; }
+    .filters button.export:hover { background: #065f46; }
+
     /* ── Table ── */
     .table-wrap { background: #1a1d27; border: 1px solid #2d3148; border-radius: 10px; overflow: auto; }
     table { width: 100%; border-collapse: collapse; font-size: .82rem; }
@@ -153,6 +159,7 @@
     </label>
     <button onclick="applyFilters()">Apply</button>
     <button class="secondary" onclick="resetFilters()">Reset</button>
+    <button class="export" onclick="exportCSV()">⬇ Export CSV</button>
   </div>
 
   <!-- Log Table -->
@@ -345,6 +352,19 @@
     loadLogs();
   }
 
+  // ── CSV Export ──────────────────────────────────────────────────────────────
+  function exportCSV() {
+    const params = new URLSearchParams({
+      format: 'csv',
+      ...(document.getElementById('f-action').value   && { action_type: document.getElementById('f-action').value }),
+      ...(document.getElementById('f-record').value   && { record_type: document.getElementById('f-record').value }),
+      ...(document.getElementById('f-username').value && { username:    document.getElementById('f-username').value }),
+      ...(document.getElementById('f-from').value     && { date_from:   document.getElementById('f-from').value }),
+      ...(document.getElementById('f-to').value       && { date_to:     document.getElementById('f-to').value }),
+    });
+    // Trigger browser download directly — no JS fetch needed
+    window.location.href = `/audit/api/logs/export?${params}`;
+  }
   // ── Init ────────────────────────────────────────────────────────────────────
   document.getElementById('last-updated').textContent =
     'Last updated: ' + new Date().toLocaleTimeString();

@@ -242,3 +242,38 @@ class TestIntegrityAPI:
         data = json.loads(logged_in_client.get('/audit/api/integrity').data)
         assert isinstance(data['tampered'], int)
         assert isinstance(data['tampered_ids'], list)
+
+
+class TestCSVExport:
+
+    def test_unauthenticated_returns_401(self, anon_client):
+        resp = anon_client.get('/audit/api/logs/export?format=csv')
+        assert resp.status_code in (302, 401)
+
+    def test_returns_csv_content_type(self, logged_in_client, seeded_logs):
+        resp = logged_in_client.get('/audit/api/logs/export?format=csv')
+        assert resp.status_code == 200
+        assert 'text/csv' in resp.content_type
+
+    def test_csv_has_header_row(self, logged_in_client, seeded_logs):
+        resp = logged_in_client.get('/audit/api/logs/export?format=csv')
+        lines = resp.data.decode('utf-8').splitlines()
+        assert lines[0] == 'id,timestamp,username,action_type,record_type,record_id,field_name,old_value,new_value,change_reason,ip_address,endpoint,checksum'
+
+    def test_csv_contains_seeded_data(self, logged_in_client, seeded_logs):
+        resp = logged_in_client.get('/audit/api/logs/export?format=csv')
+        content = resp.data.decode('utf-8')
+        assert 'User_Admin' in content
+        assert 'LOGIN' in content
+
+    def test_csv_filter_by_action_type(self, logged_in_client, seeded_logs):
+        resp = logged_in_client.get('/audit/api/logs/export?format=csv&action_type=LOGIN')
+        lines = resp.data.decode('utf-8').splitlines()
+        # Every data row must be LOGIN (skip header)
+        for line in lines[1:]:
+            assert 'LOGIN' in line
+
+    def test_csv_filename_in_content_disposition(self, logged_in_client, seeded_logs):
+        resp = logged_in_client.get('/audit/api/logs/export?format=csv')
+        assert 'attachment' in resp.headers.get('Content-Disposition', '')
+        assert '.csv' in resp.headers.get('Content-Disposition', '')

@@ -10,6 +10,9 @@ from functools import wraps
 from models import db, AuditLog
 from sqlalchemy import func, cast, Date
 from audit_trail import _generate_checksum
+import csv
+import io
+from datetime import datetime, timezone
 
 audit_bp = Blueprint('audit', __name__, url_prefix='/audit')
 
@@ -148,3 +151,60 @@ def api_integrity():
         'tampered':      len(tampered_ids),
         'tampered_ids':  tampered_ids,
     })
+
+
+# ── API: CSV Export ───────────────────────────────────────────────────────────
+
+@audit_bp.route('/api/logs/export')
+@api_login_required
+def api_logs_export():
+    q = AuditLog.query
+
+    if action_type := request.args.get('action_type'):
+        q = q.filter(AuditLog.action_type == action_type)
+    if username := request.args.get('username'):
+        q = q.filter(AuditLog.username == username)
+    if record_type := request.args.get('record_type'):
+        q = q.filter(AuditLog.record_type == record_type)
+    if date_from := request.args.get('date_from'):
+        q = q.filter(AuditLog.timestamp >= date_from)
+    if date_to := request.args.get('date_to'):
+        q = q.filter(AuditLog.timestamp <= date_to)
+
+    entries = q.order_by(AuditLog.timestamp.desc()).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Header row
+    writer.writerow([
+        'id', 'timestamp', 'username', 'action_type', 'record_type',
+        'record_id', 'field_name', 'old_value', 'new_value',
+        'change_reason', 'ip_address', 'endpoint', 'checksum'
+    ])
+
+    # Data rows
+    for e in entries:
+        writer.writerow([
+            e.id,
+            e.timestamp.isoformat() if e.timestamp else '',
+            e.username,
+            e.action_type,
+            e.record_type,
+            e.record_id or '',
+            e.field_name or '',
+            e.old_value or '',
+            e.new_value or '',
+            e.change_reason or '',
+            e.ip_address or '',
+            e.endpoint or '',
+            e.checksum or '',
+        ])
+
+    output.seek(0)
+    filename = f"audit_logs_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.csv"
+
+    return output.getvalue(), 200, {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': f'attachment; filename="{filename}"',
+    }
