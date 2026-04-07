@@ -260,7 +260,6 @@ def create_app():
 
     login_manager = LoginManager()
     login_manager.init_app(app)
-    login_manager.login_view = 'auth.login'
     app.register_blueprint(auth)
 
     register_timeout_hook(app)
@@ -270,7 +269,7 @@ def create_app():
     def unauthorized():
         if request.path.startswith('/audit/api/'):
             return jsonify({'error': 'Authentication required'}), 401
-        return redirect(url_for('auth.loginUser'))  # ← was 'auth.login'
+        return redirect(url_for('index'))
 
     @login_manager.user_loader
     def load_user(user_id):

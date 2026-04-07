@@ -102,10 +102,11 @@ def seeded_logs(app):
 
 class TestDashboardIndexRoute:
 
-    def test_unauthenticated_redirects_to_login(self, app, anon_client):
-        resp = anon_client.get('/audit/')
-        assert resp.status_code in (302, 401), \
-            "Unauthenticated request must be redirected or rejected"
+    def test_unauthenticated_redirects_to_index(self, anon_client):
+        resp = anon_client.get('/audit/', follow_redirects=False)
+        assert resp.status_code == 302
+        assert '/index' in resp.headers.get('Location', ''), \
+            "Unauthenticated /audit/ must redirect to /index login page"
 
     def test_authenticated_returns_200(self, logged_in_client):
         resp = logged_in_client.get('/audit/')
@@ -124,9 +125,11 @@ class TestDashboardIndexRoute:
 
 class TestStatsAPI:
 
-    def test_unauthenticated_returns_401_or_redirect(self, anon_client):
+    def test_unauthenticated_returns_401_json(self, anon_client):
         resp = anon_client.get('/audit/api/stats')
-        assert resp.status_code in (302, 401)
+        assert resp.status_code == 401
+        assert resp.content_type.startswith('application/json')
+        assert resp.get_json().get('error') == 'Authentication required'
 
     def test_returns_200_and_json(self, logged_in_client, seeded_logs):
         resp = logged_in_client.get('/audit/api/stats')
@@ -165,9 +168,11 @@ class TestStatsAPI:
 
 class TestLogsAPI:
 
-    def test_unauthenticated_returns_401_or_redirect(self, anon_client):
+    def test_unauthenticated_returns_401_json(self, anon_client):
         resp = anon_client.get('/audit/api/logs')
-        assert resp.status_code in (302, 401)
+        assert resp.status_code == 401
+        assert resp.content_type.startswith('application/json')
+        assert resp.get_json().get('error') == 'Authentication required'
 
     def test_returns_200_and_json(self, logged_in_client, seeded_logs):
         resp = logged_in_client.get('/audit/api/logs')
@@ -224,9 +229,11 @@ class TestLogsAPI:
 
 class TestIntegrityAPI:
 
-    def test_unauthenticated_returns_401_or_redirect(self, anon_client):
+    def test_unauthenticated_returns_401_json(self, anon_client):
         resp = anon_client.get('/audit/api/integrity')
-        assert resp.status_code in (302, 401)
+        assert resp.status_code == 401
+        assert resp.content_type.startswith('application/json')
+        assert resp.get_json().get('error') == 'Authentication required'
 
     def test_returns_200_and_json(self, logged_in_client):
         resp = logged_in_client.get('/audit/api/integrity')
@@ -247,8 +254,10 @@ class TestIntegrityAPI:
 class TestCSVExport:
 
     def test_unauthenticated_returns_401(self, anon_client):
-        resp = anon_client.get('/audit/api/logs/export?format=csv')
-        assert resp.status_code in (302, 401)
+        resp = anon_client.get('/audit/api/logs/export')
+        assert resp.status_code == 401
+        assert resp.content_type.startswith('application/json')
+        assert resp.get_json().get('error') == 'Authentication required'
 
     def test_returns_csv_content_type(self, logged_in_client, seeded_logs):
         resp = logged_in_client.get('/audit/api/logs/export?format=csv')

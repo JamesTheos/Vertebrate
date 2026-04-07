@@ -1,10 +1,10 @@
 """
 audit_dashboard.py
 Flask Blueprint: Audit Log Dashboard — 21 CFR Part 11 compliance.
-Read-only routes, protected by @login_required.
+Read-only routes, protected by @api_login_required / @login_required.
 """
 
-from flask import Blueprint, render_template, jsonify, request, redirect, url_for
+from flask import Blueprint, render_template, jsonify, request, Response, stream_with_context
 from flask_login import login_required, current_user
 from functools import wraps
 from models import db, AuditLog
@@ -12,15 +12,16 @@ from sqlalchemy import func, cast, Date
 from audit_trail import _generate_checksum
 import csv
 import io
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 audit_bp = Blueprint('audit', __name__, url_prefix='/audit')
 
+INTEGRITY_LIMIT = 500  # max rows per integrity check request
+
 
 def api_login_required(f):
-    """Like @login_required but returns 401 JSON instead of redirecting.
-    Used on all /audit/api/* routes so unauthenticated API calls are rejected,
-    not silently passed through (required for 21 CFR Part 11 data protection).
+    """Returns 401 JSON for unauthenticated API calls — never redirects.
+    Required for 21 CFR Part 11: API consumers must receive machine-readable errors.
     """
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -28,6 +29,40 @@ def api_login_required(f):
             return jsonify({'error': 'Authentication required'}), 401
         return f(*args, **kwargs)
     return decorated
+
+
+def _parse_date_param(value, field_name, end_of_day=False):
+    """Parse YYYY-MM-DD string into UTC-aware datetime.
+    Returns (datetime, None) on success or (None, error_response) on failure.
+    """
+    try:
+        dt = datetime.strptime(value, '%Y-%m-%d').replace(tzinfo=timezone.utc)
+        if end_of_day:
+            dt = dt + timedelta(days=1) - timedelta(seconds=1)
+        return dt, None
+    except ValueError:
+        return None, (jsonify({'error': f'Invalid {field_name}. Use YYYY-MM-DD format.'}), 400)
+
+
+def _apply_filters(q):
+    """Apply common query filters from request args. Returns (query, error_response|None)."""
+    if action_type := request.args.get('action_type'):
+        q = q.filter(AuditLog.action_type == action_type)
+    if username := request.args.get('username'):
+        q = q.filter(AuditLog.username == username)
+    if record_type := request.args.get('record_type'):
+        q = q.filter(AuditLog.record_type == record_type)
+    if date_from := request.args.get('date_from'):
+        dt, err = _parse_date_param(date_from, 'date_from')
+        if err:
+            return q, err
+        q = q.filter(AuditLog.timestamp >= dt)
+    if date_to := request.args.get('date_to'):
+        dt, err = _parse_date_param(date_to, 'date_to', end_of_day=True)
+        if err:
+            return q, err
+        q = q.filter(AuditLog.timestamp <= dt)
+    return q, None
 
 
 # ── HTML Dashboard ────────────────────────────────────────────────────────────
@@ -87,18 +122,9 @@ def api_logs():
     page     = request.args.get('page', 1, type=int)
     per_page = min(request.args.get('per_page', 50, type=int), 200)
 
-    q = AuditLog.query
-
-    if action_type := request.args.get('action_type'):
-        q = q.filter(AuditLog.action_type == action_type)
-    if username := request.args.get('username'):
-        q = q.filter(AuditLog.username == username)
-    if record_type := request.args.get('record_type'):
-        q = q.filter(AuditLog.record_type == record_type)
-    if date_from := request.args.get('date_from'):
-        q = q.filter(AuditLog.timestamp >= date_from)
-    if date_to := request.args.get('date_to'):
-        q = q.filter(AuditLog.timestamp <= date_to)
+    q, err = _apply_filters(AuditLog.query)
+    if err:
+        return err
 
     paginated = q.order_by(AuditLog.timestamp.desc()).paginate(
         page=page, per_page=per_page, error_out=False
@@ -132,79 +158,87 @@ def api_logs():
     })
 
 
-# ── API: Integrity Check ──────────────────────────────────────────────────────
+# ── API: Integrity Check (paginated, max 500 rows per call) ──────────────────
 
 @audit_bp.route('/api/integrity')
 @api_login_required
 def api_integrity():
-    # Only check real SHA-256 checksums (64 hex chars) — skip test/legacy stubs
-    entries = AuditLog.query.filter(
+    limit    = min(request.args.get('limit', INTEGRITY_LIMIT, type=int), 5000)
+    since_id = request.args.get('since_id', type=int)
+
+    q = AuditLog.query.filter(
         AuditLog.checksum.isnot(None),
         func.length(AuditLog.checksum) == 64
-    ).all()
+    )
+    if since_id is not None:
+        q = q.filter(AuditLog.id > since_id)
+
+    entries  = q.order_by(AuditLog.id.asc()).limit(limit + 1).all()
+    has_more = len(entries) > limit
+    if has_more:
+        entries = entries[:limit]
+
     tampered_ids = [
         e.id for e in entries
         if e.checksum != _generate_checksum(e)
     ]
+
     return jsonify({
         'total_checked': len(entries),
         'tampered':      len(tampered_ids),
         'tampered_ids':  tampered_ids,
+        'has_more':      has_more,
+        'next_since_id': entries[-1].id if has_more and entries else None,
+        'applied_limit': limit,
     })
 
 
-# ── API: CSV Export ───────────────────────────────────────────────────────────
+# ── API: CSV Export (streamed) ────────────────────────────────────────────────
 
 @audit_bp.route('/api/logs/export')
 @api_login_required
 def api_logs_export():
-    q = AuditLog.query
+    q, err = _apply_filters(AuditLog.query)
+    if err:
+        return err
 
-    if action_type := request.args.get('action_type'):
-        q = q.filter(AuditLog.action_type == action_type)
-    if username := request.args.get('username'):
-        q = q.filter(AuditLog.username == username)
-    if record_type := request.args.get('record_type'):
-        q = q.filter(AuditLog.record_type == record_type)
-    if date_from := request.args.get('date_from'):
-        q = q.filter(AuditLog.timestamp >= date_from)
-    if date_to := request.args.get('date_to'):
-        q = q.filter(AuditLog.timestamp <= date_to)
+    q = q.order_by(AuditLog.timestamp.desc())
+    filename = f"audit_logs_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.csv"
 
-    entries = q.order_by(AuditLog.timestamp.desc()).all()
-
-    output = io.StringIO()
-    writer = csv.writer(output)
-
-    # Header row
-    writer.writerow([
+    HEADERS = [
         'id', 'timestamp', 'username', 'action_type', 'record_type',
         'record_id', 'field_name', 'old_value', 'new_value',
         'change_reason', 'ip_address', 'endpoint', 'checksum'
-    ])
+    ]
 
-    # Data rows
-    for e in entries:
-        writer.writerow([
-            e.id,
-            e.timestamp.isoformat() if e.timestamp else '',
-            e.username,
-            e.action_type,
-            e.record_type,
-            e.record_id or '',
-            e.field_name or '',
-            e.old_value or '',
-            e.new_value or '',
-            e.change_reason or '',
-            e.ip_address or '',
-            e.endpoint or '',
-            e.checksum or '',
-        ])
+    def generate():
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(HEADERS)
+        yield buf.getvalue()
 
-    output.seek(0)
-    filename = f"audit_logs_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.csv"
+        for e in q.yield_per(200):  # stream 200 rows at a time
+            buf = io.StringIO()
+            writer = csv.writer(buf)
+            writer.writerow([
+                e.id,
+                e.timestamp.isoformat() if e.timestamp else '',
+                e.username       or '',
+                e.action_type    or '',
+                e.record_type    or '',
+                e.record_id      or '',
+                e.field_name     or '',
+                e.old_value      or '',
+                e.new_value      or '',
+                e.change_reason  or '',
+                e.ip_address     or '',
+                e.endpoint       or '',
+                e.checksum       or '',
+            ])
+            yield buf.getvalue()
 
-    return output.getvalue(), 200, {
-        'Content-Type': 'text/csv; charset=utf-8',
-        'Content-Disposition': f'attachment; filename="{filename}"',
-    }
+    return Response(
+        stream_with_context(generate()),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename="{filename}"'}
+    )
