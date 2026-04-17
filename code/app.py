@@ -22,6 +22,7 @@ from timeout import register_timeout_hook
 from subscriptions import check_subscription,subscriptions
 from audit_trail import log_audit, log_field_change
 from utils import permission_required
+from aas_api import aas_bp
 
 # User-defined Roles
 
@@ -276,6 +277,7 @@ def create_app():
     app.register_blueprint(colorsettings)
     app.register_blueprint(tempConsumerChatbot)
     app.register_blueprint(subscriptions)
+    app.register_blueprint(aas_bp)
 #app.register_blueprint(nexus2plc)
 
     @app.context_processor
@@ -904,7 +906,7 @@ def update_role():
         record_type='ROLE',
         record_id=str(role.id),
         field_name='permissions',
-        old_value=str(old_perm_keys),  # ← real previous state
+        old_value=str(old_perm_keys),
         new_value=str(perm_keys),
         change_reason=f'Role "{role_name}" permissions updated'
     )
