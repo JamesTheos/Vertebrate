@@ -60,6 +60,38 @@ def _prop(id_short: str, value: str, value_type=model.datatypes.String) -> model
     )
 
 
+def _flatten_aas_json(raw: str) -> str:
+    """
+    basyx-python-sdk >= 1.1.0 writes the wrapped format:
+        {"assetAdministrationShells": [...], "submodels": [...], ...}
+
+    The Vertebrate API and tests expect a flat list:
+        [{"modelType": "AssetAdministrationShell", ...}, {"modelType": "Submodel", ...}, ...]
+
+    This function normalises both formats to the flat list so the rest of the
+    codebase is insulated from SDK serialisation changes.
+    """
+    parsed = json.loads(raw)
+
+    # Already a flat list (SDK < 1.1.0 format) — nothing to do
+    if isinstance(parsed, list):
+        return raw
+
+    # Wrapped dict format (SDK >= 1.1.0)
+    flat = []
+    for shell in parsed.get('assetAdministrationShells', []):
+        shell.setdefault('modelType', 'AssetAdministrationShell')
+        flat.append(shell)
+    for submodel in parsed.get('submodels', []):
+        submodel.setdefault('modelType', 'Submodel')
+        flat.append(submodel)
+    for concept in parsed.get('conceptDescriptions', []):
+        concept.setdefault('modelType', 'ConceptDescription')
+        flat.append(concept)
+
+    return json.dumps(flat)
+
+
 # ---------------------------------------------------------------------------
 # Submodel builders
 # ---------------------------------------------------------------------------
@@ -132,7 +164,8 @@ def build_aas_export(asset_type: str, asset_id: str, extra: dict | None = None) 
     Returns
     -------
     str
-        AAS JSON string ready to be served as an HTTP response or saved as .json
+        Flat-list AAS JSON string ready to be served as an HTTP response or
+        saved as .json.  Format: [{"modelType": ..., ...}, ...]
     """
     global_asset_id = _make_asset_id(asset_type, asset_id)
 
@@ -162,4 +195,6 @@ def build_aas_export(asset_type: str, asset_id: str, extra: dict | None = None) 
 
     buf = io.StringIO()
     aas_json.write_aas_json_file(buf, object_store)
-    return buf.getvalue()
+
+    # Normalise to flat list regardless of SDK version
+    return _flatten_aas_json(buf.getvalue())
