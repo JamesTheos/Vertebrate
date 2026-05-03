@@ -261,6 +261,7 @@ def create_app():
 
     login_manager = LoginManager()
     login_manager.init_app(app)
+    login_manager.login_view = 'login_page'  # redirect unauthenticated users to the login page
 
     @login_manager.user_loader
     def load_user(user_id):
@@ -283,13 +284,35 @@ def create_app():
     app.register_blueprint(aas_bp)
 
     ##########################################################################################################################
-    #USER MANAGEMENT
+    #PAGES
     ##########################################################################################################################
+
+    @app.route('/login')
+    def login_page():
+        if current_user.is_authenticated:
+            return redirect_to_index()
+        return render_template('login.html')
+
+    @app.route('/login-error')
+    def Login_error():
+        return render_template('login-error.html')
+
+    @app.route('/logout-message')
+    def Logout_message():
+        return render_template('logout-message.html')
+
+    @app.route('/updated-user')
+    def updated_user():
+        return render_template('Updated-User.html')
 
     @app.route('/')
     @login_required
     def index():
         return render_template('index.html')
+
+    def redirect_to_index():
+        from flask import redirect, url_for
+        return redirect(url_for('index'))
     
     @app.route('/3d-view')
     @login_required
@@ -698,8 +721,6 @@ def create_app():
     ##########################################################################################################################
     #LOGIN - USERNAME
     ##########################################################################################################################
-
-
 
     @app.route('/api/login', methods=['POST'])
     def login():

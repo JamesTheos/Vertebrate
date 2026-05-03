@@ -51,8 +51,12 @@ cluster_id = get_kafka_cluster_id(Kafkaserver) or config.get("clusterid")
 print("Cluster ID (active):", cluster_id)
 
 
-# Only perform SQLite reset logic when not using an external DB
-if not (os.environ.get('DATABASE_URL') or os.environ.get('SQLALCHEMY_DATABASE_URI')) and cluster_id != cluster_id_temp:
+# Only perform SQLite reset logic when:
+#   1. Not using an external DB (Postgres)
+#   2. Kafka returned a real cluster_id (not None) — never wipe the DB just because Kafka is down
+#   3. The cluster_id actually changed from what's stored in the DB
+using_external_db = bool(os.environ.get('DATABASE_URL') or os.environ.get('SQLALCHEMY_DATABASE_URI'))
+if not using_external_db and cluster_id is not None and cluster_id != cluster_id_temp:
     print("Cluster ID has changed (SQLite mode). Resetting local DB.")
     db_path = os.path.join(os.path.dirname(__file__), 'instance', 'UserManagement.db')
     if os.path.exists(db_path):
