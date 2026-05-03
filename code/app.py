@@ -269,6 +269,27 @@ def create_app():
 
     register_timeout_hook(app)
 
+    # ------------------------------------------------------------------
+    # Global context processor — injects appconfig into every template.
+    # This makes {{ appconfig.SidebarColor }} (and all other keys) work
+    # on ALL pages including login.html, without touching individual routes.
+    # ------------------------------------------------------------------
+    @app.context_processor
+    def inject_appconfig():
+        _appconfig_path = os.path.join(os.path.dirname(__file__), 'appconfig.json')
+        try:
+            with open(_appconfig_path) as _f:
+                _appconfig = json.load(_f)
+        except Exception:
+            _appconfig = {
+                "SidebarColor": "#02000e",
+                "SidebarTextColor": "#ffffff",
+                "BackgroundColor": "#f0f2f5",
+                "TextColor": "#02000e",
+                "Username": "Guest"
+            }
+        return dict(appconfig=type('AppConfig', (), _appconfig)())
+
     ##########################################################################################################################
     #USER MANAGEMENT
     ##########################################################################################################################
@@ -741,11 +762,3 @@ def create_app():
     
 
     return app
-    
-
-
-
-#if __name__ == '__main__':
-    #threading.Thread(target=consume_messages, daemon=True).start()
-
-    #app.run(debug=True, use_reloader=False,port=5001)
