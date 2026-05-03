@@ -1,4 +1,4 @@
-from flask import Flask, app, render_template, jsonify, request, abort
+from flask import Flask, render_template, jsonify, request, abort
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_sqlalchemy import SQLAlchemy
 import sqlite3
@@ -256,516 +256,314 @@ def create_app():
             print(f"Note: Could not create audit_trail schema (may already exist): {e}")
             db.session.rollback()
 
-        # Now create all tables
+        # Now create 
         db.create_all()
 
     login_manager = LoginManager()
     login_manager.init_app(app)
-    app.register_blueprint(auth)
-    
-    register_timeout_hook(app)
 
     @login_manager.user_loader
     def load_user(user_id):
         return User.query.get(int(user_id))
 
-    # Register the blueprints
+    register_timeout_hook(app)
+
+    ##########################################################################################################################
+    #USER MANAGEMENT
+    ##########################################################################################################################
+
     app.register_blueprint(product_analytics_app)
     app.register_blueprint(design_space_app)
     app.register_blueprint(process_qbd_analysis)
     app.register_blueprint(consumeWorkflows)
     app.register_blueprint(colorsettings)
     app.register_blueprint(tempConsumerChatbot)
+    app.register_blueprint(auth)
     app.register_blueprint(subscriptions)
     app.register_blueprint(aas_bp)
-#app.register_blueprint(nexus2plc)
 
-    @app.context_processor
-    def inject_config():
-        config_path = os.path.join(os.path.dirname(__file__), 'appconfig.json')
-        with open(config_path) as config_file:
-            config = json.load(config_file)
-        return dict(appconfig=config)
-    
-    #######################################################################################
-    
-    #######################################################################################
-    #main route
-    
-    #One-time check to set the main route based on clusterid
-    if clusterid != cluster_id_temp:
-        @app.route('/')
-        def initial_index_redirect():
-            return render_template('initial-index.html')
-    else:
-        @app.route('/')
-        def index_redirect():
-            return render_template('index.html')
-    @app.route('/initial-index')
-    def initial_index():
-        return render_template('initial-index.html')
+    ##########################################################################################################################
+    #USER MANAGEMENT
+    ##########################################################################################################################
 
-    #@app.route('/')
-    @app.route('/index')
+    @app.route('/')
+    @login_required
     def index():
         return render_template('index.html')
     
-    #login-error route
-    @app.route('/login-error')
-    def Login_error():
-        return render_template('login-error.html')
+    @app.route('/3d-view')
+    @login_required
+    def view_3d():
+        return render_template('3d-view.html')
     
-    #logout-message route
-    @app.route('/logout-message')
-    def Logout_message():
-        return render_template('logout-message.html')
-    
-    #Updated User Info route
-    @app.route('/updated-user')
-    def updated_user():
-        return render_template('updated-User.html')
-    
-    @app.errorhandler(403)
-    def forbidden(e):
-        return render_template('access.html'), 403
-
-
-    #######################################################################################
-    #analytics route
-    @check_subscription('product-analytics')
-    @permission_required('product-analytics')
-    @app.route('/product_analytics')
-    def product_analytics():
-        return render_template('product_analytics.html')
-
-    @app.route('/process-qbd-analysis')
-    @check_subscription("process-qbd-analytics")
-    @permission_required('process-qbd-analytics')
-    def trending():
-        return render_template('process-qbd-analysis.html')
-
-    #######################################################################################
-    #Orders route
-    @app.route('/manufacturing-orders', methods=['GET', 'POST'])
-    @check_subscription("order-overview")
-    @permission_required('manufacturing-orders')
-
-    def manufacturing_orders():
-        return render_template('manufacturing-orders.html')
-    
-
-
-    @app.route('/order-management', methods=['GET', 'POST'])
-    @check_subscription("order-management")    
-    @permission_required('order-management')
-    def order_management():
-        if request.method == 'POST':
-            action = request.json.get('action')
-            order_id = request.json.get('order_id')
-            workflow_name = request.json.get('workflowName')
-
-
-            if not workflow_name or not order_id or not action:
-                return jsonify({'error': 'Missing required fields'}), 400
-
-            # Load the workflow data from the JSON file
-            workflow_path = os.path.join(os.path.dirname(__file__), 'workflows', f'{workflow_name}.json')
-            if not os.path.exists(workflow_path):
-                return jsonify({'error': 'Workflow not found'}), 404
-
-            with open(workflow_path) as workflow_file:
-                workflow_data = json.load(workflow_file)
-
-            order_found = False
-            for order in data_store['manufacturing_orders']:
-                if order['orderNumber'] == order_id:
-                    order_found = True
-                    old_status = order.get('status', 'Unknown')
-                    if action == 'release':
-                        order['status'] = 'Released'
-                    elif action == 'abort':
-                        order['status'] = 'Aborted'
-                        for step in workflow_data['options']:
-                            for step_action in step.get('actions', []):
-                                if step_action.get('external'):
-                                    topic = step_action.get('topic')
-                                    send_to_kafka(topic, {'value': False, **order})
-                    else:
-                        return jsonify({'error': 'Invalid action'}), 400
-                    send_to_kafka('manufacturing_orders', order)
-                    action_past_tense = {'release': 'released', 'abort': 'aborted'}.get(action, action)
-                    log_field_change(
-                        action_type='UPDATE', record_type='ORDER',
-                        record_id=order_id, field_name='status',
-                        old_value=old_status, new_value=order['status'],
-                        change_reason=f'Order {action_past_tense} by user'
-                    )
-                    break
-
-            if not order_found:
-                return jsonify({'error': 'Order not found'}), 404
-            return jsonify({'status': 'Action Completed'}), 200
-        return render_template('order-management.html', orders=data_store['manufacturing_orders'])
-
-    @app.route('/data/<topic>')
-    def get_data(topic):
-        data = data_store.get(topic, [])
-        #print(f"Serving data for {topic}: {data}", flush=True)  # Debugging log
-        return jsonify(data)
-
-
-    @app.route('/submit-order', methods=['POST'])
-    def submit_order():
-        order_data = request.json
-        print(f"Requested Action: {order_data}")
-        order_number = order_data.get('orderNumber')
-        product = order_data.get('product')
-        lot_number = order_data.get('lotNumber')
-        workflow = order_data.get('workflow')
-
-        if not order_number or not product or not lot_number:
-            return jsonify({'error': 'Missing data'}), 400
-
-        message = {
-            'Enterprise': enterprise, 'Site': site, 'Area': area,
-            'Process Cell': process_cell, 'Unit': unit,
-            'orderNumber': order_number, 'product': product,
-            'lotNumber': lot_number, 'workflow': workflow,
-            'timestamp': datetime.now().isoformat(), 'status': 'Created'
-        }
-        print(f"Order Submitted: {message}")
-        send_to_kafka('manufacturing_orders', message)
-
-        log_audit(
-            action_type='CREATE', record_type='ORDER', record_id=order_number,
-            change_reason=f'Manufacturing order created for product {product}, lot {lot_number}'
-        )
-        return jsonify({'status': 'Order submitted successfully'})
-
-
-    @app.route('/orders')
-    @permission_required('order-management')
-    def get_orders():
-        orders = data_store.get('manufacturing_orders', [])
-        return jsonify(orders)
-
-    #######################################################################################
-    #Scada route
-    @app.route('/scada')
-    @check_subscription("pid")
-    @permission_required('pid')
-    def scada():
-        return render_template('scada.html')
-    
+    @app.route('/workflow-overview')
+    @login_required
+    def workflow_overview():
+        return render_template('workflow-overview.html')
 
     @app.route('/equipment-overview')
-    @check_subscription("equipment")
-    @permission_required('equipment-overview')
-    def equipmentoverview():
+    @login_required
+    def equipment_overview():
         return render_template('equipment-overview.html')
     
-
-    @app.route('/3d-view')
-    @check_subscription("3d-view")
-    def view3d():
-        return render_template('3d-view.html')
-
-    #######################################################################################
-    #design-space route
-    @app.route('/design-space-definition')
-    @check_subscription("design-space-definition")
-    @permission_required('design-space-definition')
-    def designspacedefinition():
-        return render_template('design-space-definition.html')
-
-    @app.route('/design-space-representation')
-    @check_subscription("design-space-representation")
-    @permission_required('design-space-representation')
-    def designspacerepresentation():
-        return render_template('design-space-representation.html')
-
-    ############################################################################################################
-    #Workflows route
-    @app.route('/batch')
-    @check_subscription("batch")
-    @permission_required('batch')
-    def batch():
-        return render_template('batch.html')
-
-    @app.route('/workflow-overview')
-    @check_subscription("workflow-overview")
-    @permission_required('workflow-overview')
-    def workflow_overview():
-        workflows = get_all_workflows().json
-        relStaCom_orders = [order for order in data_store['manufacturing_orders'] if order['status'] == 'Started']
-        print(f"Orders: {relStaCom_orders}")
-        print(f"Workflows: {workflows}")
-        return render_template('workflow-overview.html', running_orders=relStaCom_orders, workflows=workflows)
-
-
-    @app.route('/api/released-orders', methods=['GET'])
-    def get_released_orders():
-        released_orders = [order for order in data_store['manufacturing_orders'] if order['status'] == 'Released' or order['status'] == 'Started']
-        return jsonify({'orders': released_orders})
-
-    @app.route('/api/order-status', methods=['GET'])
-    def get_orderOverview():
-        return jsonify({'ordersOverview': data_store['manufacturing_orders']})
-
-
-
-
-    @app.route('/api/workflows', methods=['POST'])
-    def workflow_steps():
-        try:
-            data = request.json
-            workflow_name = data.get('workflow_name')
-            order_number = data.get('orderNumber')
-            current_step_index = data.get('currentStep')
-            button_pressed = data.get('action')
-
-            if not workflow_name or not order_number or current_step_index is None or not button_pressed:
-                return jsonify({'error': 'Missing required fields'}), 400
-
-            # Load the workflow data from the JSON file
-            workflow_path = os.path.join(os.path.dirname(__file__), 'workflows', f'{workflow_name}.json')
-            if not os.path.exists(workflow_path):
-                return jsonify({'error': 'Workflow not found'}), 404
-
-            with open(workflow_path) as workflow_file:
-                workflow_data = json.load(workflow_file)
-
-            # Index each step in the workflow starting from 0
-            for index, step in enumerate(workflow_data.get('options', [])):
-                step['stepIndex'] = index + 1
-
-            total_steps = len(workflow_data.get('options', []))
-            if total_steps == 0:
-                return jsonify({'error': 'No steps found in the workflow'}), 400
-
-            # Handle the first step of the workflow
-            if current_step_index == 1 and total_steps > 1:
-                for order in data_store['manufacturing_orders']:
-                    if order['orderNumber'] == order_number:
-                        order['status'] = 'Started'
-                        order['timestamp'] = datetime.now(datetime.UTC).isoformat()
-                        for actions in workflow_data['options'][0].get('actions', []):
-                            if actions.get('action') == button_pressed:
-                                if actions.get('external'):
-                                    topic = actions.get('topic')
-                                    external_action = actions.get('externalAction')
-                                    send_to_kafka(topic, {'value': external_action, **order})
-
-                                    #Demo adaptation to add second action
-                                    if topic == 'ISPEScene1':
-                                        if external_action == True:
-                                            send_to_kafka('ISPEScene2', {'value': False, **order})
-                                        elif external_action == False:   
-                                            send_to_kafka('ISPEScene2', {'value': True, **order})
-
-                                    elif topic == 'ISPEScene2':
-                                        if external_action == True:
-                                            send_to_kafka('ISPEScene1', {'value': False, **order})
-                                        elif external_action == False:   
-                                            send_to_kafka('ISPEScene1', {'value': True, **order})
-                                    break
-                        send_to_kafka('manufacturing_orders', {**order})
-
-            if current_step_index < total_steps and current_step_index > 1:
-                for order in data_store['manufacturing_orders']:
-                    if order['orderNumber'] == order_number:
-                        order['timestamp'] = datetime.now(datetime.UTC).isoformat()
-
-                        for option in workflow_data['options'][current_step_index - 1].get('actions', []):
-                            if option.get('action') == button_pressed:
-                                if option.get('external'):
-                                    step_current_topic = option.get('topic')
-                                    action_current = option.get('externalAction')
-                                    send_to_kafka(step_current_topic, {'value': action_current, **order})
-
-                                    #Demo adaptation to add second action
-                                    if step_current_topic == 'ISPEScene1':
-                                        if action_current == True:
-                                            send_to_kafka('ISPEScene2', {'value': False, **order})
-                                        elif action_current == False:   
-                                            send_to_kafka('ISPEScene2', {'value': True, **order})
-
-                                    elif step_current_topic == 'ISPEScene2':
-                                        if action_current == True:
-                                            send_to_kafka('ISPEScene1', {'value': False, **order})
-                                        elif action_current == False:   
-                                            send_to_kafka('ISPEScene1', {'value': True, **order})
-                                    break
-
-            if current_step_index == total_steps:
-                for order in data_store['manufacturing_orders']:
-                    if order['orderNumber'] == order_number:
-                        order['status'] = 'Completed'
-                        order['timestamp'] = datetime.now(datetime.UTC).isoformat()
-
-                        for actions in workflow_data['options'][current_step_index - 1].get('actions', []):
-            
-                            if actions.get('action') == button_pressed:
-                                if actions.get('external'):
-                                    topic = actions.get('topic')
-                                    external_action = actions.get('externalAction')
-                                    send_to_kafka(topic, {'value': external_action, **order})
-
-                                    #Demo adaptation to add second action
-                                    if topic == 'ISPEScene1':
-                                        if external_action == True:
-                                            send_to_kafka('ISPEScene2', {'value': False, **order})
-                                        elif external_action == False:   
-                                            send_to_kafka('ISPEScene2', {'value': True, **order})
-
-                                    elif topic == 'ISPEScene2':
-                                        if external_action == True:
-                                            send_to_kafka('ISPEScene1', {'value': False, **order})
-                                        elif external_action == False:   
-                                            send_to_kafka('ISPEScene1', {'value': True, **order})
-                                    break
-
-                        send_to_kafka('manufacturing_orders', {**order})
-
-                        # Reset all values to null for all external topics
-                        for step in workflow_data['options']:
-                            for action in step.get('actions'):
-                                if action.get('external') == True:
-                                    topic = action.get('topic')
-                                    send_to_kafka(topic, {'value': False, **order})
-
-            return jsonify({'success': True})
-
-        except Exception as e:
-            print(f"Error in /api/workflows: {e}")
-            return jsonify({'error': 'Internal server error'}), 500
-    
-
-
-    #returns workflow for process instructions
-    @app.route('/api/get-workflow', methods=['GET'])
-    def get_workflow():
-        orderNumber = request.args.get('orderNumber')
-        print(f"Requested Order: {orderNumber}")
-        order = next((order for order in data_store['manufacturing_orders'] if order['orderNumber'] == orderNumber), None)
-        if not order:
-            return jsonify({'error': 'Order not found'}), 404
-        workflow = order.get('workflow')
-
-    
-        workflow_path = os.path.join(os.path.dirname(__file__), 'workflows', f'{workflow}.json')
-        if os.path.exists(workflow_path):
-            with open(workflow_path) as workflow_file:
-                workflow_data = json.load(workflow_file)
-
-            data = {
-                'workflows': workflow_data.get('options'),
-                'workflow_name': workflow_data.get('workflowName'),
-            }
-            return jsonify(data)
-        else:
-            return jsonify({'error': 'Workflow not found'}), 404
+    @app.route('/aas-viewer')
+    @login_required
+    def aas_viewer():
+        return render_template('aas-viewer.html')
 
     @app.route('/sampling')
-    @check_subscription("sampling")
-    @permission_required('sampling')
+    @login_required
     def sampling():
         return render_template('sampling.html')
 
-    @app.route('/process-instructions')
-    @check_subscription("process-instructions")
-    @permission_required('process-instructions')
-    def processinstructions():
-        return render_template('process-instructions.html' )
+    @app.route('/batch')
+    @login_required
+    def batch():
+        return render_template('batch.html')
+
+    @app.route('/get-users', methods=['GET'])
+    @login_required
+    def get_users():
+        users = User.query.all()
+        user_list = [{'id': user.id, 'username': user.username, 'role': user.role} for user in users]
+        return jsonify(user_list)
+
+    @app.route('/add-user', methods=['POST'])
+    @login_required
+    def add_user():
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+        role = data.get('role')
+        
+        if not username or not password:
+            return jsonify({'message': 'Username and password required.'}), 400
+
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user:
+            return jsonify({'message': 'Username already exists. Please choose a different one.'}), 400
+
+        new_user = User(username=username, role=role)
+        new_user.set_password(password)
+        db.session.add(new_user)
+        db.session.commit()
+        return jsonify({'message': 'User added successfully.', 'user_id': new_user.id})
+
+    @app.route('/delete-user', methods=['DELETE'])
+    @login_required
+    def delete_user():
+        data = request.get_json()
+        username = data.get('username')
+        user = User.query.filter_by(username=username).first()
+        if user:
+            db.session.delete(user)
+            db.session.commit()
+            return jsonify({'message': 'User deleted successfully.'})
+        else:
+            return jsonify({'message': 'User not found.'}), 404
+
+    @app.route('/update-user', methods=['POST'])
+    @login_required
+    def update_user():
+        data = request.get_json()
+        username = data.get('username')
+        new_password = data.get('new_password')
+        new_role = data.get('new_role')
+        user = User.query.filter_by(username=username).first()
+        if user:
+            if new_password:
+                user.set_password(new_password)
+            if new_role:
+                user.role = new_role
+            db.session.commit()
+            return jsonify({'message': 'User updated successfully.'})
+        else:
+            return jsonify({'message': 'User not found.'}), 404
+
+    @app.route('/get-user-data', methods=['GET'])
+    @login_required
+    def get_user_data():
+        user = current_user
+        return jsonify({'username': user.username, 'role': user.role})
+
+    @app.route('/get-user-role', methods=['GET'])
+    @login_required
+    def get_user_role():
+        user = current_user
+        return jsonify({'role': user.role})
+
+    @app.route('/check-permission', methods=['GET'])
+    @login_required
+    def check_permission():
+        user = current_user
+        permission_key = request.args.get('key')
+        
+        if not permission_key:
+            return jsonify({'has_permission': False, 'message': 'No permission key provided'}), 400
+
+        role = Role.query.filter_by(name=user.role).first()
+        if not role:
+            return jsonify({'has_permission': False, 'message': f'Role "{user.role}" not found'}), 404
+
+        permission = Permission.query.filter_by(key=permission_key).first()
+        if not permission:
+            return jsonify({'has_permission': False, 'message': f'Permission "{permission_key}" not found'}), 404
+
+        has_permission = RolePermission.query.filter_by(
+            role_id=role.id, 
+            permission_id=permission.id
+        ).first() is not None
+
+        return jsonify({'has_permission': has_permission})
+
+
+    ##########################################################################################################################
+    #SUBSCRIPTIONS
+    ##########################################################################################################################
+
+    @app.route('/subscription-management')
+    @login_required
+    def subscription_management():
+        return render_template('subscription-management.html')
+
+    @app.route('/subscription-denied')
+    def subscription_denied():
+        return render_template('subscription-denied.html')
+
+    ##########################################################################################################################
+    #SCADA
+    ##########################################################################################################################
+
+    @app.route('/scada')
+    @login_required
+    @check_subscription
+    @permission_required('scada')
+    def scada():
+        return render_template('scada.html')
+
+    @app.route('/get-data', methods=['GET'])
+    @login_required
+    def get_data():
+        topic = request.args.get('topic')
+        return jsonify(data_store.get(topic, []))
+
+    @app.route('/send-data', methods=['POST'])
+    @login_required
+    def send_data():
+        data = request.get_json()
+        topic = data.get('topic')
+        value = data.get('value')
+        send_to_kafka(topic, {'value': value})
+        return jsonify({'status': 'Message sent'})
+    
+    @app.route('/start-phase1', methods=['POST'])
+    @login_required
+    def start_phase1():
+        data = request.get_json()
+        topic = data.get('topic')
+        value = data.get('value')
+        send_to_kafka(topic, {'value': value})
+        return jsonify({'status': 'Message sent'})
+
+
+    ##########################################################################################################################
+    #MANUFACTURING ORDERS
+    ##########################################################################################################################
+
+    @app.route('/manufacturing-orders')
+    @login_required
+    @check_subscription
+    @permission_required('manufacturing_orders')
+    def manufacturing_orders():
+        return render_template('manufacturing-orders.html')
+
+    @app.route('/order-management')
+    @login_required
+    @check_subscription
+    @permission_required('order_management')
+    def order_management():
+        return render_template('order-management.html')
+
+    @app.route('/get-manufacturing-orders', methods=['GET'])
+    @login_required
+    def get_manufacturing_orders():
+        return jsonify(data_store['manufacturing_orders'])
+
+    @app.route('/add-manufacturing-order', methods=['POST'])
+    @login_required
+    def add_manufacturing_order():
+        data = request.get_json()
+        send_to_kafka('manufacturing_orders', data)
+        return jsonify({'status': 'Order sent to Kafka'})
+
+    ##########################################################################################################################
+    #SETTINGS
+    ##########################################################################################################################
 
     @app.route('/settings')
+    @login_required
     def settings():
         return render_template('settings.html')
-    
-    @app.route('/role-management')
-    @check_subscription('role-management')
-    @permission_required('role-management')
-    def role_management():
-        roles = Role.query.options(db.joinedload(Role.permissions)).all()
-        subscribed_apps = [s.apps for s in Subscriptions.query.filter_by(subscribed=True).all()]
-        return render_template('role-management.html', roles=roles, subscribed_apps=subscribed_apps)
+
+    @app.route('/basesettings')
+    @login_required
+    def basesettings():
+        return render_template('basesettings.html')
 
     @app.route('/user-management')
-    @check_subscription("user-management")
-    @permission_required('user-management')
-    def user_man():
-        roles = Role.query.all()
-        return render_template('user-management.html', roles=roles)
+    @login_required
+    def user_management():
+        return render_template('user-management.html')
+
+    @app.route('/role-management')
+    @login_required
+    def role_management():
+        return render_template('role-management.html')
 
     @app.route('/user-profile')
+    @login_required
     def user_profile():
         return render_template('user-profile.html')
-    
-    @app.route('/subscription-management')
-    def subscription_management():
-        # Fetch all subscriptions from DB
-        subscriptions = Subscriptions.query.all()
-        
-        # Build a dict for easier lookup in the template
-        subscription_status = {sub.apps: sub.subscribed for sub in subscriptions}
-        
-        return render_template(
-            'subscription-management.html', 
-            subscription_status=subscription_status
-        )
 
+    @app.route('/plant-config')
+    @login_required
+    def plant_config():
+        return render_template('plantconfig.html')
 
-    @app.route('/plantconfig')
-    @check_subscription("plant-configuration")
-    @permission_required('plant-configuration')
-    def plantconfig():
+    @app.route('/process-config')
+    @login_required
+    def process_config():
+        return render_template('processconfig.html')
+
+    @app.route('/get-plant-config', methods=['GET'])
+    @login_required
+    def get_plant_config():
         config_path = os.path.join(os.path.dirname(__file__), 'config.json')
         with open(config_path) as config_file:
             config = json.load(config_file)
-        return render_template('plantconfig.html', config=config)
-
-    @app.route('/processconfig')
-    @check_subscription("process-configuration")
-    @permission_required('process-configuration')
-    def processconfig():
-        return render_template('processconfig.html')
-
-    @app.route('/workflow-management')
-    @check_subscription("workflow-management")
-    @permission_required('workflow-management')
-    def workflow_management():
-        return render_template('workflowmanagement.html')
-
+        return jsonify(config)
 
     @app.route('/save-plant-config', methods=['POST'])
+    @login_required
     def save_plant_config():
-        new_config = request.json
+        new_config = request.get_json()
         config_path = os.path.join(os.path.dirname(__file__), 'config.json')
 
-        with open(config_path) as config_file:
-            old_config = json.load(config_file)
+        with open(config_path) as f:
+            old_config = json.load(f)
 
-        new_config['Kafkaserver'] = Kafkaserver
-        new_config['clusterid'] = clusterid
+        with open(config_path, 'w') as f:
+            json.dump(new_config, f, indent=4)
 
-        with open(config_path, 'w') as config_file:
-            json.dump(new_config, config_file, indent=4)
-
-        global enterprise, site, area, process_cell, unit
-        enterprise = new_config['enterprise']
-        site = new_config['site']
-        area = new_config['area']
-        process_cell = new_config['process_cell']
-        unit = new_config['unit']
-
-        for field in ['enterprise', 'site', 'area', 'process_cell', 'unit']:
-            if old_config.get(field) != new_config.get(field):
-                log_field_change(
-                    action_type='UPDATE', record_type='SETTING',
-                    record_id='plant_config', field_name=field,
-                    old_value=old_config.get(field), new_value=new_config.get(field),
-                    change_reason='Plant configuration updated'
-                )
+        changed_fields = [k for k in new_config if new_config.get(k) != old_config.get(k)]
+        for field in changed_fields:
+            log_field_change(
+                action_type='UPDATE',
+                record_type='PLANT_CONFIG',
+                record_id='plant_config', field_name=field,
+                old_value=old_config.get(field), new_value=new_config.get(field),
+                change_reason='Plant configuration updated'
+            )
 
         return jsonify({'status': 'Configuration saved successfully'})
 
@@ -773,64 +571,118 @@ def create_app():
     #ROLES EDITING
     ###########################################################################################################################
 
+    @app.route('/get-role', methods=["POST"])
+    def define_role():
+        data = request.get_json()
+        new_role = data.get('created_role')
+        allowed_apps = data.get('role_apps')
 
-@app.route('/get-role', methods=["POST"])
-def define_role():
-    data = request.get_json()
-    new_role = data.get('created_role')
-    allowed_apps = data.get('role_apps')
+        if not new_role or not allowed_apps:
+            return jsonify({'message': 'Role name and at least one function required.'}), 400
 
-    if not new_role or not allowed_apps:
-        return jsonify({'message': 'Role name and at least one function required.'}), 400
+        if isinstance(allowed_apps, dict):
+            perm_keys = list(allowed_apps.keys())
+        else:
+            perm_keys = list(allowed_apps)
 
-    if isinstance(allowed_apps, dict):
-        perm_keys = list(allowed_apps.keys())
-    else:
-        perm_keys = list(allowed_apps)
+        # Capture existence BEFORE any mutations
+        existing_role = Role.query.filter_by(name=new_role).first()
+        is_existing = existing_role is not None
 
-    # Capture existence BEFORE any mutations
-    existing_role = Role.query.filter_by(name=new_role).first()
-    is_existing = existing_role is not None
+        if is_existing:
+            # Capture real old permissions BEFORE deletion
+            old_perm_keys = [
+                row[0] for row in
+                db.session.query(Permission.key)
+                .join(RolePermission, RolePermission.permission_id == Permission.id)
+                .filter(RolePermission.role_id == existing_role.id)
+                .all()
+            ]
+            RolePermission.query.filter_by(role_id=existing_role.id).delete()
+            db.session.flush()
+            role = existing_role
+        else:
+            old_perm_keys = []
+            role = Role(name=new_role)
+            db.session.add(role)
+            db.session.flush()
 
-    if is_existing:
+        for key in perm_keys:
+            perm = Permission.query.filter_by(key=key).first()
+            if not perm:
+                perm = Permission(key=key)
+                db.session.add(perm)
+                db.session.flush()
+            rp = RolePermission(role_id=role.id, permission_id=perm.id)
+            db.session.add(rp)
+
+        db.session.commit()
+
+        action_type = 'UPDATE' if is_existing else 'CREATE'
+        log_audit(
+            action_type=action_type,
+            record_type='ROLE',
+            record_id=str(role.id),
+            change_reason=f'Role "{new_role}" {"updated" if is_existing else "created"} with permissions: {perm_keys}'
+        )
+
+        # Log field-level change for UPDATE so old vs new permissions are captured
+        if is_existing:
+            log_field_change(
+                action_type='UPDATE',
+                record_type='ROLE',
+                record_id=str(role.id),
+                field_name='permissions',
+                old_value=str(old_perm_keys),
+                new_value=str(perm_keys),
+                change_reason=f'Role "{new_role}" permissions updated'
+            )
+
+        return jsonify({'message': f'Role "{new_role}" saved in database.', 'role_id': role.id, 'permissions': perm_keys})
+
+    @app.route('/update-role', methods=["POST"])
+    def update_role():
+        data = request.get_json()
+        role_name = data.get('role_name')
+        updated_apps = data.get('updated_role_apps')
+
+        if not role_name or not updated_apps:
+            return jsonify({'message': 'Role name and at least one function required.'}), 400
+
+        role = Role.query.filter_by(name=role_name).first()
+        if not role:
+            return jsonify({'message': 'Role not found'}), 404
+
+        if isinstance(updated_apps, dict):
+            perm_keys = list(updated_apps.keys())
+        else:
+            perm_keys = list(updated_apps)
+
         # Capture real old permissions BEFORE deletion
         old_perm_keys = [
             row[0] for row in
             db.session.query(Permission.key)
             .join(RolePermission, RolePermission.permission_id == Permission.id)
-            .filter(RolePermission.role_id == existing_role.id)
+            .filter(RolePermission.role_id == role.id)
             .all()
         ]
-        RolePermission.query.filter_by(role_id=existing_role.id).delete()
-        db.session.flush()
-        role = existing_role
-    else:
-        old_perm_keys = []
-        role = Role(name=new_role)
-        db.session.add(role)
+
+        # Remove existing permissions
+        RolePermission.query.filter_by(role_id=role.id).delete()
         db.session.flush()
 
-    for key in perm_keys:
-        perm = Permission.query.filter_by(key=key).first()
-        if not perm:
-            perm = Permission(key=key)
-            db.session.add(perm)
-            db.session.flush()
-        rp = RolePermission(role_id=role.id, permission_id=perm.id)
-        db.session.add(rp)
+        # Recreate permissions
+        for key in perm_keys:
+            perm = Permission.query.filter_by(key=key).first()
+            if not perm:
+                perm = Permission(key=key)
+                db.session.add(perm)
+                db.session.flush()
+            rp = RolePermission(role_id=role.id, permission_id=perm.id)
+            db.session.add(rp)
 
-    db.session.commit()
+        db.session.commit()
 
-    action_type = 'UPDATE' if is_existing else 'CREATE'
-    log_audit(
-        action_type=action_type,
-        record_type='ROLE',
-        record_id=str(role.id),
-        change_reason=f'Role "{new_role}" {"updated" if is_existing else "created"} with permissions: {perm_keys}'
-    )
-
-    # Log field-level change for UPDATE so old vs new permissions are captured
-    if is_existing:
         log_field_change(
             action_type='UPDATE',
             record_type='ROLE',
@@ -838,80 +690,10 @@ def define_role():
             field_name='permissions',
             old_value=str(old_perm_keys),
             new_value=str(perm_keys),
-            change_reason=f'Role "{new_role}" permissions updated'
+            change_reason=f'Role "{role_name}" permissions updated'
         )
 
-    return jsonify({'message': f'Role "{new_role}" saved in database.', 'role_id': role.id, 'permissions': perm_keys})
-
-    @app.route('/get-role/<role_name>', methods=["GET"])
-    def get_role(role_name):
-        role = Role.query.filter_by(name=role_name).first()
-        if not role:
-            return jsonify({'message': 'Role not found'}), 404
-
-        permissions = [
-            {'key': perm.key} for perm in 
-            Permission.query.join(RolePermission, Permission.id == RolePermission.permission_id)
-            .filter(RolePermission.role_id == role.id).all()
-        ]
-
-        return jsonify({'name': role.name, 'permissions': permissions})
-
-
-@app.route('/update-role', methods=["POST"])
-def update_role():
-    data = request.get_json()
-    role_name = data.get('role_name')
-    updated_apps = data.get('updated_role_apps')
-
-    if not role_name or not updated_apps:
-        return jsonify({'message': 'Role name and at least one function required.'}), 400
-
-    role = Role.query.filter_by(name=role_name).first()
-    if not role:
-        return jsonify({'message': 'Role not found'}), 404
-
-    if isinstance(updated_apps, dict):
-        perm_keys = list(updated_apps.keys())
-    else:
-        perm_keys = list(updated_apps)
-
-    # Capture real old permissions BEFORE deletion
-    old_perm_keys = [
-        row[0] for row in
-        db.session.query(Permission.key)
-        .join(RolePermission, RolePermission.permission_id == Permission.id)
-        .filter(RolePermission.role_id == role.id)
-        .all()
-    ]
-
-    # Remove existing permissions
-    RolePermission.query.filter_by(role_id=role.id).delete()
-    db.session.flush()
-
-    # Recreate permissions
-    for key in perm_keys:
-        perm = Permission.query.filter_by(key=key).first()
-        if not perm:
-            perm = Permission(key=key)
-            db.session.add(perm)
-            db.session.flush()
-        rp = RolePermission(role_id=role.id, permission_id=perm.id)
-        db.session.add(rp)
-
-    db.session.commit()
-
-    log_field_change(
-        action_type='UPDATE',
-        record_type='ROLE',
-        record_id=str(role.id),
-        field_name='permissions',
-        old_value=str(old_perm_keys),
-        new_value=str(perm_keys),
-        change_reason=f'Role "{role_name}" permissions updated'
-    )
-
-    return jsonify({'message': f'Role "{role_name}" updated successfully.', 'permissions': perm_keys})
+        return jsonify({'message': f'Role "{role_name}" updated successfully.', 'permissions': perm_keys})
 
     ##########################################################################################################################
     #LOGIN - USERNAME
