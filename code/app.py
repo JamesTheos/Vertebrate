@@ -571,7 +571,7 @@ def create_app():
     #ROLES EDITING
     ###########################################################################################################################
 
-    @app.route('/get-role', methods=["POST"])
+    @app.route('/get-role', methods=["POST"], endpoint='define_role')
     def define_role():
         data = request.get_json()
         new_role = data.get('created_role')
@@ -640,7 +640,7 @@ def create_app():
 
         return jsonify({'message': f'Role "{new_role}" saved in database.', 'role_id': role.id, 'permissions': perm_keys})
 
-    @app.route('/update-role', methods=["POST"])
+    @app.route('/update-role', methods=["POST"], endpoint='update_role')
     def update_role():
         data = request.get_json()
         role_name = data.get('role_name')
