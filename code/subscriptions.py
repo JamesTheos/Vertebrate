@@ -31,17 +31,38 @@ def subscription_management():
     return {"status": "success"}  # JSON response
 
 
-def check_subscription(app_name):
-    """Decorator that checks subscription status in the DB."""
-    def decorator(func):
+def check_subscription(func_or_app_name=None):
+    """Decorator that checks subscription status in the DB.
+
+    Supports two call styles:
+        @check_subscription                  # bare — app_name derived from view function name
+        @check_subscription('my_app_name')   # explicit app_name string
+    """
+    # --- bare usage: @check_subscription (no parentheses, func passed directly) ---
+    if callable(func_or_app_name):
+        func = func_or_app_name
+        app_name = func.__name__
+
         @wraps(func)
         def wrapper(*args, **kwargs):
-            db.session.expire_all()  # Ensure fresh data from DB
+            db.session.expire_all()
             sub = Subscriptions.query.filter_by(apps=app_name).with_for_update().first()
-            #print(f"app_name: {app_name}")
-            #print(f"sub: {sub}, subscribed={sub.subscribed if sub else None}")
+            if sub and bool(sub.subscribed):
+                return func(*args, **kwargs)
+            else:
+                return render_template("subscription-denied.html")
 
-            if sub and bool(sub.subscribed):   # explicit True check
+        return wrapper
+
+    # --- called with explicit app_name: @check_subscription('name') ---
+    def decorator(func):
+        name = func_or_app_name if func_or_app_name is not None else func.__name__
+
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            db.session.expire_all()
+            sub = Subscriptions.query.filter_by(apps=name).with_for_update().first()
+            if sub and bool(sub.subscribed):
                 return func(*args, **kwargs)
             else:
                 return render_template("subscription-denied.html")
