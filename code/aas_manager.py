@@ -83,7 +83,7 @@ def build_digital_nameplate(asset_type: str, asset_id: str, extra: dict | None =
     ]
 
     return model.Submodel(
-        id=_make_asset_id(asset_type, asset_id) + ':nameplate',
+        id_=_make_asset_id(asset_type, asset_id) + ':nameplate',
         id_short='DigitalNameplate',
         submodel_element=set(elements),
     )
@@ -106,7 +106,7 @@ def build_site_hierarchy_submodel(asset_type: str, asset_id: str) -> model.Submo
     ]
 
     return model.Submodel(
-        id=_make_asset_id(asset_type, asset_id) + ':site-hierarchy',
+        id_=_make_asset_id(asset_type, asset_id) + ':site-hierarchy',
         id_short='SiteHierarchy',
         submodel_element=set(elements),
     )
@@ -145,7 +145,7 @@ def build_aas_export(asset_type: str, asset_id: str, extra: dict | None = None) 
     site_hierarchy = build_site_hierarchy_submodel(asset_type, asset_id)
 
     shell = model.AssetAdministrationShell(
-        id=global_asset_id + ':aas',
+        id_=global_asset_id + ':aas',
         asset_information=asset_info,
         submodel={
             model.ModelReference.from_referable(nameplate_sm),
