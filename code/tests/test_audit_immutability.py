@@ -14,12 +14,12 @@ Usage:
     docker compose exec vertebrate-app python -m pytest \
         tests/test_audit_immutability.py -v
 """
-pytestmark = pytest.mark.postgres_only
 import os
 import time
+import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import ProgrammingError, InternalError
-import pytest
+
 pytestmark = pytest.mark.postgres_only
 
 os.environ.setdefault('DISABLE_KAFKA', '1')
@@ -122,6 +122,7 @@ class TestAuditImmutability:
 
                 assert tampered_checksum != entry.checksum, \
                     "Tampered checksum should not match the stored checksum"
+
 
 class TestChecksumCompleteness:
 
