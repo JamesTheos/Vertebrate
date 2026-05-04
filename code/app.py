@@ -23,6 +23,7 @@ from subscriptions import check_subscription,subscriptions
 from audit_trail import log_audit, log_field_change
 from utils import permission_required
 from aas_api import aas_bp
+from werkzeug.security import generate_password_hash
 
 # User-defined Roles
 
@@ -258,8 +259,8 @@ def create_app():
         db.create_all()
 
         # ------------------------------------------------------------------
-        # Seed default admin user — only runs when the DB is empty/fresh.
-        # Creates Role 'Admin' and User 'User_Admin' with password '12345'.
+        # Seed default admin user — only runs on a fresh/empty DB.
+        # User model: username + password columns only; role via many-to-many.
         # Skipped entirely if User_Admin already exists.
         # ------------------------------------------------------------------
         try:
@@ -268,9 +269,12 @@ def create_app():
                 if not admin_role:
                     admin_role = Role(name='Admin')
                     db.session.add(admin_role)
-                    db.session.flush()
-                admin_user = User(username='User_Admin', role='Admin')
-                admin_user.set_password('12345')
+                    db.session.flush()  # get admin_role.id before UserRoles insert
+                admin_user = User(
+                    username='User_Admin',
+                    password=generate_password_hash('12345')
+                )
+                admin_user.roles.append(admin_role)
                 db.session.add(admin_user)
                 db.session.commit()
                 print("Seeded default admin: User_Admin / 12345", flush=True)
@@ -385,7 +389,7 @@ def create_app():
     @login_required
     def get_users():
         users = User.query.all()
-        user_list = [{'id': user.id, 'username': user.username, 'role': user.role} for user in users]
+        user_list = [{'id': user.id, 'username': user.username, 'role': [r.name for r in user.roles]} for user in users]
         return jsonify(user_list)
 
     @app.route('/add-user', methods=['POST'])
@@ -394,7 +398,7 @@ def create_app():
         data = request.get_json()
         username = data.get('username')
         password = data.get('password')
-        role = data.get('role')
+        role_name = data.get('role')
         
         if not username or not password:
             return jsonify({'message': 'Username and password required.'}), 400
@@ -403,8 +407,11 @@ def create_app():
         if existing_user:
             return jsonify({'message': 'Username already exists. Please choose a different one.'}), 400
 
-        new_user = User(username=username, role=role)
-        new_user.set_password(password)
+        new_user = User(username=username, password=generate_password_hash(password))
+        if role_name:
+            role = Role.query.filter_by(name=role_name).first()
+            if role:
+                new_user.roles.append(role)
         db.session.add(new_user)
         db.session.commit()
         return jsonify({'message': 'User added successfully.', 'user_id': new_user.id})
@@ -432,9 +439,11 @@ def create_app():
         user = User.query.filter_by(username=username).first()
         if user:
             if new_password:
-                user.set_password(new_password)
+                user.password = generate_password_hash(new_password)
             if new_role:
-                user.role = new_role
+                role = Role.query.filter_by(name=new_role).first()
+                if role:
+                    user.roles = [role]
             db.session.commit()
             return jsonify({'message': 'User updated successfully.'})
         else:
@@ -444,13 +453,13 @@ def create_app():
     @login_required
     def get_user_data():
         user = current_user
-        return jsonify({'username': user.username, 'role': user.role})
+        return jsonify({'username': user.username, 'role': [r.name for r in user.roles]})
 
     @app.route('/get-user-role', methods=['GET'])
     @login_required
     def get_user_role():
         user = current_user
-        return jsonify({'role': user.role})
+        return jsonify({'role': [r.name for r in user.roles]})
 
     @app.route('/check-permission', methods=['GET'])
     @login_required
@@ -461,17 +470,17 @@ def create_app():
         if not permission_key:
             return jsonify({'has_permission': False, 'message': 'No permission key provided'}), 400
 
-        role = Role.query.filter_by(name=user.role).first()
-        if not role:
-            return jsonify({'has_permission': False, 'message': f'Role "{user.role}" not found'}), 404
+        user_role_ids = [r.id for r in user.roles]
+        if not user_role_ids:
+            return jsonify({'has_permission': False, 'message': 'User has no roles'}), 404
 
         permission = Permission.query.filter_by(key=permission_key).first()
         if not permission:
             return jsonify({'has_permission': False, 'message': f'Permission "{permission_key}" not found'}), 404
 
-        has_permission = RolePermission.query.filter_by(
-            role_id=role.id, 
-            permission_id=permission.id
+        has_permission = RolePermission.query.filter(
+            RolePermission.role_id.in_(user_role_ids),
+            RolePermission.permission_id == permission.id
         ).first() is not None
 
         return jsonify({'has_permission': has_permission})
