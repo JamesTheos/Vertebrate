@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, request, abort
+from flask import Flask, render_template, jsonify, request, abort, redirect, url_for
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_sqlalchemy import SQLAlchemy
 import sqlite3
@@ -244,7 +244,6 @@ def create_app():
 
     db.init_app(app)
 
-
     # Ensure tables exist (idempotent)
     with app.app_context():
         # Create audit_trail schema if it doesn't exist (for 21 CFR Part 11 compliance)
@@ -256,8 +255,28 @@ def create_app():
             print(f"Note: Could not create audit_trail schema (may already exist): {e}")
             db.session.rollback()
 
-        # Now create 
         db.create_all()
+
+        # ------------------------------------------------------------------
+        # Seed default admin user — only runs when the DB is empty/fresh.
+        # Creates Role 'Admin' and User 'User_Admin' with password '12345'.
+        # Skipped entirely if User_Admin already exists.
+        # ------------------------------------------------------------------
+        try:
+            if not User.query.filter_by(username='User_Admin').first():
+                admin_role = Role.query.filter_by(name='Admin').first()
+                if not admin_role:
+                    admin_role = Role(name='Admin')
+                    db.session.add(admin_role)
+                    db.session.flush()
+                admin_user = User(username='User_Admin', role='Admin')
+                admin_user.set_password('12345')
+                db.session.add(admin_user)
+                db.session.commit()
+                print("Seeded default admin: User_Admin / 12345", flush=True)
+        except Exception as e:
+            print(f"Note: Could not seed admin user: {e}", flush=True)
+            db.session.rollback()
 
     login_manager = LoginManager()
     login_manager.init_app(app)
@@ -311,7 +330,7 @@ def create_app():
     @app.route('/login')
     def login_page():
         if current_user.is_authenticated:
-            return redirect_to_index()
+            return redirect(url_for('index'))
         return render_template('login.html')
 
     @app.route('/login-error')
@@ -327,14 +346,11 @@ def create_app():
         return render_template('Updated-User.html')
 
     @app.route('/')
+    @app.route('/index')  # sidebar in base.html hardcodes /index — alias so it doesn't 404
     @login_required
     def index():
         return render_template('index.html')
 
-    def redirect_to_index():
-        from flask import redirect, url_for
-        return redirect(url_for('index'))
-    
     @app.route('/3d-view')
     @login_required
     def view_3d():
