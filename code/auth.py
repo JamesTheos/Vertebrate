@@ -61,8 +61,15 @@ def register_user():
 
 @auth.route('/loginUser', methods=['POST']) 
 def loginUser():
-    username = request.json.get('username')
-    password = request.json.get('password')
+    # Accept both application/json (fetch from JS) and
+    # application/x-www-form-urlencoded (native <form> submit).
+    json_data = request.get_json(force=True, silent=True)
+    if json_data:
+        username = json_data.get('username')
+        password = json_data.get('password')
+    else:
+        username = request.form.get('username')
+        password = request.form.get('password')
 
     user = User.query.filter_by(username=username).first()
 
@@ -76,8 +83,10 @@ def loginUser():
             record_id=str(user.id),
             change_reason='Successful login'
         )
-        # Return a JSON response with the redirect URL
-        return jsonify({'redirect': url_for('index')})
+        # JSON fetch gets a redirect URL; native form submit gets a direct redirect
+        if json_data:
+            return jsonify({'redirect': url_for('index')})
+        return redirect(url_for('index'))
 
     else:
         print("Login failed")
@@ -88,7 +97,9 @@ def loginUser():
             record_id=str(user.id) if user else None,
             change_reason='Invalid credentials'
         )
-        return jsonify({'redirect': url_for('Login_error')})
+        if json_data:
+            return jsonify({'redirect': url_for('Login_error')})
+        return redirect(url_for('Login_error'))
 
 
 @auth.route('/logoutUser', methods=['POST'])
