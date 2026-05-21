@@ -294,8 +294,8 @@ def create_app():
 
     # ------------------------------------------------------------------
     # Global context processor — injects appconfig into every template.
-    # This makes {{ appconfig.SidebarColor }} (and all other keys) work
-    # on ALL pages including login.html, without touching individual routes.
+    # Returns a plain dict so Jinja2 can access keys as attributes AND
+    # so jsonify/serialisation never encounters an Undefined object.
     # ------------------------------------------------------------------
     @app.context_processor
     def inject_appconfig():
@@ -311,7 +311,9 @@ def create_app():
                 "TextColor": "#02000e",
                 "Username": "Guest"
             }
-        return dict(appconfig=type('AppConfig', (), _appconfig)())
+        # Return plain dict — Jinja2 exposes dict values as both
+        # {{ appconfig.SidebarColor }} and {{ appconfig['SidebarColor'] }}
+        return dict(appconfig=_appconfig)
 
     ##########################################################################################################################
     #USER MANAGEMENT
@@ -389,7 +391,7 @@ def create_app():
     @login_required
     def get_users():
         users = User.query.all()
-        user_list = [{'id': user.id, 'username': user.username, 'role': [r.name for r in user.roles]} for user in users]
+        user_list = [{'id': user.uid, 'username': user.username, 'role': [r.name for r in user.roles]} for user in users]
         return jsonify(user_list)
 
     @app.route('/add-user', methods=['POST'])
@@ -414,7 +416,7 @@ def create_app():
                 new_user.roles.append(role)
         db.session.add(new_user)
         db.session.commit()
-        return jsonify({'message': 'User added successfully.', 'user_id': new_user.id})
+        return jsonify({'message': 'User added successfully.', 'user_id': new_user.uid})
 
     @app.route('/delete-user', methods=['DELETE'])
     @login_required
@@ -629,8 +631,10 @@ def create_app():
             log_field_change(
                 action_type='UPDATE',
                 record_type='PLANT_CONFIG',
-                record_id='plant_config', field_name=field,
-                old_value=old_config.get(field), new_value=new_config.get(field),
+                record_id='plant_config',
+                field_name=field,
+                old_value=old_config.get(field),
+                new_value=new_config.get(field),
                 change_reason='Plant configuration updated'
             )
 
@@ -641,6 +645,7 @@ def create_app():
     ###########################################################################################################################
 
     @app.route('/get-role', methods=["POST"], endpoint='define_role')
+    @login_required
     def define_role():
         data = request.get_json()
         new_role = data.get('created_role')
@@ -695,7 +700,6 @@ def create_app():
             change_reason=f'Role "{new_role}" {"updated" if is_existing else "created"} with permissions: {perm_keys}'
         )
 
-        # Log field-level change for UPDATE so old vs new permissions are captured
         if is_existing:
             log_field_change(
                 action_type='UPDATE',
@@ -710,6 +714,7 @@ def create_app():
         return jsonify({'message': f'Role "{new_role}" saved in database.', 'role_id': role.id, 'permissions': perm_keys})
 
     @app.route('/update-role', methods=["POST"], endpoint='update_role')
+    @login_required
     def update_role():
         data = request.get_json()
         role_name = data.get('role_name')
@@ -727,7 +732,6 @@ def create_app():
         else:
             perm_keys = list(updated_apps)
 
-        # Capture real old permissions BEFORE deletion
         old_perm_keys = [
             row[0] for row in
             db.session.query(Permission.key)
@@ -736,11 +740,9 @@ def create_app():
             .all()
         ]
 
-        # Remove existing permissions
         RolePermission.query.filter_by(role_id=role.id).delete()
         db.session.flush()
 
-        # Recreate permissions
         for key in perm_keys:
             perm = Permission.query.filter_by(key=key).first()
             if not perm:
