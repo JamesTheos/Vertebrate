@@ -33,7 +33,7 @@
 
     .aas-card {
         background: var(--box-background-color);
-        border: 1px solid rgba(255,255,255,0.12);
+        border: 1px solid var(--border-color);
         border-radius: 10px;
         padding: 18px 20px;
     }
@@ -52,29 +52,34 @@
         font-size: 10pt;
         font-weight: 500;
         color: var(--text-color);
-        opacity: 0.7;
+        opacity: 0.8;
         margin-bottom: 5px;
     }
 
     .aas-input {
         padding: 8px 12px;
         border-radius: 8px;
-        border: 1px solid rgba(128,128,128,0.3);
-        background: rgba(255,255,255,0.06);
+        border: 1px solid var(--border-color);
+        background: var(--content-background);
         color: var(--text-color);
         font-size: 10.5pt;
         outline: none;
         transition: border-color 0.2s;
     }
 
+    .aas-input::placeholder {
+        color: var(--text-color);
+        opacity: 0.4;
+    }
+
     .aas-input:focus {
         border-color: var(--button-background);
-        background: rgba(255,255,255,0.1);
+        box-shadow: 0 0 0 2px var(--border-focus-color);
     }
 
     .aas-divider {
         border: none;
-        border-top: 1px solid rgba(128,128,128,0.2);
+        border-top: 1px solid var(--border-color);
         margin: 4px 0 12px;
     }
 
@@ -105,8 +110,9 @@
     }
 
     .aas-btn-secondary {
-        background: rgba(128,128,128,0.18);
+        background: var(--box-background-color);
         color: var(--text-color);
+        border: 1px solid var(--border-color);
     }
 
     .aas-btn:hover {
@@ -118,9 +124,11 @@
         align-items: center;
         gap: 8px;
         font-size: 9.5pt;
+        color: var(--text-color);
         padding: 8px 12px;
         border-radius: 8px;
-        background: rgba(128,128,128,0.1);
+        background: var(--box-background-color);
+        border: 1px solid var(--border-color);
         min-height: 36px;
     }
 
@@ -129,13 +137,15 @@
         height: 9px;
         border-radius: 50%;
         flex-shrink: 0;
-        background: #888;
+        background: var(--text-color);
+        opacity: 0.3;
     }
 
-    .aas-status-dot.ok   { background: #4caf81; }
-    .aas-status-dot.err  { background: #e05252; }
+    .aas-status-dot.ok   { background: #3a9e6e; opacity: 1; }
+    .aas-status-dot.err  { background: #c94040; opacity: 1; }
     .aas-status-dot.busy {
         background: var(--button-background);
+        opacity: 1;
         animation: aas-pulse 1s ease-in-out infinite;
     }
 
@@ -161,6 +171,7 @@
     .aas-viewer-title {
         font-size: 11pt;
         font-weight: 600;
+        color: var(--text-color);
     }
 
     .aas-expand-btns {
@@ -172,11 +183,11 @@
         font-size: 9pt;
         padding: 4px 10px;
         border-radius: 6px;
-        border: 1px solid rgba(128,128,128,0.3);
-        background: transparent;
+        border: 1px solid var(--border-color);
+        background: var(--box-background-color);
         color: var(--text-color);
         cursor: pointer;
-        opacity: 0.7;
+        opacity: 0.8;
     }
 
     .aas-expand-btn:hover { opacity: 1; }
@@ -184,13 +195,14 @@
     .aas-tree-box {
         flex: 1;
         overflow-y: auto;
-        background: rgba(0,0,0,0.15);
-        border: 1px solid rgba(128,128,128,0.2);
+        background: var(--box-background-color);
+        border: 1px solid var(--border-color);
         border-radius: 10px;
         padding: 16px 18px;
         font-size: 9.5pt;
         font-family: 'Consolas', 'Courier New', monospace;
         line-height: 1.6;
+        color: var(--text-color);
     }
 
     .aas-tree-box.empty-state {
@@ -198,13 +210,14 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
+        color: var(--text-color);
         opacity: 0.4;
         gap: 10px;
         font-family: 'Segoe UI', sans-serif;
         font-size: 11pt;
     }
 
-    /* JSON Tree Styles */
+    /* ── JSON Tree Styles ───────────────────────────────────── */
     .jt-node { margin-left: 18px; }
 
     .jt-toggle {
@@ -213,6 +226,7 @@
         display: inline-flex;
         align-items: center;
         gap: 4px;
+        color: var(--text-color);
     }
 
     .jt-toggle::before {
@@ -221,19 +235,20 @@
         display: inline-block;
         transition: transform 0.15s;
         color: var(--button-background);
-        opacity: 0.8;
     }
 
     .jt-toggle.open::before {
         transform: rotate(90deg);
     }
 
-    .jt-key   { color: #7ec8e3; }
-    .jt-str   { color: #b5e8a0; }
-    .jt-num   { color: #f7c77e; }
-    .jt-bool  { color: #d98ff5; }
-    .jt-null  { color: #888; }
-    .jt-bracket { color: rgba(255,255,255,0.4); }
+    /* Token colours — derived from the theme accent so they
+       always contrast against --box-background-color.        */
+    .jt-key  { color: var(--button-background); font-weight: 600; }
+    .jt-str  { color: var(--text-color); }
+    .jt-num  { color: var(--text-color); opacity: 0.75; font-style: italic; }
+    .jt-bool { color: var(--button-background); opacity: 0.85; }
+    .jt-null { color: var(--text-color); opacity: 0.45; }
+    .jt-bracket { color: var(--text-color); opacity: 0.55; }
 
     .jt-children { display: none; }
     .jt-children.open { display: block; }
@@ -370,7 +385,7 @@ async function generateAAS() {
         setStatus('err', 'Error: ' + e.message);
         const box = document.getElementById('aas-tree');
         box.className = 'aas-tree-box empty-state';
-        box.innerHTML = '<span style="color:#e05252">&#9888; ' + e.message + '</span>';
+        box.innerHTML = '<span style="color:#c94040">&#9888; ' + e.message + '</span>';
     }
 }
 
@@ -403,7 +418,7 @@ function buildNode(val, key, expanded) {
         const preview = isEmpty
             ? `<span class="jt-bracket">${isArr ? '[]' : '{}'}</span>`
             : `<span class="jt-bracket">${isArr ? '[' : '{'}</span>`
-              + `<span style="opacity:.4; font-size:8.5pt"> ${entries.length} ${entries.length === 1 ? 'item' : 'items'} </span>`
+              + `<span class="jt-bracket" style="font-size:8.5pt"> ${entries.length} ${entries.length === 1 ? 'item' : 'items'} </span>`
               + `<span class="jt-bracket">${isArr ? '…]' : '…}'}</span>`;
 
         toggle.innerHTML = keySpan + preview;
@@ -433,7 +448,7 @@ function buildNode(val, key, expanded) {
 }
 
 function valueSpan(v) {
-    if (v === null)            return `<span class="jt-null">null</span>`;
+    if (v === null)             return `<span class="jt-null">null</span>`;
     if (typeof v === 'boolean') return `<span class="jt-bool">${v}</span>`;
     if (typeof v === 'number')  return `<span class="jt-num">${v}</span>`;
     return `<span class="jt-str">"${escHtml(String(v))}"</span>`;
