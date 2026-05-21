@@ -36,27 +36,31 @@ def get_latest_entry(app, action_type, record_type, record_id=None, field_name=N
         return q.order_by(AuditLog.id.desc()).first()
 
 
-def login_as_admin(client):
-    """Log in as the seeded admin user."""
-    return client.post(
+def ensure_logged_in(client):
+    """
+    Guarantee the test client is authenticated as User_Admin.
+    Calls /logoutUser first so loginUser never sees an already-authenticated
+    session (which causes loginUser to return a 'Login failed' path).
+    """
+    client.post('/logoutUser', content_type='application/json')
+    resp = client.post(
         '/loginUser',
         data=json.dumps({'username': 'User_Admin', 'password': '12345'}),
         content_type='application/json'
     )
+    return resp
 
 
 def ensure_order_management_access(app, client):
-    """Grant User_Admin order_management permission and log in."""
+    """Grant User_Admin order_management permission and re-authenticate."""
     from models import Subscriptions, User, Role, RolePermission, Permission, db
     with app.app_context():
-        # Enable subscription
         sub = Subscriptions.query.filter_by(apps='order-management').first()
         if sub:
             sub.subscribed = True
         else:
             db.session.add(Subscriptions(apps='order-management', subscribed=True))
 
-        # Ensure permission key matches what @permission_required checks
         perm = Permission.query.filter_by(key='order_management').first()
         if not perm:
             perm = Permission(key='order_management')
@@ -74,23 +78,22 @@ def ensure_order_management_access(app, client):
             else:
                 role = user.roles[0]
 
-            existing = RolePermission.query.filter_by(
-                role_id=role.id, permission_id=perm.id).first()
-            if not existing:
+            if not RolePermission.query.filter_by(
+                    role_id=role.id, permission_id=perm.id).first():
                 db.session.add(RolePermission(role_id=role.id, permission_id=perm.id))
 
         db.session.commit()
 
-    login_as_admin(client)
+    ensure_logged_in(client)
 
 
-# ─ Submit Order ──────────────────────────────────────────────────────────────────────────
+# ─ Submit Order ───────────────────────────────────────────────────────────────────────
 
 class TestSubmitOrderAudit:
 
     def test_submit_order_creates_create_entry(self, app, client):
         from models import AuditLog
-        login_as_admin(client)
+        ensure_logged_in(client)
         with app.app_context():
             before = AuditLog.query.filter_by(
                 action_type='CREATE', record_type='ORDER').count()
@@ -110,7 +113,7 @@ class TestSubmitOrderAudit:
         assert after > before, "CREATE audit entry missing for submit-order"
 
     def test_submit_order_logs_order_number_as_record_id(self, app, client):
-        login_as_admin(client)
+        ensure_logged_in(client)
         client.post('/submit-order',
                     data=json.dumps({
                         'orderNumber': 'TEST-ORD-002',
@@ -127,7 +130,7 @@ class TestSubmitOrderAudit:
 
     def test_submit_order_missing_fields_no_audit_entry(self, app, client):
         from models import AuditLog
-        login_as_admin(client)
+        ensure_logged_in(client)
         with app.app_context():
             before = AuditLog.query.filter_by(
                 action_type='CREATE', record_type='ORDER').count()
@@ -142,14 +145,13 @@ class TestSubmitOrderAudit:
         assert after == before, "Audit entry must not be written for rejected order"
 
 
-# ─ Order Management ───────────────────────────────────────────────────────────────────
+# ─ Order Management ──────────────────────────────────────────────────────────────────
 
 class TestOrderManagementAudit:
 
     def _seed_order(self, app, order_number, status='Created'):
         """Seed an order directly into data_store (Kafka-free)."""
         import app as app_module
-        # Remove stale entry first to keep data_store clean
         app_module.data_store['manufacturing_orders'] = [
             o for o in app_module.data_store['manufacturing_orders']
             if o.get('orderNumber') != order_number
@@ -172,7 +174,6 @@ class TestOrderManagementAudit:
             before = AuditLog.query.filter_by(
                 action_type='UPDATE', record_type='ORDER').count()
 
-        # The order-management route is POST /order-management with JSON body
         resp = client.post('/order-management',
                            data=json.dumps({
                                'action': 'release',
@@ -235,22 +236,21 @@ class TestOrderManagementAudit:
         entry = get_latest_entry(app, 'UPDATE', 'ORDER',
                                  record_id='TEST-ORD-STS-001', field_name='status')
         assert entry is not None, "status field change entry missing"
-        assert entry.old_value == 'Created',  f"Expected old 'Created', got {entry.old_value}"
+        assert entry.old_value == 'Created', f"Expected old 'Created', got {entry.old_value}"
         assert entry.new_value == 'Released', f"Expected new 'Released', got {entry.new_value}"
         assert entry.checksum is not None
 
 
-# ─ Plant Config ─────────────────────────────────────────────────────────────────────────
+# ─ Plant Config ────────────────────────────────────────────────────────────────────────
 
 class TestPlantConfigAudit:
 
     def test_save_plant_config_creates_update_entries(self, app, client):
         import time
         from models import AuditLog
-        login_as_admin(client)
+        ensure_logged_in(client)
         unique_site = f'Site-pytest-{int(time.time())}'
 
-        # record_type in app.py save_plant_config is 'PLANT_CONFIG'
         with app.app_context():
             before = AuditLog.query.filter_by(
                 action_type='UPDATE', record_type='PLANT_CONFIG').count()
@@ -271,7 +271,7 @@ class TestPlantConfigAudit:
         assert after > before, "UPDATE audit entries missing for save-plant-config"
 
 
-# ─ Role Management ─────────────────────────────────────────────────────────────────────
+# ─ Role Management ───────────────────────────────────────────────────────────────────
 
 class TestRoleManagementAudit:
 
@@ -286,7 +286,7 @@ class TestRoleManagementAudit:
 
     def test_create_role_creates_audit_entry(self, app, client):
         self._cleanup_role(app, 'pytest_test_role')
-        login_as_admin(client)
+        ensure_logged_in(client)
         from models import AuditLog
         with app.app_context():
             before = AuditLog.query.filter_by(
@@ -307,7 +307,7 @@ class TestRoleManagementAudit:
 
     def test_overwrite_existing_role_logs_real_old_permissions(self, app, client):
         self._cleanup_role(app, 'pytest_perm_capture')
-        login_as_admin(client)
+        ensure_logged_in(client)
 
         client.post('/get-role',
                     data=json.dumps({
