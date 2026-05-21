@@ -1,4 +1,4 @@
-from app import create_app, create_topics_if_not_exist, consume_messages, data_store, Kafkaserver,Subscriptions, db
+from app import create_app, create_topics_if_not_exist, consume_messages, data_store, Kafkaserver, db
 import threading
 import subprocess
 import sys
@@ -38,7 +38,6 @@ def get_kafka_cluster_id(bootstrap_servers: str):
     try:
         admin = AdminClient({'bootstrap.servers': bootstrap_servers})
         md = admin.list_topics(timeout=5)
-        # md.cluster_id is available in recent librdkafka; fallback if missing
         return getattr(md, 'cluster_id', None)
     except KafkaException as e:
         print(f"Warning: Could not fetch cluster ID from Kafka at '{bootstrap_servers}' (KafkaException): {e}")
@@ -80,7 +79,6 @@ if __name__ == "__main__":
         consumer = None
 
     if consumer is not None:
-        import threading
         threading.Thread(target=consume_messages, daemon=True).start()
     else:
         print("Not starting consume_messages thread because Kafka is unavailable.")
