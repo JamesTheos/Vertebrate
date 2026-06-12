@@ -34,6 +34,18 @@ AREA         = _SITE_CONFIG.get('area',          'Unknown')
 PROCESS_CELL = _SITE_CONFIG.get('process_cell',  'Unknown')
 UNIT         = _SITE_CONFIG.get('unit',          'Unknown')
 
+# Set of (type, id) tuples that are permitted to produce AAS output.
+# Populated from the 'assets' list in config.json; empty means no assets defined.
+KNOWN_ASSETS: frozenset = frozenset(
+    (a['type'].lower(), a['id'].lower())
+    for a in _SITE_CONFIG.get('assets', [])
+)
+
+
+def is_valid_asset(asset_type: str, asset_id: str) -> bool:
+    """Return True if (asset_type, asset_id) is declared in config.json assets."""
+    return (asset_type.lower(), asset_id.lower()) in KNOWN_ASSETS
+
 
 # ---------------------------------------------------------------------------
 # Helpers

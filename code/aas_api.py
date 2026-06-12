@@ -24,7 +24,9 @@ Examples
 
 from flask import Blueprint, jsonify, request, Response
 from flask_login import login_required
-from aas_manager import build_aas_export
+from subscriptions import check_subscription
+from utils import permission_required
+from aas_manager import build_aas_export, is_valid_asset
 from audit_trail import log_audit
 from audit_config import ACTION_VIEW, ACTION_EXPORT, RECORD_AAS
 
@@ -50,11 +52,15 @@ def _collect_extra(req) -> dict:
 
 @aas_bp.route('/<asset_type>/<asset_id>', methods=['GET'])
 @login_required
+@check_subscription('aas')
+@permission_required('aas_export')
 def get_aas(asset_type: str, asset_id: str):
     """
     Return AAS JSON inline (application/json).
     Useful for machine-to-machine consumption or browser inspection.
     """
+    if not is_valid_asset(asset_type, asset_id):
+        return jsonify({'error': f'Unknown asset: {asset_type}/{asset_id}'}), 404
     try:
         extra = _collect_extra(request)
         aas_json = build_aas_export(asset_type, asset_id, extra)
@@ -66,11 +72,15 @@ def get_aas(asset_type: str, asset_id: str):
 
 @aas_bp.route('/export/<asset_type>/<asset_id>', methods=['GET'])
 @login_required
+@check_subscription('aas')
+@permission_required('aas_export')
 def export_aas(asset_type: str, asset_id: str):
     """
     Return AAS JSON as a downloadable file attachment.
     Useful for one-time handover to vendors / partner organisations.
     """
+    if not is_valid_asset(asset_type, asset_id):
+        return jsonify({'error': f'Unknown asset: {asset_type}/{asset_id}'}), 404
     try:
         extra = _collect_extra(request)
         aas_json = build_aas_export(asset_type, asset_id, extra)

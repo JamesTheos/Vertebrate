@@ -167,41 +167,53 @@ class TestBuildAasExport:
 # aas_api — Flask integration tests
 # ---------------------------------------------------------------------------
 
-@pytest.fixture
+@pytest.fixture(scope='module')
 def client():
-    """Minimal Flask test client — only registers the AAS blueprint.
-    No DB, no Kafka required.
+    """Full-app AAS test client with subscription, permission, and a seeded user.
 
-    A LoginManager is wired up and every request is auto-authenticated with a
-    stub user so that the @login_required guards pass without needing a real DB.
+    Uses create_app() so @check_subscription and @permission_required work
+    against a real in-memory SQLite DB.  Scoped to module — all AAS API tests
+    are read-only, so shared state is safe.
     """
-    from flask import Flask
-    from flask_login import LoginManager, UserMixin, login_user
-    from aas_api import aas_bp
+    from app import create_app
+    from models import db as _db, Subscriptions, Role, Permission, RolePermission, User
+    from werkzeug.security import generate_password_hash
 
-    class _StubUser(UserMixin):
-        id = '1'
-        uid = 1
-        username = 'test'
+    app = create_app()
+    app.config['TESTING'] = True
 
-    test_app = Flask(__name__)
-    test_app.config['TESTING'] = True
-    test_app.config['SECRET_KEY'] = 'test-secret'
+    with app.app_context():
+        _db.create_all()
 
-    lm = LoginManager()
-    lm.init_app(test_app)
+        if not Subscriptions.query.filter_by(apps='aas').first():
+            _db.session.add(Subscriptions(apps='aas', subscribed=True))
 
-    @lm.user_loader
-    def load_user(_id):
-        return _StubUser()
+        role = Role.query.filter_by(name='AasTester').first()
+        if not role:
+            role = Role(name='AasTester')
+            _db.session.add(role)
+            _db.session.flush()
 
-    @test_app.before_request
-    def _auto_login():
-        login_user(_StubUser())
+        perm = Permission.query.filter_by(key='aas_export').first()
+        if not perm:
+            perm = Permission(key='aas_export')
+            _db.session.add(perm)
+            _db.session.flush()
 
-    test_app.register_blueprint(aas_bp)
+        if not RolePermission.query.filter_by(role_id=role.id, permission_id=perm.id).first():
+            _db.session.add(RolePermission(role_id=role.id, permission_id=perm.id))
 
-    with test_app.test_client() as c:
+        if not User.query.filter_by(username='aas_test').first():
+            user = User(username='aas_test', password=generate_password_hash('aas_pass'))
+            user.roles.append(role)
+            _db.session.add(user)
+
+        _db.session.commit()
+
+    with app.test_client() as c:
+        c.post('/loginUser',
+               data=json.dumps({'username': 'aas_test', 'password': 'aas_pass'}),
+               content_type='application/json')
         yield c
 
 
@@ -222,7 +234,7 @@ class TestAasApiGetEndpoint:
         assert data is not None
 
     def test_manufacturer_query_param_is_reflected(self, client):
-        response = client.get('/api/aas/equipment/fm-1?manufacturer=Siemens')
+        response = client.get('/api/aas/equipment/filling-machine-1?manufacturer=Siemens')
         data = json.loads(response.data)
         all_elements = []
         for item in data:
@@ -231,10 +243,9 @@ class TestAasApiGetEndpoint:
         assert mfr is not None
         assert mfr.get('value') == 'Siemens'
 
-    def test_different_asset_types_return_200(self, client):
-        for asset_type in ['equipment', 'batch', 'filling-line']:
-            response = client.get(f'/api/aas/{asset_type}/test-id-1')
-            assert response.status_code == 200
+    def test_known_asset_returns_200(self, client):
+        response = client.get('/api/aas/equipment/filling-machine-1')
+        assert response.status_code == 200
 
 
 class TestAasApiExportEndpoint:
@@ -259,3 +270,46 @@ class TestAasApiExportEndpoint:
         response = client.get('/api/aas/export/equipment/filling-machine-1')
         data = json.loads(response.data)
         assert data is not None
+
+
+# ---------------------------------------------------------------------------
+# Asset validation — only assets declared in config.json may produce AAS output
+# ---------------------------------------------------------------------------
+
+class TestAasAssetValidation:
+    """
+    is_valid_asset() checks the caller-supplied type/id against the 'assets'
+    list in config.json.  The API must return 404 for any unknown asset.
+    """
+
+    # --- unit tests (no HTTP layer) ---
+
+    def test_known_asset_is_valid(self):
+        from aas_manager import is_valid_asset
+        assert is_valid_asset('equipment', 'filling-machine-1') is True
+
+    def test_unknown_id_is_invalid(self):
+        from aas_manager import is_valid_asset
+        assert is_valid_asset('equipment', 'ghost-machine-99') is False
+
+    def test_unknown_type_is_invalid(self):
+        from aas_manager import is_valid_asset
+        assert is_valid_asset('sensor', 'filling-machine-1') is False
+
+    def test_validation_is_case_insensitive(self):
+        from aas_manager import is_valid_asset
+        assert is_valid_asset('Equipment', 'Filling-Machine-1') is True
+
+    # --- API integration tests ---
+
+    def test_api_returns_404_for_unknown_asset(self, client):
+        r = client.get('/api/aas/equipment/ghost-machine-99')
+        assert r.status_code == 404
+
+    def test_api_returns_404_for_unknown_type(self, client):
+        r = client.get('/api/aas/sensor/filling-machine-1')
+        assert r.status_code == 404
+
+    def test_export_returns_404_for_unknown_asset(self, client):
+        r = client.get('/api/aas/export/equipment/ghost-machine-99')
+        assert r.status_code == 404

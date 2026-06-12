@@ -17,7 +17,7 @@ No Kafka, no external DB needed — conftest wires SQLite in-memory + DISABLE_KA
 
 import pytest
 from werkzeug.security import generate_password_hash
-from models import db as _db, User, Role, RolePermission, Permission
+from models import db as _db, User, Role, RolePermission, Permission, Subscriptions
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -55,13 +55,38 @@ def _logout(client):
     return client.post('/logoutUser', content_type='application/json')
 
 
+def _seed_aas_subscription(app):
+    """Activate the 'aas' subscription in the DB."""
+    with app.app_context():
+        sub = Subscriptions.query.filter_by(apps='aas').first()
+        if not sub:
+            _db.session.add(Subscriptions(apps='aas', subscribed=True))
+            _db.session.commit()
+
+
+def _seed_aas_permission(app, role_name='Admin'):
+    """Add the aas_export permission key to the named role."""
+    with app.app_context():
+        role = Role.query.filter_by(name=role_name).first()
+        if not role:
+            return
+        perm = Permission.query.filter_by(key='aas_export').first()
+        if not perm:
+            perm = Permission(key='aas_export')
+            _db.session.add(perm)
+            _db.session.flush()
+        if not RolePermission.query.filter_by(role_id=role.id, permission_id=perm.id).first():
+            _db.session.add(RolePermission(role_id=role.id, permission_id=perm.id))
+            _db.session.commit()
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Fixtures
 # ─────────────────────────────────────────────────────────────────────────────
 
 @pytest.fixture(autouse=True)
 def clean_db(app):
-    """Wipe users/roles/permissions before every test for isolation."""
+    """Wipe users/roles/permissions/subscriptions before every test for isolation."""
     with app.app_context():
         import sqlalchemy as sa
         RolePermission.query.delete()
@@ -69,6 +94,7 @@ def clean_db(app):
         _db.session.execute(sa.text('DELETE FROM user_roles'))
         User.query.delete()
         Role.query.delete()
+        Subscriptions.query.delete()
         _db.session.commit()
     yield
 
@@ -140,8 +166,8 @@ class TestAasApiAuth:
     that both routes redirect to /login when there is no active session.
     """
     API_ROUTES = [
-        '/api/aas/equipment/fm-1',
-        '/api/aas/export/equipment/fm-1',
+        '/api/aas/equipment/filling-machine-1',
+        '/api/aas/export/equipment/filling-machine-1',
     ]
 
     def test_unauthenticated_requests_redirect_to_login(self, client):
@@ -155,14 +181,59 @@ class TestAasApiAuth:
                 f"{path} redirect location '{location}' does not point to /login"
             )
 
-    def test_authenticated_requests_return_200(self, app, client):
+    def test_authenticated_subscribed_permitted_requests_return_200(self, app, client):
         _seed_user(app)
         _login(client)
+        _seed_aas_subscription(app)
+        _seed_aas_permission(app)
         for path in self.API_ROUTES:
             r = client.get(path, follow_redirects=False)
             assert r.status_code == 200, (
-                f"{path} expected 200 for authenticated request, got {r.status_code}"
+                f"{path} expected 200 for fully-authorised request, got {r.status_code}"
             )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2c. AAS three-layer access control (subscription + permission)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestAasAccessControl:
+    """
+    Verifies the full three-layer guard on AAS routes:
+      1. @login_required         — covered by TestLoginRequired / TestAasApiAuth
+      2. @check_subscription     — unsubscribed user sees the access-denied page
+      3. @permission_required    — subscribed but unpermitted user gets 403
+    """
+
+    def test_unsubscribed_viewer_shows_access_denied(self, app, client):
+        _seed_user(app)
+        _login(client)
+        # No subscription seeded — check_subscription should block
+        r = client.get('/aas-viewer')
+        assert b'Access denied' in r.data
+
+    def test_unsubscribed_api_does_not_return_aas_json(self, app, client):
+        _seed_user(app)
+        _login(client)
+        r = client.get('/api/aas/equipment/filling-machine-1')
+        assert 'application/json' not in r.content_type
+
+    def test_subscribed_no_permission_returns_403(self, app, client):
+        _seed_user(app)
+        _login(client)
+        _seed_aas_subscription(app)
+        # Admin role exists but has no aas_export permission yet
+        r = client.get('/api/aas/equipment/filling-machine-1')
+        assert r.status_code == 403
+
+    def test_subscribed_with_permission_returns_200(self, app, client):
+        _seed_user(app)
+        _login(client)
+        _seed_aas_subscription(app)
+        _seed_aas_permission(app)
+        r = client.get('/api/aas/equipment/filling-machine-1')
+        assert r.status_code == 200
+        assert r.get_json() is not None
 
 
 # ─────────────────────────────────────────────────────────────────────────────

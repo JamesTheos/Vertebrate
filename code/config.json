@@ -4,6 +4,10 @@
     "area": "Manufacturing Area A",
     "process_cell": "Filling Line 1",
     "unit": "Filling Machine 1",
+    "assets": [
+        {"type": "equipment", "id": "filling-machine-1"},
+        {"type": "filling-line", "id": "filling-line-1"}
+    ],
     "Kafkaserver": "localhost:9092",
     "clusterid": "ub0EvKluQ_WjigJWTA-iZw"
 }

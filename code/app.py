@@ -306,6 +306,8 @@ def create_app():
 
     @app.route('/aas-viewer')
     @login_required
+    @check_subscription('aas')
+    @permission_required('aas_export')
     def aas_viewer():
         return render_template('aas-viewer.html')
 
