@@ -1,11 +1,13 @@
 """
 test_aas.py
 
-TDD test suite for the AAS MVP (Phase 1).
+TDD test suite for the AAS feature (Phase 1 + Phase 2).
 
 Covers:
  - aas_manager: unit tests (no Flask, no DB, no Kafka needed)
  - aas_api:     integration tests via Flask test client
+ - Phase 2:     AssetNameplate persistence, IDTA-02006 mandatory fields,
+                DB/query-param merge behaviour
 
 Run inside Docker:
     docker compose exec vertebrate-app pytest /app/code/tests/test_aas.py -v
@@ -78,6 +80,24 @@ class TestDigitalNameplate:
         sm = build_digital_nameplate('equipment', 'fm-99', extra={'SerialNumber': 'SN-0001'})
         props = {p.id_short: p.value for p in sm.submodel_element}
         assert props['SerialNumber'] == 'SN-0001'
+
+    def test_uri_of_product_field_is_present(self):
+        from aas_manager import build_digital_nameplate
+        sm = build_digital_nameplate('equipment', 'fm-1')
+        prop_ids = {p.id_short for p in sm.submodel_element}
+        assert 'URIOfTheProduct' in prop_ids
+
+    def test_manufacturer_product_root_field_is_present(self):
+        from aas_manager import build_digital_nameplate
+        sm = build_digital_nameplate('equipment', 'fm-1')
+        prop_ids = {p.id_short for p in sm.submodel_element}
+        assert 'ManufacturerProductRoot' in prop_ids
+
+    def test_year_of_construction_field_is_present(self):
+        from aas_manager import build_digital_nameplate
+        sm = build_digital_nameplate('equipment', 'fm-1')
+        prop_ids = {p.id_short for p in sm.submodel_element}
+        assert 'YearOfConstruction' in prop_ids
 
 
 class TestSiteHierarchySubmodel:
@@ -313,3 +333,87 @@ class TestAasAssetValidation:
     def test_export_returns_404_for_unknown_asset(self, client):
         r = client.get('/api/aas/export/equipment/ghost-machine-99')
         assert r.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Phase 2: AssetNameplate persistence
+# ---------------------------------------------------------------------------
+
+class TestAssetNameplatePersistence:
+    """
+    Nameplate data is saved to DB via POST and loaded via GET.
+    AAS exports merge DB values with query params (query params win).
+    Unknown assets return 404.  New IDTA-02006 mandatory fields are saved and
+    round-trip correctly.
+
+    Uses filling-machine-1 for read/write tests and filling-line-1 for the
+    "no nameplate saved" test to avoid order-dependency within the module.
+    """
+
+    def test_get_returns_404_when_no_nameplate_saved(self, client):
+        r = client.get('/api/aas/nameplate/filling-line/filling-line-1')
+        assert r.status_code == 404
+
+    def test_post_saves_nameplate_returns_200(self, client):
+        r = client.post('/api/aas/nameplate/equipment/filling-machine-1',
+                        json={'ManufacturerName': 'Siemens', 'SerialNumber': 'SN-001'})
+        assert r.status_code == 200
+
+    def test_get_returns_saved_values(self, client):
+        client.post('/api/aas/nameplate/equipment/filling-machine-1',
+                    json={'ManufacturerName': 'Bosch', 'SerialNumber': 'SN-999'})
+        r = client.get('/api/aas/nameplate/equipment/filling-machine-1')
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data['ManufacturerName'] == 'Bosch'
+        assert data['SerialNumber'] == 'SN-999'
+
+    def test_post_updates_existing_nameplate(self, client):
+        client.post('/api/aas/nameplate/equipment/filling-machine-1',
+                    json={'ManufacturerName': 'ABB'})
+        client.post('/api/aas/nameplate/equipment/filling-machine-1',
+                    json={'ManufacturerName': 'Festo'})
+        r = client.get('/api/aas/nameplate/equipment/filling-machine-1')
+        assert r.get_json()['ManufacturerName'] == 'Festo'
+
+    def test_get_nameplate_for_unknown_asset_returns_404(self, client):
+        r = client.get('/api/aas/nameplate/equipment/ghost-machine')
+        assert r.status_code == 404
+
+    def test_post_nameplate_for_unknown_asset_returns_404(self, client):
+        r = client.post('/api/aas/nameplate/equipment/ghost-machine',
+                        json={'ManufacturerName': 'X'})
+        assert r.status_code == 404
+
+    def test_aas_export_uses_db_nameplate_values(self, client):
+        client.post('/api/aas/nameplate/equipment/filling-machine-1',
+                    json={'ManufacturerName': 'StoredMfr'})
+        r = client.get('/api/aas/equipment/filling-machine-1')
+        all_elements = []
+        for item in r.get_json():
+            all_elements.extend(item.get('submodelElements', []))
+        mfr = next((e for e in all_elements if e.get('idShort') == 'ManufacturerName'), None)
+        assert mfr is not None
+        assert mfr['value'] == 'StoredMfr'
+
+    def test_query_param_overrides_db_value(self, client):
+        client.post('/api/aas/nameplate/equipment/filling-machine-1',
+                    json={'ManufacturerName': 'DBValue'})
+        r = client.get('/api/aas/equipment/filling-machine-1?manufacturer=QueryValue')
+        all_elements = []
+        for item in r.get_json():
+            all_elements.extend(item.get('submodelElements', []))
+        mfr = next((e for e in all_elements if e.get('idShort') == 'ManufacturerName'), None)
+        assert mfr['value'] == 'QueryValue'
+
+    def test_new_idta_fields_round_trip(self, client):
+        client.post('/api/aas/nameplate/equipment/filling-machine-1', json={
+            'URIOfTheProduct':      'https://example.com/product/fm1',
+            'ManufacturerProductRoot': 'Filling Equipment',
+            'YearOfConstruction':   '2022',
+        })
+        r = client.get('/api/aas/nameplate/equipment/filling-machine-1')
+        data = r.get_json()
+        assert data['URIOfTheProduct']         == 'https://example.com/product/fm1'
+        assert data['ManufacturerProductRoot'] == 'Filling Equipment'
+        assert data['YearOfConstruction']      == '2022'

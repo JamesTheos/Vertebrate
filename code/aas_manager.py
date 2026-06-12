@@ -118,12 +118,15 @@ def build_digital_nameplate(asset_type: str, asset_id: str, extra: dict | None =
     extra = extra or {}
 
     elements = [
-        _prop('ManufacturerName',    extra.get('ManufacturerName', 'Unknown')),
+        _prop('ManufacturerName',               extra.get('ManufacturerName', 'Unknown')),
         _prop('ManufacturerProductDesignation', extra.get('ManufacturerProductDesignation', asset_type)),
-        _prop('SerialNumber',        extra.get('SerialNumber', asset_id)),
-        _prop('HardwareVersion',     extra.get('HardwareVersion', 'N/A')),
-        _prop('SoftwareVersion',     extra.get('SoftwareVersion', 'N/A')),
-        _prop('CountryOfOrigin',     extra.get('CountryOfOrigin', 'N/A')),
+        _prop('ManufacturerProductRoot',        extra.get('ManufacturerProductRoot', 'N/A')),
+        _prop('URIOfTheProduct',                extra.get('URIOfTheProduct', 'N/A')),
+        _prop('SerialNumber',                   extra.get('SerialNumber', asset_id)),
+        _prop('HardwareVersion',                extra.get('HardwareVersion', 'N/A')),
+        _prop('SoftwareVersion',                extra.get('SoftwareVersion', 'N/A')),
+        _prop('CountryOfOrigin',                extra.get('CountryOfOrigin', 'N/A')),
+        _prop('YearOfConstruction',             extra.get('YearOfConstruction', 'N/A')),
     ]
 
     return model.Submodel(

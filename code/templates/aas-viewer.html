@@ -285,9 +285,24 @@
                        placeholder="e.g. Syntegon">
             </div>
             <div class="aas-form-group">
+                <label>Product Root</label>
+                <input id="aas-product-root" class="aas-input" type="text"
+                       placeholder="e.g. Filling Equipment">
+            </div>
+            <div class="aas-form-group">
+                <label>URI of Product</label>
+                <input id="aas-uri" class="aas-input" type="text"
+                       placeholder="e.g. https://example.com/product/fm1">
+            </div>
+            <div class="aas-form-group">
                 <label>Serial Number</label>
                 <input id="aas-serial" class="aas-input" type="text"
                        placeholder="e.g. SN-0042">
+            </div>
+            <div class="aas-form-group">
+                <label>Year of Construction</label>
+                <input id="aas-year" class="aas-input" type="text"
+                       placeholder="e.g. 2022">
             </div>
             <div class="aas-form-group">
                 <label>Hardware Version</label>
@@ -307,6 +322,10 @@
             <div class="aas-btn-row">
                 <button class="aas-btn aas-btn-primary" onclick="generateAAS()">&#9654; View AAS</button>
                 <button class="aas-btn aas-btn-secondary" onclick="downloadAAS()">&#8681; Download</button>
+            </div>
+            <div class="aas-btn-row" style="margin-top:8px">
+                <button class="aas-btn aas-btn-secondary" onclick="saveNameplate()">&#128190; Save Nameplate</button>
+                <button class="aas-btn aas-btn-secondary" onclick="loadNameplate()">&#8635; Load Saved</button>
             </div>
         </div>
 
@@ -346,20 +365,23 @@
 </div>
 
 <script>
+// ─── Helpers ─────────────────────────────────────────────────
+function _assetType() { return document.getElementById('aas-asset-type').value.trim() || 'equipment'; }
+function _assetId()   { return document.getElementById('aas-asset-id').value.trim()   || 'unknown'; }
+
 // ─── Build query string from form ────────────────────────────
 function buildURL(base) {
-    const type = document.getElementById('aas-asset-type').value.trim() || 'equipment';
-    const id   = document.getElementById('aas-asset-id').value.trim()   || 'unknown';
-    const mfr  = document.getElementById('aas-manufacturer').value.trim();
-    const ser  = document.getElementById('aas-serial').value.trim();
-    const hw   = document.getElementById('aas-hw').value.trim();
-    const sw   = document.getElementById('aas-sw').value.trim();
-
-    const url = new URL(`${base}/${encodeURIComponent(type)}/${encodeURIComponent(id)}`, window.location.origin);
-    if (mfr) url.searchParams.set('manufacturer', mfr);
-    if (ser) url.searchParams.set('serial', ser);
-    if (hw)  url.searchParams.set('hw_version', hw);
-    if (sw)  url.searchParams.set('sw_version', sw);
+    const url = new URL(`${base}/${encodeURIComponent(_assetType())}/${encodeURIComponent(_assetId())}`, window.location.origin);
+    const params = {
+        manufacturer:      document.getElementById('aas-manufacturer').value.trim(),
+        product_root:      document.getElementById('aas-product-root').value.trim(),
+        uri_of_product:    document.getElementById('aas-uri').value.trim(),
+        serial:            document.getElementById('aas-serial').value.trim(),
+        year_of_construction: document.getElementById('aas-year').value.trim(),
+        hw_version:        document.getElementById('aas-hw').value.trim(),
+        sw_version:        document.getElementById('aas-sw').value.trim(),
+    };
+    Object.entries(params).forEach(([k, v]) => { if (v) url.searchParams.set(k, v); });
     return url.toString();
 }
 
@@ -465,6 +487,66 @@ function setAllNodes(open) {
     document.querySelectorAll('.jt-children').forEach(c => {
         open ? c.classList.add('open') : c.classList.remove('open');
     });
+}
+
+// ─── Nameplate field map: IDTA key → input element id ────────
+const _NAMEPLATE_FIELDS = {
+    ManufacturerName:               'aas-manufacturer',
+    ManufacturerProductRoot:        'aas-product-root',
+    URIOfTheProduct:                'aas-uri',
+    SerialNumber:                   'aas-serial',
+    YearOfConstruction:             'aas-year',
+    HardwareVersion:                'aas-hw',
+    SoftwareVersion:                'aas-sw',
+};
+
+// ─── Save Nameplate ──────────────────────────────────────────
+async function saveNameplate() {
+    const body = {};
+    Object.entries(_NAMEPLATE_FIELDS).forEach(([idta, elemId]) => {
+        const v = document.getElementById(elemId).value.trim();
+        if (v) body[idta] = v;
+    });
+
+    setStatus('busy', 'Saving nameplate…');
+    const url = `/api/aas/nameplate/${encodeURIComponent(_assetType())}/${encodeURIComponent(_assetId())}`;
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || `HTTP ${res.status}`);
+        }
+        setStatus('ok', 'Nameplate saved');
+    } catch (e) {
+        setStatus('err', 'Save failed: ' + e.message);
+    }
+}
+
+// ─── Load Saved Nameplate ────────────────────────────────────
+async function loadNameplate() {
+    setStatus('busy', 'Loading saved nameplate…');
+    const url = `/api/aas/nameplate/${encodeURIComponent(_assetType())}/${encodeURIComponent(_assetId())}`;
+    try {
+        const res = await fetch(url);
+        if (res.status === 404) {
+            setStatus('err', 'No saved nameplate for this asset');
+            return;
+        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        Object.entries(_NAMEPLATE_FIELDS).forEach(([idta, elemId]) => {
+            if (data[idta] !== undefined) {
+                document.getElementById(elemId).value = data[idta];
+            }
+        });
+        setStatus('ok', 'Nameplate loaded');
+    } catch (e) {
+        setStatus('err', 'Load failed: ' + e.message);
+    }
 }
 </script>
 {% endblock %}

@@ -90,3 +90,39 @@ class Subscriptions(db.Model):
     apps = db.Column(db.String, primary_key=True)
     subscribed = db.Column(db.Boolean, nullable=False, default=False)
 
+
+class AssetNameplate(db.Model):
+    """Persisted IDTA-02006 nameplate data for a known asset.
+
+    Composite primary key (asset_type, asset_id) mirrors config.json 'assets'.
+    All nameplate fields are nullable — only set values are stored.
+    """
+    __tablename__ = 'asset_nameplates'
+    asset_type = db.Column(db.String, primary_key=True)
+    asset_id   = db.Column(db.String, primary_key=True)
+
+    manufacturer_name                = db.Column(db.String)
+    manufacturer_product_designation = db.Column(db.String)
+    manufacturer_product_root        = db.Column(db.String)
+    uri_of_product                   = db.Column(db.String)
+    serial_number                    = db.Column(db.String)
+    hardware_version                 = db.Column(db.String)
+    software_version                 = db.Column(db.String)
+    country_of_origin                = db.Column(db.String)
+    year_of_construction             = db.Column(db.String)
+
+    def to_dict(self) -> dict:
+        """Return stored fields as an IDTA-keyed dict, omitting None values."""
+        mapping = {
+            'ManufacturerName':                self.manufacturer_name,
+            'ManufacturerProductDesignation':  self.manufacturer_product_designation,
+            'ManufacturerProductRoot':         self.manufacturer_product_root,
+            'URIOfTheProduct':                 self.uri_of_product,
+            'SerialNumber':                    self.serial_number,
+            'HardwareVersion':                 self.hardware_version,
+            'SoftwareVersion':                 self.software_version,
+            'CountryOfOrigin':                 self.country_of_origin,
+            'YearOfConstruction':              self.year_of_construction,
+        }
+        return {k: v for k, v in mapping.items() if v is not None}
+

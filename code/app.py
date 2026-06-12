@@ -417,7 +417,18 @@ def create_app():
     @app.route('/subscription-management')
     @login_required
     def subscription_management():
-        return render_template('subscription-management.html')
+        from models import Subscriptions
+        _all_apps = [
+            'manufacturing-orders', 'order-management', 'workflow-overview',
+            'batch', 'process-instructions', 'sampling', 'equipment', 'pid',
+            '3d-view', 'design-space-definition', 'design-space-representation',
+            'product-analytics', 'process-qbd-analytics', 'plant-configuration',
+            'process-configuration', 'workflow-management', 'user-management',
+            'role-management',
+        ]
+        subscribed = {s.apps for s in Subscriptions.query.filter_by(subscribed=True).all()}
+        subscription_status = {app: (app in subscribed) for app in _all_apps}
+        return render_template('subscription-management.html', subscription_status=subscription_status)
 
     @app.route('/subscription-denied')
     def subscription_denied():
@@ -589,7 +600,10 @@ def create_app():
     @app.route('/role-management')
     @login_required
     def role_management():
-        return render_template('role-management.html')
+        from models import Role, Subscriptions
+        roles = Role.query.all()
+        subscribed_apps = [s.apps for s in Subscriptions.query.filter_by(subscribed=True).all()]
+        return render_template('role-management.html', roles=roles, subscribed_apps=subscribed_apps)
 
     @app.route('/user-profile')
     @login_required
