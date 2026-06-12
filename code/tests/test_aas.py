@@ -171,13 +171,35 @@ class TestBuildAasExport:
 def client():
     """Minimal Flask test client — only registers the AAS blueprint.
     No DB, no Kafka required.
+
+    A LoginManager is wired up and every request is auto-authenticated with a
+    stub user so that the @login_required guards pass without needing a real DB.
     """
     from flask import Flask
+    from flask_login import LoginManager, UserMixin, login_user
     from aas_api import aas_bp
 
+    class _StubUser(UserMixin):
+        id = '1'
+        uid = 1
+        username = 'test'
+
     test_app = Flask(__name__)
-    test_app.register_blueprint(aas_bp)
     test_app.config['TESTING'] = True
+    test_app.config['SECRET_KEY'] = 'test-secret'
+
+    lm = LoginManager()
+    lm.init_app(test_app)
+
+    @lm.user_loader
+    def load_user(_id):
+        return _StubUser()
+
+    @test_app.before_request
+    def _auto_login():
+        login_user(_StubUser())
+
+    test_app.register_blueprint(aas_bp)
 
     with test_app.test_client() as c:
         yield c

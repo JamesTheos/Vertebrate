@@ -23,6 +23,7 @@ Examples
 """
 
 from flask import Blueprint, jsonify, request, Response
+from flask_login import login_required
 from aas_manager import build_aas_export
 from audit_trail import log_audit
 from audit_config import ACTION_VIEW, ACTION_EXPORT, RECORD_AAS
@@ -48,6 +49,7 @@ def _collect_extra(req) -> dict:
 
 
 @aas_bp.route('/<asset_type>/<asset_id>', methods=['GET'])
+@login_required
 def get_aas(asset_type: str, asset_id: str):
     """
     Return AAS JSON inline (application/json).
@@ -63,6 +65,7 @@ def get_aas(asset_type: str, asset_id: str):
 
 
 @aas_bp.route('/export/<asset_type>/<asset_id>', methods=['GET'])
+@login_required
 def export_aas(asset_type: str, asset_id: str):
     """
     Return AAS JSON as a downloadable file attachment.

@@ -114,6 +114,7 @@ class TestLoginRequired:
         '/subscription-management', '/equipment-overview',
         '/workflow-overview', '/sampling', '/batch',
         '/get-users', '/get-user-data', '/get-user-role',
+        '/aas-viewer',
     ]
 
     def test_protected_routes_redirect_to_login(self, client):
@@ -125,6 +126,42 @@ class TestLoginRequired:
             location = r.headers.get('Location', '')
             assert 'login' in location.lower(), (
                 f"{path} redirect location '{location}' does not point to /login"
+            )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2b. AAS API routes — must also redirect unauthenticated callers to login
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestAasApiAuth:
+    """
+    The AAS API endpoints are called directly by JS and external M2M clients.
+    Without @login_required they are publicly accessible — this class enforces
+    that both routes redirect to /login when there is no active session.
+    """
+    API_ROUTES = [
+        '/api/aas/equipment/fm-1',
+        '/api/aas/export/equipment/fm-1',
+    ]
+
+    def test_unauthenticated_requests_redirect_to_login(self, client):
+        for path in self.API_ROUTES:
+            r = client.get(path, follow_redirects=False)
+            assert r.status_code in (302, 308), (
+                f"{path} expected redirect for unauthenticated request, got {r.status_code}"
+            )
+            location = r.headers.get('Location', '')
+            assert 'login' in location.lower(), (
+                f"{path} redirect location '{location}' does not point to /login"
+            )
+
+    def test_authenticated_requests_return_200(self, app, client):
+        _seed_user(app)
+        _login(client)
+        for path in self.API_ROUTES:
+            r = client.get(path, follow_redirects=False)
+            assert r.status_code == 200, (
+                f"{path} expected 200 for authenticated request, got {r.status_code}"
             )
 
 
