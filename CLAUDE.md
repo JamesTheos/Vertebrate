@@ -2,6 +2,21 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Development rules
+
+### Always use TDD
+Write failing tests **before** writing implementation code. The cycle is:
+1. Write a test that fails for the right reason (RED)
+2. Write the minimum code to make it pass (GREEN)
+3. Commit
+
+Tests run inside Docker:
+```bash
+docker cp code/<file> vertebrate-vertebrate-app-1:/app/code/<file>
+docker exec vertebrate-vertebrate-app-1 python -m pytest /app/code/tests/<test_file>.py -v
+```
+Never claim a feature is complete without a green test run.
+
 ## Commands
 
 **Run (Docker — recommended):**
@@ -117,3 +132,27 @@ Both API routes (`/api/aas/*`) and the viewer page (`/aas-viewer`) require `@log
 
 ### Session timeout
 `timeout.py` registers a `before_request` hook that logs out inactive users after 300 seconds (5 minutes) of inactivity, tracked via `session['last_activity']`.
+
+## Pending merges
+
+### `feature/aas-integration` → `main`
+Branch is complete (118 tests, all phases done) and ready to merge. **Must resolve a conflict in `code/app.py`** with the `audit-dashboard` branch before merging.
+
+**Recommended order:** merge `audit-dashboard` → `main` first, then merge `feature/aas-integration` → `main`. This way only one round of conflict resolution is needed.
+
+**Conflict points in `code/app.py`** (both branches modify it):
+
+| Area | `feature/aas-integration` | `audit-dashboard` |
+|---|---|---|
+| Line 1 imports | Adds `aas_api`, `generate_password_hash` | Adds `redirect, url_for` |
+| End of `create_app()` | Registers `aas_bp` blueprint | Registers `audit_bp` blueprint |
+| Role route indentation (~line 770–960) | Keeps routes at module level | Moves all routes **inside** `create_app()` |
+| After `register_timeout_hook` | Adds seed user | Adds `@login_manager.unauthorized_handler` |
+
+**Resolution checklist:**
+1. Take both import additions on line 1
+2. Adopt whichever indentation convention `audit-dashboard` establishes for routes; move the AAS blueprint registration inside `create_app()` to match
+3. Register both `aas_bp` and `audit_bp`
+4. Keep both the seed-user block and the `unauthorized_handler`
+
+No other files conflict — all new files on both branches are unique.
