@@ -321,7 +321,8 @@
             <p class="aas-section-title">Actions</p>
             <div class="aas-btn-row">
                 <button class="aas-btn aas-btn-primary" onclick="generateAAS()">&#9654; View AAS</button>
-                <button class="aas-btn aas-btn-secondary" onclick="downloadAAS()">&#8681; Download</button>
+                <button class="aas-btn aas-btn-secondary" onclick="downloadAAS()">&#8681; JSON</button>
+                <button class="aas-btn aas-btn-secondary" onclick="downloadAASX()">&#8681; AASX</button>
             </div>
             <div class="aas-btn-row" style="margin-top:8px">
                 <button class="aas-btn aas-btn-secondary" onclick="saveNameplate()">&#128190; Save Nameplate</button>
@@ -411,10 +412,16 @@ async function generateAAS() {
     }
 }
 
-// ─── Download AAS ────────────────────────────────────────────
+// ─── Download AAS (JSON) ─────────────────────────────────────
 function downloadAAS() {
-    const url = buildURL('/api/aas/export');
-    window.location.href = url;
+    window.location.href = buildURL('/api/aas/export');
+}
+
+// ─── Download AASX ───────────────────────────────────────────
+function downloadAASX() {
+    const type = _assetType();
+    const id   = _assetId();
+    window.location.href = `/api/aas/export-aasx/${encodeURIComponent(type)}/${encodeURIComponent(id)}`;
 }
 
 // ─── JSON Tree Renderer ──────────────────────────────────────

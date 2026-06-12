@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 
 import basyx.aas.model as model
 import basyx.aas.adapter.json as aas_json
+import basyx.aas.adapter.aasx as aas_aasx
 import io
 
 # ---------------------------------------------------------------------------
@@ -248,3 +249,65 @@ def build_aas_export(
 
     # Normalise to flat list regardless of SDK version
     return _flatten_aas_json(buf.getvalue())
+
+
+def build_aas_aasx(
+    asset_type: str,
+    asset_id: str,
+    extra: dict | None = None,
+    operational_data: dict | None = None,
+) -> bytes:
+    """
+    Build a complete AAS for the given asset and return it as an AASX binary.
+
+    AASX is an OPC/ZIP package (IEC 63278-5) required by most Industry 4.0
+    toolchains.  The same three submodels produced by build_aas_export() are
+    embedded as JSON inside the package.
+
+    Returns
+    -------
+    bytes
+        Raw AASX package bytes suitable for serving as a binary download.
+    """
+    global_asset_id = _make_asset_id(asset_type, asset_id)
+
+    asset_info = model.AssetInformation(
+        global_asset_id=global_asset_id,
+        asset_kind=model.AssetKind.INSTANCE,
+    )
+
+    nameplate_sm   = build_digital_nameplate(asset_type, asset_id, extra)
+    site_hierarchy = build_site_hierarchy_submodel(asset_type, asset_id)
+    operational_sm = build_operational_data_submodel(asset_type, asset_id, operational_data)
+
+    shell = model.AssetAdministrationShell(
+        id_=global_asset_id + ':aas',
+        asset_information=asset_info,
+        submodel={
+            model.ModelReference.from_referable(nameplate_sm),
+            model.ModelReference.from_referable(site_hierarchy),
+            model.ModelReference.from_referable(operational_sm),
+        },
+    )
+
+    object_store = model.DictObjectStore([
+        shell,
+        nameplate_sm,
+        site_hierarchy,
+        operational_sm,
+    ])
+
+    all_ids = [shell.id, nameplate_sm.id, site_hierarchy.id, operational_sm.id]
+    files   = aas_aasx.DictSupplementaryFileContainer()
+
+    buf = io.BytesIO()
+    with aas_aasx.AASXWriter(buf) as writer:
+        writer.write_aas_objects(
+            '/aasx/data.json',
+            all_ids,
+            object_store,
+            files,
+            write_json=True,
+        )
+
+    return buf.getvalue()

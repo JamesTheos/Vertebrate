@@ -33,7 +33,7 @@ from flask_login import login_required
 from subscriptions import check_subscription
 from utils import permission_required
 from models import db, AssetNameplate
-from aas_manager import build_aas_export, is_valid_asset
+from aas_manager import build_aas_export, build_aas_aasx, is_valid_asset
 from audit_trail import log_audit
 from audit_config import ACTION_VIEW, ACTION_EXPORT, ACTION_CREATE, ACTION_UPDATE, RECORD_AAS
 
@@ -144,6 +144,32 @@ def export_aas(asset_type: str, asset_id: str):
         return Response(
             aas_json,
             mimetype='application/json',
+            headers={'Content-Disposition': f'attachment; filename="{filename}"'}
+        )
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# AASX binary export (Phase 4)
+# ---------------------------------------------------------------------------
+
+@aas_bp.route('/export-aasx/<asset_type>/<asset_id>', methods=['GET'])
+@login_required
+@check_subscription('aas')
+@permission_required('aas_export')
+def export_aasx(asset_type: str, asset_id: str):
+    """Return AAS as a downloadable AASX package (IEC 63278-5 / OPC ZIP)."""
+    if not is_valid_asset(asset_type, asset_id):
+        return jsonify({'error': f'Unknown asset: {asset_type}/{asset_id}'}), 404
+    try:
+        extra = {**_load_db_nameplate(asset_type, asset_id), **_collect_extra(request)}
+        aasx_bytes = build_aas_aasx(asset_type, asset_id, extra, operational_data=_operational_snapshot())
+        log_audit(ACTION_EXPORT, RECORD_AAS, record_id=f'{asset_type}/{asset_id}')
+        filename = f"aas_{asset_type}_{asset_id}.aasx"
+        return Response(
+            aasx_bytes,
+            mimetype='application/asset-administration-shell-package+zip',
             headers={'Content-Disposition': f'attachment; filename="{filename}"'}
         )
     except Exception as e:

@@ -515,3 +515,79 @@ class TestAasOperationalDataApi:
         result = r.get_json()
         id_shorts = [item.get('idShort') for item in result]
         assert 'OperationalData' in id_shorts
+
+
+# ---------------------------------------------------------------------------
+# Phase 4: AASX binary export
+# ---------------------------------------------------------------------------
+
+class TestBuildAasAasx:
+    """build_aas_aasx returns a valid AASX binary package."""
+
+    def test_returns_bytes(self):
+        from aas_manager import build_aas_aasx
+        result = build_aas_aasx('equipment', 'fm-1')
+        assert isinstance(result, bytes)
+
+    def test_output_is_nonempty(self):
+        from aas_manager import build_aas_aasx
+        result = build_aas_aasx('equipment', 'fm-1')
+        assert len(result) > 0
+
+    def test_output_is_zip_format(self):
+        from aas_manager import build_aas_aasx
+        result = build_aas_aasx('equipment', 'fm-1')
+        assert result[:2] == b'PK', 'AASX must start with ZIP magic bytes PK'
+
+    def test_accepts_extra_and_operational_data(self):
+        from aas_manager import build_aas_aasx
+        result = build_aas_aasx(
+            'equipment', 'fm-1',
+            extra={'ManufacturerName': 'Siemens'},
+            operational_data={'Temperature': '72.5'},
+        )
+        assert isinstance(result, bytes)
+        assert result[:2] == b'PK'
+
+    def test_aasx_contains_aas_json(self):
+        import zipfile, io
+        from aas_manager import build_aas_aasx
+        result = build_aas_aasx('equipment', 'fm-1')
+        with zipfile.ZipFile(io.BytesIO(result)) as zf:
+            names = zf.namelist()
+        assert any(name.endswith('.json') for name in names)
+
+
+class TestAasAasxEndpoint:
+    """GET /api/aas/export-aasx/<asset_type>/<asset_id>"""
+
+    def test_returns_200(self, client):
+        r = client.get('/api/aas/export-aasx/equipment/filling-machine-1')
+        assert r.status_code == 200
+
+    def test_content_disposition_is_attachment_with_aasx_extension(self, client):
+        r = client.get('/api/aas/export-aasx/equipment/filling-machine-1')
+        cd = r.headers.get('Content-Disposition', '')
+        assert 'attachment' in cd
+        assert '.aasx' in cd
+
+    def test_filename_contains_asset_type_and_id(self, client):
+        r = client.get('/api/aas/export-aasx/equipment/filling-machine-1')
+        cd = r.headers.get('Content-Disposition', '')
+        assert 'equipment' in cd
+        assert 'filling-machine-1' in cd
+
+    def test_response_is_zip_binary(self, client):
+        r = client.get('/api/aas/export-aasx/equipment/filling-machine-1')
+        assert r.data[:2] == b'PK'
+
+    def test_returns_404_for_unknown_asset(self, client):
+        r = client.get('/api/aas/export-aasx/equipment/ghost-machine')
+        assert r.status_code == 404
+
+    def test_unauthenticated_request_is_rejected(self):
+        from app import create_app
+        app = create_app()
+        with app.test_client() as anon:
+            r = anon.get('/api/aas/export-aasx/equipment/filling-machine-1')
+        assert r.status_code in (302, 401)
