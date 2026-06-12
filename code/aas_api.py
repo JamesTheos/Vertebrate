@@ -75,6 +75,30 @@ def _collect_extra(req) -> dict:
     }
 
 
+def _operational_snapshot() -> dict:
+    """Return the latest value for each operational topic from data_store.
+
+    Lazily imports app.data_store so there is no circular dependency at
+    module-load time.  Returns 'N/A' for any topic with no buffered data
+    (e.g. when Kafka is unavailable in tests or dev mode).
+    """
+    try:
+        import app as _app  # safe at request time — module already loaded
+        store = _app.data_store
+    except Exception:
+        store = {}
+
+    def _latest(topic: str) -> str:
+        buf = store.get(topic, [])
+        return str(buf[-1]['value']) if buf else 'N/A'
+
+    return {
+        'Temperature': _latest('ISPEMTemp'),
+        'Speed':       _latest('ISPESpeed'),
+        'Pressure':    _latest('ISPEPressure'),
+    }
+
+
 def _load_db_nameplate(asset_type: str, asset_id: str) -> dict:
     """Return stored nameplate values as an IDTA-keyed dict, or {} if none."""
     stored = AssetNameplate.query.filter_by(
@@ -97,7 +121,7 @@ def get_aas(asset_type: str, asset_id: str):
         return jsonify({'error': f'Unknown asset: {asset_type}/{asset_id}'}), 404
     try:
         extra = {**_load_db_nameplate(asset_type, asset_id), **_collect_extra(request)}
-        aas_json = build_aas_export(asset_type, asset_id, extra)
+        aas_json = build_aas_export(asset_type, asset_id, extra, operational_data=_operational_snapshot())
         log_audit(ACTION_VIEW, RECORD_AAS, record_id=f'{asset_type}/{asset_id}')
         return Response(aas_json, mimetype='application/json')
     except Exception as e:
@@ -114,7 +138,7 @@ def export_aas(asset_type: str, asset_id: str):
         return jsonify({'error': f'Unknown asset: {asset_type}/{asset_id}'}), 404
     try:
         extra = {**_load_db_nameplate(asset_type, asset_id), **_collect_extra(request)}
-        aas_json = build_aas_export(asset_type, asset_id, extra)
+        aas_json = build_aas_export(asset_type, asset_id, extra, operational_data=_operational_snapshot())
         log_audit(ACTION_EXPORT, RECORD_AAS, record_id=f'{asset_type}/{asset_id}')
         filename = f"aas_{asset_type}_{asset_id}.json"
         return Response(

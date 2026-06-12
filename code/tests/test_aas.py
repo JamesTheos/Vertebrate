@@ -1,13 +1,15 @@
 """
 test_aas.py
 
-TDD test suite for the AAS feature (Phase 1 + Phase 2).
+TDD test suite for the AAS feature (Phase 1 + Phase 2 + Phase 3).
 
 Covers:
  - aas_manager: unit tests (no Flask, no DB, no Kafka needed)
  - aas_api:     integration tests via Flask test client
  - Phase 2:     AssetNameplate persistence, IDTA-02006 mandatory fields,
                 DB/query-param merge behaviour
+ - Phase 3:     OperationalData submodel (Temperature, Speed, Pressure)
+                populated on-demand from Kafka data_store snapshot
 
 Run inside Docker:
     docker compose exec vertebrate-app pytest /app/code/tests/test_aas.py -v
@@ -153,11 +155,11 @@ class TestBuildAasExport:
         model_types = [item.get('modelType') for item in result]
         assert 'AssetAdministrationShell' in model_types
 
-    def test_output_contains_two_submodels(self):
+    def test_output_contains_three_submodels(self):
         from aas_manager import build_aas_export
         result = json.loads(build_aas_export('equipment', 'fm-1'))
         submodels = [item for item in result if item.get('modelType') == 'Submodel']
-        assert len(submodels) == 2
+        assert len(submodels) == 3
 
     def test_nameplate_submodel_present(self):
         from aas_manager import build_aas_export
@@ -417,3 +419,99 @@ class TestAssetNameplatePersistence:
         assert data['URIOfTheProduct']         == 'https://example.com/product/fm1'
         assert data['ManufacturerProductRoot'] == 'Filling Equipment'
         assert data['YearOfConstruction']      == '2022'
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: OperationalData submodel
+# ---------------------------------------------------------------------------
+
+class TestOperationalDataSubmodel:
+    """build_operational_data_submodel returns a valid AAS Submodel."""
+
+    def test_returns_submodel(self):
+        import basyx.aas.model as model
+        from aas_manager import build_operational_data_submodel
+        sm = build_operational_data_submodel('equipment', 'fm-1', {})
+        assert isinstance(sm, model.Submodel)
+
+    def test_id_short_is_operational_data(self):
+        from aas_manager import build_operational_data_submodel
+        sm = build_operational_data_submodel('equipment', 'fm-1', {})
+        assert sm.id_short == 'OperationalData'
+
+    def test_contains_temperature_speed_pressure(self):
+        from aas_manager import build_operational_data_submodel
+        sm = build_operational_data_submodel('equipment', 'fm-1', {})
+        prop_ids = {p.id_short for p in sm.submodel_element}
+        assert 'Temperature' in prop_ids
+        assert 'Speed' in prop_ids
+        assert 'Pressure' in prop_ids
+
+    def test_snapshot_timestamp_present(self):
+        from aas_manager import build_operational_data_submodel
+        sm = build_operational_data_submodel('equipment', 'fm-1', {})
+        prop_ids = {p.id_short for p in sm.submodel_element}
+        assert 'SnapshotTimestamp' in prop_ids
+
+    def test_values_reflected_from_operational_data(self):
+        from aas_manager import build_operational_data_submodel
+        ops = {'Temperature': '72.5', 'Speed': '120.0', 'Pressure': '1.8'}
+        sm = build_operational_data_submodel('equipment', 'fm-1', ops)
+        props = {p.id_short: p.value for p in sm.submodel_element}
+        assert props['Temperature'] == '72.5'
+        assert props['Speed']       == '120.0'
+        assert props['Pressure']    == '1.8'
+
+    def test_missing_values_default_to_na(self):
+        from aas_manager import build_operational_data_submodel
+        sm = build_operational_data_submodel('equipment', 'fm-1', {})
+        props = {p.id_short: p.value for p in sm.submodel_element}
+        assert props['Temperature'] == 'N/A'
+        assert props['Speed']       == 'N/A'
+        assert props['Pressure']    == 'N/A'
+
+
+class TestBuildAasExportPhase3:
+    """build_aas_export includes OperationalData as the third submodel."""
+
+    def test_operational_data_submodel_present(self):
+        from aas_manager import build_aas_export
+        result = json.loads(build_aas_export('equipment', 'fm-1'))
+        id_shorts = [item.get('idShort') for item in result]
+        assert 'OperationalData' in id_shorts
+
+    def test_operational_values_passed_through(self):
+        from aas_manager import build_aas_export
+        ops = {'Temperature': '55.0', 'Speed': '200.0', 'Pressure': '3.2'}
+        result = json.loads(build_aas_export('equipment', 'fm-1', operational_data=ops))
+        all_elements = []
+        for item in result:
+            all_elements.extend(item.get('submodelElements', []))
+        temp = next((e for e in all_elements if e.get('idShort') == 'Temperature'), None)
+        assert temp is not None
+        assert temp['value'] == '55.0'
+
+
+class TestAasOperationalDataApi:
+    """API returns OperationalData submodel; values come from data_store snapshot."""
+
+    def test_api_response_includes_operational_data_submodel(self, client):
+        r = client.get('/api/aas/equipment/filling-machine-1')
+        result = r.get_json()
+        id_shorts = [item.get('idShort') for item in result]
+        assert 'OperationalData' in id_shorts
+
+    def test_operational_data_has_na_when_kafka_unavailable(self, client):
+        r = client.get('/api/aas/equipment/filling-machine-1')
+        all_elements = []
+        for item in r.get_json():
+            all_elements.extend(item.get('submodelElements', []))
+        temp = next((e for e in all_elements if e.get('idShort') == 'Temperature'), None)
+        assert temp is not None
+        assert temp['value'] == 'N/A'
+
+    def test_export_endpoint_also_includes_operational_data(self, client):
+        r = client.get('/api/aas/export/equipment/filling-machine-1')
+        result = r.get_json()
+        id_shorts = [item.get('idShort') for item in result]
+        assert 'OperationalData' in id_shorts

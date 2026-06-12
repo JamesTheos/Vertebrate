@@ -136,6 +136,36 @@ def build_digital_nameplate(asset_type: str, asset_id: str, extra: dict | None =
     )
 
 
+def build_operational_data_submodel(
+    asset_type: str, asset_id: str, operational_data: dict | None = None
+) -> model.Submodel:
+    """
+    Custom Vertebrate Submodel: on-demand snapshot of live process values.
+
+    operational_data: dict with string-valued keys Temperature, Speed, Pressure
+                      (sourced from Kafka data_store at export time).
+                      Missing or None values default to 'N/A'.
+    """
+    ops = operational_data or {}
+
+    def _val(key: str) -> str:
+        v = ops.get(key)
+        return str(v) if v is not None else 'N/A'
+
+    elements = [
+        _prop('Temperature',      _val('Temperature')),
+        _prop('Speed',            _val('Speed')),
+        _prop('Pressure',         _val('Pressure')),
+        _prop('SnapshotTimestamp', datetime.now(timezone.utc).isoformat()),
+    ]
+
+    return model.Submodel(
+        id_=_make_asset_id(asset_type, asset_id) + ':operational-data',
+        id_short='OperationalData',
+        submodel_element=set(elements),
+    )
+
+
 def build_site_hierarchy_submodel(asset_type: str, asset_id: str) -> model.Submodel:
     """
     Custom Vertebrate Submodel: ISA-95 site location context.
@@ -163,24 +193,26 @@ def build_site_hierarchy_submodel(asset_type: str, asset_id: str) -> model.Submo
 # Main export function
 # ---------------------------------------------------------------------------
 
-def build_aas_export(asset_type: str, asset_id: str, extra: dict | None = None) -> str:
+def build_aas_export(
+    asset_type: str,
+    asset_id: str,
+    extra: dict | None = None,
+    operational_data: dict | None = None,
+) -> str:
     """
     Build a complete AAS for the given asset and return it as a JSON string.
 
     Parameters
     ----------
-    asset_type : str
-        e.g. 'equipment', 'batch', 'filling-line'
-    asset_id   : str
-        Unique identifier within that type, e.g. 'filling-machine-1'
-    extra      : dict, optional
-        Additional nameplate properties (ManufacturerName, SerialNumber, …)
+    asset_type       : str   e.g. 'equipment', 'batch', 'filling-line'
+    asset_id         : str   Unique identifier, e.g. 'filling-machine-1'
+    extra            : dict  Nameplate overrides (ManufacturerName, SerialNumber, …)
+    operational_data : dict  Live process values (Temperature, Speed, Pressure)
 
     Returns
     -------
     str
-        Flat-list AAS JSON string ready to be served as an HTTP response or
-        saved as .json.  Format: [{"modelType": ..., ...}, ...]
+        Flat-list AAS JSON string.  Format: [{"modelType": ..., ...}, ...]
     """
     global_asset_id = _make_asset_id(asset_type, asset_id)
 
@@ -191,6 +223,7 @@ def build_aas_export(asset_type: str, asset_id: str, extra: dict | None = None) 
 
     nameplate_sm   = build_digital_nameplate(asset_type, asset_id, extra)
     site_hierarchy = build_site_hierarchy_submodel(asset_type, asset_id)
+    operational_sm = build_operational_data_submodel(asset_type, asset_id, operational_data)
 
     shell = model.AssetAdministrationShell(
         id_=global_asset_id + ':aas',
@@ -198,6 +231,7 @@ def build_aas_export(asset_type: str, asset_id: str, extra: dict | None = None) 
         submodel={
             model.ModelReference.from_referable(nameplate_sm),
             model.ModelReference.from_referable(site_hierarchy),
+            model.ModelReference.from_referable(operational_sm),
         },
     )
 
@@ -206,6 +240,7 @@ def build_aas_export(asset_type: str, asset_id: str, extra: dict | None = None) 
         shell,
         nameplate_sm,
         site_hierarchy,
+        operational_sm,
     ])
 
     buf = io.StringIO()
