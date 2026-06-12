@@ -24,6 +24,8 @@ Examples
 
 from flask import Blueprint, jsonify, request, Response
 from aas_manager import build_aas_export
+from audit_trail import log_audit
+from audit_config import ACTION_VIEW, ACTION_EXPORT, RECORD_AAS
 
 aas_bp = Blueprint('aas', __name__, url_prefix='/api/aas')
 
@@ -54,6 +56,7 @@ def get_aas(asset_type: str, asset_id: str):
     try:
         extra = _collect_extra(request)
         aas_json = build_aas_export(asset_type, asset_id, extra)
+        log_audit(ACTION_VIEW, RECORD_AAS, record_id=f'{asset_type}/{asset_id}')
         return Response(aas_json, mimetype='application/json')
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -68,6 +71,7 @@ def export_aas(asset_type: str, asset_id: str):
     try:
         extra = _collect_extra(request)
         aas_json = build_aas_export(asset_type, asset_id, extra)
+        log_audit(ACTION_EXPORT, RECORD_AAS, record_id=f'{asset_type}/{asset_id}')
         filename = f"aas_{asset_type}_{asset_id}.json"
         return Response(
             aas_json,
