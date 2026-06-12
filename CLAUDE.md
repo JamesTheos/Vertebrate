@@ -90,22 +90,25 @@ All state-changing operations on users, roles, orders, and configuration must be
 
 Both API routes (`/api/aas/*`) and the viewer page (`/aas-viewer`) require `@login_required`. The `_flatten_aas_json` helper in `aas_manager.py` normalises both the old flat-list and new wrapped-dict SDK serialisation formats so the rest of the code is insulated from basyx version changes.
 
-#### AAS roadmap
+#### AAS implementation (all phases complete)
 
-**Phase 1 hardening (next up)**
-- Add `@check_subscription('aas')` and `@permission_required('aas_export')` to the API routes and viewer — currently only `@login_required` is applied, which doesn't match the three-layer guard pattern used by SCADA and manufacturing_orders.
-- Validate `asset_type` / `asset_id` against known assets defined in `config.json`; return 404 for unknowns rather than silently generating a shell for arbitrary strings.
+**Phase 1 — Auth hardening + asset validation** ✓
+- Three-layer guards (`@login_required`, `@check_subscription('aas')`, `@permission_required('aas_export')`) on all API routes and `/aas-viewer`.
+- `KNOWN_ASSETS` frozenset loaded from `config.json`; `is_valid_asset()` returns 404 for anything not declared.
 
-**Phase 2 — Nameplate persistence**
-- New `Asset` DB model to store per-asset nameplate data (manufacturer, serial, HW/SW version) so values survive between sessions instead of being passed as query params each time.
-- Complete the IDTA-02006-2-0 mandatory fields that are currently missing: `URIOfTheProduct`, `ManufacturerProductRoot`, `YearOfConstruction`. Expose them as optional form inputs on the viewer.
+**Phase 2 — Nameplate persistence** ✓
+- `AssetNameplate` DB model (`asset_nameplates` table, composite PK).
+- `GET/POST /api/aas/nameplate/<type>/<id>` — read/upsert stored nameplate data.
+- AAS export merges DB values with query-param overrides; all IDTA-02006-2-0 mandatory fields present.
+- Viewer UI: Save Nameplate / Load Saved buttons.
 
-**Phase 3 — Live operational data submodel**
-- Add a third `OperationalData` submodel driven by the Kafka `data_store` (temperature, speed, pressure from `ISPEMTemp`, `ISPESpeed`, `ISPEPressure` topics). This is the "Phase 2" noted in `aas_manager.py`'s module docstring.
-- The submodel should be populated on-demand from `data_store` at export time; no continuous sync needed for Phase 3.
+**Phase 3 — Live operational data submodel** ✓
+- `OperationalData` submodel populated on-demand from Kafka `data_store` at export time.
+- `_operational_snapshot()` in `aas_api.py` lazily reads `ISPEMTemp`, `ISPESpeed`, `ISPEPressure`; falls back to `'N/A'` when Kafka is unavailable.
 
-**Phase 4 — AASX format**
-- Add a `/api/aas/export-aasx/<asset_type>/<asset_id>` endpoint using `basyx.aas.adapter.aasx` to produce the binary AASX package format (IEC 63278-5). Required for real Industry 4.0 partner handover — the current JSON-only export is not accepted by most external BaSyx-based toolchains.
+**Phase 4 — AASX binary export** ✓
+- `GET /api/aas/export-aasx/<type>/<id>` — returns IEC 63278-5 OPC/ZIP package via `basyx.aas.adapter.aasx.AASXWriter`.
+- Viewer UI: dedicated AASX download button alongside JSON export.
 
 ### Configuration
 - `code/config.json` — ISA-95 hierarchy, Kafka server address, cluster ID. Read at startup by both `app.py` and `aas_manager.py`.

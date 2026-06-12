@@ -1,7 +1,7 @@
 """
 aas_api.py
 
-Flask Blueprint: AAS export endpoints (Phase 1 + Phase 2).
+Flask Blueprint: AAS export endpoints (Phases 1–4).
 
 Routes
 ------
@@ -193,6 +193,7 @@ def get_nameplate(asset_type: str, asset_id: str):
     ).first()
     if not stored:
         return jsonify({'error': 'No nameplate saved for this asset'}), 404
+    log_audit(ACTION_VIEW, RECORD_AAS, record_id=f'{asset_type}/{asset_id}')
     return jsonify(stored.to_dict())
 
 
@@ -205,7 +206,11 @@ def save_nameplate(asset_type: str, asset_id: str):
     if not is_valid_asset(asset_type, asset_id):
         return jsonify({'error': f'Unknown asset: {asset_type}/{asset_id}'}), 404
 
-    data = request.get_json() or {}
+    if request.content_type and 'application/json' in request.content_type \
+            and request.get_json(silent=True) is None:
+        return jsonify({'error': 'Invalid JSON body'}), 400
+
+    data = request.get_json(silent=True) or {}
     stored = AssetNameplate.query.filter_by(
         asset_type=asset_type.lower(), asset_id=asset_id.lower()
     ).first()

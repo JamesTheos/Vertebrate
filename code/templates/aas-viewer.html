@@ -419,9 +419,7 @@ function downloadAAS() {
 
 // ─── Download AASX ───────────────────────────────────────────
 function downloadAASX() {
-    const type = _assetType();
-    const id   = _assetId();
-    window.location.href = `/api/aas/export-aasx/${encodeURIComponent(type)}/${encodeURIComponent(id)}`;
+    window.location.href = buildURL('/api/aas/export-aasx');
 }
 
 // ─── JSON Tree Renderer ──────────────────────────────────────

@@ -1,14 +1,18 @@
 """
 aas_manager.py
 
-Phase 1 MVP: One-time / on-demand AAS export.
+Stateless AAS (Asset Administration Shell) export for Vertebrate assets.
 
-Builds an Asset Administration Shell for a Vertebrate asset (equipment unit)
-using the ISA-95 site hierarchy from config.json.  The shell is serialised to
-AAS JSON (Part 2 API format) and can be returned directly from a Flask route.
+Builds an IEC 63278 / Industry 4.0 AAS from the ISA-95 site hierarchy in
+config.json and returns it as JSON (Part 2 API format) or as a binary AASX
+package (IEC 63278-5).  Three submodels are always included:
 
-No continuous sync, no BaSyx server — just a clean, stateless export function.
-Phase 2 will add Kafka-driven live updates.
+  - DigitalNameplate  (IDTA-02006): manufacturer, serial, HW/SW version, etc.
+  - SiteHierarchy:    ISA-95 location context (enterprise → unit)
+  - OperationalData:  on-demand snapshot of live Kafka values (Temperature,
+                      Speed, Pressure) supplied by the caller at export time.
+
+No continuous sync with a BaSyx server — exports are generated on demand.
 """
 
 import json

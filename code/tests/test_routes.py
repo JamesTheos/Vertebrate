@@ -168,6 +168,7 @@ class TestAasApiAuth:
     API_ROUTES = [
         '/api/aas/equipment/filling-machine-1',
         '/api/aas/export/equipment/filling-machine-1',
+        '/api/aas/export-aasx/equipment/filling-machine-1',
     ]
 
     def test_unauthenticated_requests_redirect_to_login(self, client):
