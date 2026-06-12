@@ -236,6 +236,21 @@ class TestAasAccessControl:
         assert r.status_code == 200
         assert r.get_json() is not None
 
+    def test_unsubscribed_aasx_does_not_return_binary(self, app, client):
+        _seed_user(app)
+        _login(client)
+        # No subscription — check_subscription should block before binary is produced
+        r = client.get('/api/aas/export-aasx/equipment/filling-machine-1')
+        assert 'application/asset-administration-shell' not in r.content_type
+
+    def test_subscribed_no_permission_aasx_returns_403(self, app, client):
+        _seed_user(app)
+        _login(client)
+        _seed_aas_subscription(app)
+        # Admin role has no aas_export permission
+        r = client.get('/api/aas/export-aasx/equipment/filling-machine-1')
+        assert r.status_code == 403
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 3. /index alias

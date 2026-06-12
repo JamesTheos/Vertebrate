@@ -420,6 +420,15 @@ class TestAssetNameplatePersistence:
         assert data['ManufacturerProductRoot'] == 'Filling Equipment'
         assert data['YearOfConstruction']      == '2022'
 
+    def test_post_malformed_json_returns_400(self, client):
+        r = client.post(
+            '/api/aas/nameplate/equipment/filling-machine-1',
+            data=b'{"broken": json',
+            content_type='application/json',
+        )
+        assert r.status_code == 400
+        assert 'Invalid JSON' in r.get_json()['error']
+
 
 # ---------------------------------------------------------------------------
 # Phase 3: OperationalData submodel
@@ -591,3 +600,46 @@ class TestAasAasxEndpoint:
         with app.test_client() as anon:
             r = anon.get('/api/aas/export-aasx/equipment/filling-machine-1')
         assert r.status_code in (302, 401)
+
+
+# ---------------------------------------------------------------------------
+# Operational data with real values (mocked snapshot)
+# ---------------------------------------------------------------------------
+
+class TestOperationalDataWithValues:
+    """Verifies that values returned by _operational_snapshot() appear in AAS output."""
+
+    def test_values_from_snapshot_appear_in_aas_output(self, client):
+        from unittest.mock import patch
+        import aas_api
+        mock_ops = {'Temperature': '75.5', 'Speed': '150.0', 'Pressure': '2.3'}
+        with patch.object(aas_api, '_operational_snapshot', return_value=mock_ops):
+            r = client.get('/api/aas/equipment/filling-machine-1')
+        assert r.status_code == 200
+        all_elements = []
+        for item in r.get_json():
+            all_elements.extend(item.get('submodelElements', []))
+        by_id = {e['idShort']: e['value'] for e in all_elements if 'idShort' in e}
+        assert by_id.get('Temperature') == '75.5'
+        assert by_id.get('Speed')       == '150.0'
+        assert by_id.get('Pressure')    == '2.3'
+
+    def test_aasx_also_uses_snapshot_values(self, client):
+        from unittest.mock import patch
+        import aas_api, zipfile, io, json as _json
+        mock_ops = {'Temperature': '99.9', 'Speed': '0.0', 'Pressure': '5.0'}
+        with patch.object(aas_api, '_operational_snapshot', return_value=mock_ops):
+            r = client.get('/api/aas/export-aasx/equipment/filling-machine-1')
+        assert r.status_code == 200
+        # Parse the AASX ZIP and find the embedded JSON
+        with zipfile.ZipFile(io.BytesIO(r.data)) as zf:
+            json_names = [n for n in zf.namelist() if n.endswith('.json')]
+            assert json_names, 'No JSON file found inside AASX package'
+            content = _json.loads(zf.read(json_names[0]))
+        # SDK writes wrapped format inside AASX: {"submodels": [...], ...}
+        items = content.get('submodels', []) if isinstance(content, dict) else content
+        all_elements = []
+        for item in items:
+            all_elements.extend(item.get('submodelElements', []))
+        by_id = {e['idShort']: e['value'] for e in all_elements if 'idShort' in e}
+        assert by_id.get('Temperature') == '99.9'

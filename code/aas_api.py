@@ -85,7 +85,7 @@ def _operational_snapshot() -> dict:
     try:
         import app as _app  # safe at request time — module already loaded
         store = _app.data_store
-    except Exception:
+    except (ImportError, AttributeError):
         store = {}
 
     def _latest(topic: str) -> str:

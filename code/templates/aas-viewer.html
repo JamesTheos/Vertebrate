@@ -285,6 +285,11 @@
                        placeholder="e.g. Syntegon">
             </div>
             <div class="aas-form-group">
+                <label>Product Designation</label>
+                <input id="aas-product-designation" class="aas-input" type="text"
+                       placeholder="e.g. Rotary Filling Machine">
+            </div>
+            <div class="aas-form-group">
                 <label>Product Root</label>
                 <input id="aas-product-root" class="aas-input" type="text"
                        placeholder="e.g. Filling Equipment">
@@ -298,6 +303,11 @@
                 <label>Serial Number</label>
                 <input id="aas-serial" class="aas-input" type="text"
                        placeholder="e.g. SN-0042">
+            </div>
+            <div class="aas-form-group">
+                <label>Country of Origin</label>
+                <input id="aas-country" class="aas-input" type="text"
+                       placeholder="e.g. DE">
             </div>
             <div class="aas-form-group">
                 <label>Year of Construction</label>
@@ -374,13 +384,15 @@ function _assetId()   { return document.getElementById('aas-asset-id').value.tri
 function buildURL(base) {
     const url = new URL(`${base}/${encodeURIComponent(_assetType())}/${encodeURIComponent(_assetId())}`, window.location.origin);
     const params = {
-        manufacturer:      document.getElementById('aas-manufacturer').value.trim(),
-        product_root:      document.getElementById('aas-product-root').value.trim(),
-        uri_of_product:    document.getElementById('aas-uri').value.trim(),
-        serial:            document.getElementById('aas-serial').value.trim(),
+        manufacturer:         document.getElementById('aas-manufacturer').value.trim(),
+        product_designation:  document.getElementById('aas-product-designation').value.trim(),
+        product_root:         document.getElementById('aas-product-root').value.trim(),
+        uri_of_product:       document.getElementById('aas-uri').value.trim(),
+        serial:               document.getElementById('aas-serial').value.trim(),
+        country:              document.getElementById('aas-country').value.trim(),
         year_of_construction: document.getElementById('aas-year').value.trim(),
-        hw_version:        document.getElementById('aas-hw').value.trim(),
-        sw_version:        document.getElementById('aas-sw').value.trim(),
+        hw_version:           document.getElementById('aas-hw').value.trim(),
+        sw_version:           document.getElementById('aas-sw').value.trim(),
     };
     Object.entries(params).forEach(([k, v]) => { if (v) url.searchParams.set(k, v); });
     return url.toString();
@@ -399,7 +411,10 @@ async function generateAAS() {
     const url = buildURL('/api/aas');
     try {
         const res  = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || `HTTP ${res.status}`);
+        }
         const data = await res.json();
         renderTree(data);
         const ts = new Date().toLocaleTimeString();
@@ -497,9 +512,11 @@ function setAllNodes(open) {
 // ─── Nameplate field map: IDTA key → input element id ────────
 const _NAMEPLATE_FIELDS = {
     ManufacturerName:               'aas-manufacturer',
+    ManufacturerProductDesignation: 'aas-product-designation',
     ManufacturerProductRoot:        'aas-product-root',
     URIOfTheProduct:                'aas-uri',
     SerialNumber:                   'aas-serial',
+    CountryOfOrigin:                'aas-country',
     YearOfConstruction:             'aas-year',
     HardwareVersion:                'aas-hw',
     SoftwareVersion:                'aas-sw',
