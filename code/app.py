@@ -418,16 +418,9 @@ def create_app():
     @login_required
     def subscription_management():
         from models import Subscriptions
-        _all_apps = [
-            'manufacturing-orders', 'order-management', 'workflow-overview',
-            'batch', 'process-instructions', 'sampling', 'equipment', 'pid',
-            '3d-view', 'design-space-definition', 'design-space-representation',
-            'product-analytics', 'process-qbd-analytics', 'plant-configuration',
-            'process-configuration', 'workflow-management', 'user-management',
-            'role-management',
-        ]
+        from app_registry import KNOWN_APPS
         subscribed = {s.apps for s in Subscriptions.query.filter_by(subscribed=True).all()}
-        subscription_status = {app: (app in subscribed) for app in _all_apps}
+        subscription_status = {app: (app in subscribed) for app in KNOWN_APPS}
         return render_template('subscription-management.html', subscription_status=subscription_status)
 
     @app.route('/subscription-denied')

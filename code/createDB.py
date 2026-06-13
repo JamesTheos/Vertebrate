@@ -105,16 +105,9 @@ def _seed_admin_user(creator_role):
 
 def _seed_subscriptions():
     """Seed all core apps as unsubscribed by default."""
-    core_apps = [
-        "manufacturing-orders", "order-management", "workflow-overview",
-        "batch", "process-instructions", "sampling", "equipment", "pid",
-        "3d-view", "design-space-definition", "design-space-representation",
-        "product-analytics", "process-qbd-analytics", "plant-configuration",
-        "process-configuration", "workflow-management", "user-management",
-        "role-management"
-    ]
+    from app_registry import KNOWN_APPS
 
-    for app_name in core_apps:
+    for app_name in KNOWN_APPS:
         sub = Subscriptions.query.filter_by(apps=app_name).first()
         if not sub:
             db.session.add(Subscriptions(apps=app_name, subscribed=False))
