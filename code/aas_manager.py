@@ -7,7 +7,8 @@ Builds an IEC 63278 / Industry 4.0 AAS from the ISA-95 site hierarchy in
 config.json and returns it as JSON (Part 2 API format) or as a binary AASX
 package (IEC 63278-5).  Three submodels are always included:
 
-  - DigitalNameplate  (IDTA-02006): manufacturer, serial, HW/SW version, etc.
+  - DigitalNameplate  (IDTA-02006-3-0): manufacturer, serial, HW/SW version,
+                       etc., each carrying its IDTA/IEC CDD semanticId.
   - SiteHierarchy:    ISA-95 location context (enterprise → unit)
   - OperationalData:  on-demand snapshot of live Kafka values (Temperature,
                       Speed, Pressure) supplied by the caller at export time.
@@ -68,12 +69,23 @@ def _make_asset_id(asset_type: str, asset_id: str) -> str:
     )
 
 
-def _prop(id_short: str, value: str, value_type=model.datatypes.String) -> model.Property:
-    """Convenience wrapper for a typed AAS Property."""
+def _external_ref(value: str) -> model.ExternalReference:
+    """Build a semanticId (ExternalReference) from a single global-reference key."""
+    return model.ExternalReference((model.Key(model.KeyTypes.GLOBAL_REFERENCE, value),))
+
+
+def _prop(id_short: str, value: str, value_type=model.datatypes.String,
+          semantic_id: str | None = None) -> model.Property:
+    """Convenience wrapper for a typed AAS Property.
+
+    semantic_id: optional identifier string, wrapped as an ExternalReference so
+                 receiving AAS tools can map the property to a standard concept.
+    """
     return model.Property(
         id_short=id_short,
         value_type=value_type,
         value=value,
+        semantic_id=_external_ref(semantic_id) if semantic_id else None,
     )
 
 
@@ -113,30 +125,57 @@ def _flatten_aas_json(raw: str) -> str:
 # Submodel builders
 # ---------------------------------------------------------------------------
 
+# IDTA-02006-3-0 Digital Nameplate semanticIds, verified against the published
+# IDTA submodel template (admin-shell-io/submodel-templates, Digital nameplate
+# 3/0).  The submodel-level IRI lets AAS tooling recognise this as a standard
+# Digital Nameplate; the per-field IEC CDD identifiers map each property to its
+# standardised concept.
+NAMEPLATE_SEMANTIC_ID = 'https://admin-shell.io/idta/nameplate/3/0/Nameplate'
+_NAMEPLATE_FIELD_SEMANTIC_IDS = {
+    'ManufacturerName':               '0112/2///61987#ABA565#009',
+    'ManufacturerProductDesignation': '0112/2///61987#ABA567#009',
+    'ManufacturerProductRoot':        '0112/2///61360_7#AAS011#001',
+    'URIOfTheProduct':                '0112/2///61987#ABN590#002',
+    'SerialNumber':                   '0112/2///61987#ABA951#009',
+    'HardwareVersion':                '0112/2///61987#ABA926#008',
+    'SoftwareVersion':                '0112/2///61987#ABA601#008',
+    'CountryOfOrigin':                '0112/2///61987#ABP462#001',
+    'YearOfConstruction':             '0112/2///61987#ABP000#002',
+}
+
+
 def build_digital_nameplate(asset_type: str, asset_id: str, extra: dict | None = None) -> model.Submodel:
     """
-    IDTA-02006 Digital Nameplate Submodel (simplified).
+    IDTA-02006-3-0 Digital Nameplate Submodel (subset of fields).
+
+    Each property and the submodel itself carry their IDTA/IEC CDD semanticId so
+    receiving AAS tools recognise the export as a standard Digital Nameplate.
 
     extra: optional dict of additional key/value properties to include,
            e.g. {"ManufacturerName": "Siemens", "SerialNumber": "SN-0042"}
     """
     extra = extra or {}
 
+    field_values = [
+        ('ManufacturerName',               extra.get('ManufacturerName', 'Unknown')),
+        ('ManufacturerProductDesignation', extra.get('ManufacturerProductDesignation', asset_type)),
+        ('ManufacturerProductRoot',        extra.get('ManufacturerProductRoot', 'N/A')),
+        ('URIOfTheProduct',                extra.get('URIOfTheProduct', 'N/A')),
+        ('SerialNumber',                   extra.get('SerialNumber', asset_id)),
+        ('HardwareVersion',                extra.get('HardwareVersion', 'N/A')),
+        ('SoftwareVersion',                extra.get('SoftwareVersion', 'N/A')),
+        ('CountryOfOrigin',                extra.get('CountryOfOrigin', 'N/A')),
+        ('YearOfConstruction',             extra.get('YearOfConstruction', 'N/A')),
+    ]
     elements = [
-        _prop('ManufacturerName',               extra.get('ManufacturerName', 'Unknown')),
-        _prop('ManufacturerProductDesignation', extra.get('ManufacturerProductDesignation', asset_type)),
-        _prop('ManufacturerProductRoot',        extra.get('ManufacturerProductRoot', 'N/A')),
-        _prop('URIOfTheProduct',                extra.get('URIOfTheProduct', 'N/A')),
-        _prop('SerialNumber',                   extra.get('SerialNumber', asset_id)),
-        _prop('HardwareVersion',                extra.get('HardwareVersion', 'N/A')),
-        _prop('SoftwareVersion',                extra.get('SoftwareVersion', 'N/A')),
-        _prop('CountryOfOrigin',                extra.get('CountryOfOrigin', 'N/A')),
-        _prop('YearOfConstruction',             extra.get('YearOfConstruction', 'N/A')),
+        _prop(id_short, value, semantic_id=_NAMEPLATE_FIELD_SEMANTIC_IDS.get(id_short))
+        for id_short, value in field_values
     ]
 
     return model.Submodel(
         id_=_make_asset_id(asset_type, asset_id) + ':nameplate',
         id_short='DigitalNameplate',
+        semantic_id=_external_ref(NAMEPLATE_SEMANTIC_ID),
         submodel_element=set(elements),
     )
 

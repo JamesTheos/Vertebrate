@@ -102,6 +102,50 @@ class TestDigitalNameplate:
         assert 'YearOfConstruction' in prop_ids
 
 
+class TestNameplateSemanticIds:
+    """Digital Nameplate carries IDTA-02006-3-0 semanticIds for interoperability.
+
+    Values verified against the published IDTA template:
+    https://github.com/admin-shell-io/submodel-templates (Digital nameplate 3/0).
+    """
+
+    NAMEPLATE_SM_SEMANTIC_ID = 'https://admin-shell.io/idta/nameplate/3/0/Nameplate'
+    # idShort → IEC CDD identifier from the IDTA-02006-3-0 template
+    FIELD_SEMANTIC_IDS = {
+        'ManufacturerName':               '0112/2///61987#ABA565#009',
+        'ManufacturerProductDesignation': '0112/2///61987#ABA567#009',
+        'ManufacturerProductRoot':        '0112/2///61360_7#AAS011#001',
+        'URIOfTheProduct':                '0112/2///61987#ABN590#002',
+        'SerialNumber':                   '0112/2///61987#ABA951#009',
+        'HardwareVersion':                '0112/2///61987#ABA926#008',
+        'SoftwareVersion':                '0112/2///61987#ABA601#008',
+        'CountryOfOrigin':                '0112/2///61987#ABP462#001',
+        'YearOfConstruction':             '0112/2///61987#ABP000#002',
+    }
+
+    def test_submodel_has_nameplate_semantic_id(self):
+        from aas_manager import build_digital_nameplate
+        sm = build_digital_nameplate('equipment', 'fm-1')
+        assert sm.semantic_id is not None
+        assert sm.semantic_id.key[0].value == self.NAMEPLATE_SM_SEMANTIC_ID
+
+    def test_every_field_has_correct_semantic_id(self):
+        from aas_manager import build_digital_nameplate
+        sm = build_digital_nameplate('equipment', 'fm-1')
+        props = {p.id_short: p for p in sm.submodel_element}
+        for id_short, expected in self.FIELD_SEMANTIC_IDS.items():
+            prop = props[id_short]
+            assert prop.semantic_id is not None, f'{id_short} has no semanticId'
+            assert prop.semantic_id.key[0].value == expected, \
+                f'{id_short} semanticId mismatch'
+
+    def test_semantic_id_serialised_in_json_output(self):
+        from aas_manager import build_aas_export
+        result = json.loads(build_aas_export('equipment', 'fm-1'))
+        nameplate = next(i for i in result if i.get('idShort') == 'DigitalNameplate')
+        assert nameplate['semanticId']['keys'][0]['value'] == self.NAMEPLATE_SM_SEMANTIC_ID
+
+
 class TestSiteHierarchySubmodel:
     """build_site_hierarchy_submodel embeds ISA-95 config correctly."""
 
