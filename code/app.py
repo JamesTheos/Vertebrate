@@ -634,8 +634,12 @@ def create_app():
         _config_path = os.path.join(os.path.dirname(__file__), 'config.json')
         with open(_config_path) as f:
             old_config = json.load(f)
+        # Merge into the existing config so keys the caller didn't submit
+        # (Kafkaserver, clusterid, assets, …) are preserved.  Overwriting the
+        # whole file dropped them and crashed the app on next startup.
+        merged_config = {**old_config, **new_config}
         with open(_config_path, 'w') as f:
-            json.dump(new_config, f, indent=4)
+            json.dump(merged_config, f, indent=4)
         for field in [k for k in new_config if new_config.get(k) != old_config.get(k)]:
             log_field_change(
                 action_type='UPDATE',
