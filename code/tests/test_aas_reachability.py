@@ -56,3 +56,20 @@ class TestAasReachability:
             # Clean up so the row doesn't leak into other tests.
             Subscriptions.query.filter_by(apps='aas').delete()
             db.session.commit()
+
+    def test_role_management_renders_aas_permission_toggle(self, app, client):
+        """Admin must see an `aas_export` checkbox to grant the AAS permission.
+
+        Enabling the `aas` subscription is not enough to reach /aas-viewer — the
+        route is also guarded by `@permission_required('aas_export')`.  The
+        role-management page builds permission keys from checkbox ids, so it must
+        render a checkbox whose id is exactly `aas_export`, gated by the `aas`
+        subscription via `data-subscription`.
+        """
+        _login_admin(client)
+        resp = client.get('/role-management')
+        assert resp.status_code == 200
+        assert b'id="aas_export"' in resp.data, \
+            "role-management page has no 'aas_export' toggle — admin cannot grant the AAS permission"
+        assert b'data-subscription="aas"' in resp.data, \
+            "AAS permission toggle is not gated by the 'aas' subscription"
