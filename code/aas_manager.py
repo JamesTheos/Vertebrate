@@ -47,6 +47,13 @@ KNOWN_ASSETS: frozenset = frozenset(
     for a in _SITE_CONFIG.get('assets', [])
 )
 
+# BaSyx AAS-server endpoints.  Env overrides config.json (same precedence as
+# KAFKASERVER/DATABASE_URL).  Empty until the BaSyx server lands next sprint —
+# see sync_to_basyx(), which no-ops while these are blank.
+_BASYX_CONFIG = _SITE_CONFIG.get('basyx', {})
+BASYX_AAS_ENV_URL  = os.environ.get('BASYX_AAS_ENV_URL')  or _BASYX_CONFIG.get('aas_env_url', '')
+BASYX_REGISTRY_URL = os.environ.get('BASYX_REGISTRY_URL') or _BASYX_CONFIG.get('registry_url', '')
+
 
 def is_valid_asset(asset_type: str, asset_id: str) -> bool:
     """Return True if (asset_type, asset_id) is declared in config.json assets."""
@@ -237,6 +244,42 @@ def build_site_hierarchy_submodel(asset_type: str, asset_id: str) -> model.Submo
 # Main export function
 # ---------------------------------------------------------------------------
 
+def build_aas_model(
+    asset_type: str,
+    asset_id: str,
+    extra: dict | None = None,
+    operational_data: dict | None = None,
+):
+    """Build the AAS object graph for an asset.
+
+    Returns ``(shell, submodels)`` — the AssetAdministrationShell plus the
+    ordered list of its three submodels [DigitalNameplate, SiteHierarchy,
+    OperationalData].  This is the single source of truth shared by the JSON
+    export, the AASX export, and (next sprint) the BaSyx push, so the three can
+    never drift apart.
+    """
+    global_asset_id = _make_asset_id(asset_type, asset_id)
+
+    asset_info = model.AssetInformation(
+        global_asset_id=global_asset_id,
+        asset_kind=model.AssetKind.INSTANCE,
+    )
+
+    nameplate_sm   = build_digital_nameplate(asset_type, asset_id, extra)
+    site_hierarchy = build_site_hierarchy_submodel(asset_type, asset_id)
+    operational_sm = build_operational_data_submodel(asset_type, asset_id, operational_data)
+
+    submodels = [nameplate_sm, site_hierarchy, operational_sm]
+
+    shell = model.AssetAdministrationShell(
+        id_=global_asset_id + ':aas',
+        asset_information=asset_info,
+        submodel={model.ModelReference.from_referable(sm) for sm in submodels},
+    )
+
+    return shell, submodels
+
+
 def build_aas_export(
     asset_type: str,
     asset_id: str,
@@ -258,34 +301,8 @@ def build_aas_export(
     str
         Flat-list AAS JSON string.  Format: [{"modelType": ..., ...}, ...]
     """
-    global_asset_id = _make_asset_id(asset_type, asset_id)
-
-    asset_info = model.AssetInformation(
-        global_asset_id=global_asset_id,
-        asset_kind=model.AssetKind.INSTANCE,
-    )
-
-    nameplate_sm   = build_digital_nameplate(asset_type, asset_id, extra)
-    site_hierarchy = build_site_hierarchy_submodel(asset_type, asset_id)
-    operational_sm = build_operational_data_submodel(asset_type, asset_id, operational_data)
-
-    shell = model.AssetAdministrationShell(
-        id_=global_asset_id + ':aas',
-        asset_information=asset_info,
-        submodel={
-            model.ModelReference.from_referable(nameplate_sm),
-            model.ModelReference.from_referable(site_hierarchy),
-            model.ModelReference.from_referable(operational_sm),
-        },
-    )
-
-    # Collect into an object store and serialise
-    object_store = model.DictObjectStore([
-        shell,
-        nameplate_sm,
-        site_hierarchy,
-        operational_sm,
-    ])
+    shell, submodels = build_aas_model(asset_type, asset_id, extra, operational_data)
+    object_store = model.DictObjectStore([shell, *submodels])
 
     buf = io.StringIO()
     aas_json.write_aas_json_file(buf, object_store)
@@ -312,35 +329,10 @@ def build_aas_aasx(
     bytes
         Raw AASX package bytes suitable for serving as a binary download.
     """
-    global_asset_id = _make_asset_id(asset_type, asset_id)
+    shell, submodels = build_aas_model(asset_type, asset_id, extra, operational_data)
+    object_store = model.DictObjectStore([shell, *submodels])
 
-    asset_info = model.AssetInformation(
-        global_asset_id=global_asset_id,
-        asset_kind=model.AssetKind.INSTANCE,
-    )
-
-    nameplate_sm   = build_digital_nameplate(asset_type, asset_id, extra)
-    site_hierarchy = build_site_hierarchy_submodel(asset_type, asset_id)
-    operational_sm = build_operational_data_submodel(asset_type, asset_id, operational_data)
-
-    shell = model.AssetAdministrationShell(
-        id_=global_asset_id + ':aas',
-        asset_information=asset_info,
-        submodel={
-            model.ModelReference.from_referable(nameplate_sm),
-            model.ModelReference.from_referable(site_hierarchy),
-            model.ModelReference.from_referable(operational_sm),
-        },
-    )
-
-    object_store = model.DictObjectStore([
-        shell,
-        nameplate_sm,
-        site_hierarchy,
-        operational_sm,
-    ])
-
-    all_ids = [shell.id, nameplate_sm.id, site_hierarchy.id, operational_sm.id]
+    all_ids = [shell.id, *(sm.id for sm in submodels)]
     files   = aas_aasx.DictSupplementaryFileContainer()
 
     buf = io.BytesIO()
@@ -354,3 +346,41 @@ def build_aas_aasx(
         )
 
     return buf.getvalue()
+
+
+# ---------------------------------------------------------------------------
+# BaSyx server sync (seam — HTTP push lands next sprint)
+# ---------------------------------------------------------------------------
+
+def sync_to_basyx(
+    asset_type: str,
+    asset_id: str,
+    extra: dict | None = None,
+    operational_data: dict | None = None,
+) -> dict:
+    """Push an asset's AAS to the configured BaSyx server.
+
+    Extension point for the next-sprint BaSyx integration.  It already builds
+    the shell + submodels through build_aas_model() (the single source of
+    truth), so this path is exercised and can't drift; only the HTTP transport
+    is left to wire in.
+
+    When no BaSyx server is configured (BASYX_AAS_ENV_URL blank) it is a clean
+    no-op — the same way the app treats Kafka as an optional dependency — so a
+    caller can invoke it unconditionally without guarding.
+
+    Returns a status dict, e.g. {'status': 'skipped', 'reason': ...,
+    'shell_id': ..., 'submodel_count': 3}.
+    """
+    # Build via the shared seam regardless of config, so wiring stays honest.
+    shell, submodels = build_aas_model(asset_type, asset_id, extra, operational_data)
+    base = {'shell_id': shell.id, 'submodel_count': len(submodels)}
+
+    if not BASYX_AAS_ENV_URL:
+        return {'status': 'skipped', 'reason': 'BaSyx not configured', **base}
+
+    # TODO(next sprint): with a requests-based client, PUT the shell to
+    #   {BASYX_AAS_ENV_URL}/shells/{base64url(shell.id)} and each submodel to
+    #   /submodels/{base64url(sm.id)}, then register the shell descriptor at
+    #   BASYX_REGISTRY_URL.  Return {'status': 'synced', ...} on success.
+    return {'status': 'skipped', 'reason': 'BaSyx push not implemented yet', **base}

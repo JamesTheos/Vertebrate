@@ -49,6 +49,9 @@ services:
       KAFKASERVER: kafka:29092
       IN_DOCKER: "true"
       DATABASE_URL: postgresql+psycopg2://vertebrate:vertebrate@db:5432/vertebrate
+      # Set SECRET_KEY in your shell/.env for stable sessions; empty → the app
+      # generates an ephemeral key (sessions won't survive a restart).
+      SECRET_KEY: ${SECRET_KEY:-}
     ports:
       - "5001:5001"
     volumes:

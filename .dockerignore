@@ -1,0 +1,15 @@
+# Keep the build context small and free of host-only junk.
+# NOTE: code/tests is intentionally NOT ignored — dev images (BUILD_ENV=dev)
+# run the suite in-container.
+.git
+.gitignore
+.github
+.claude
+.pytest_cache
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+code/instance/*.db
+*.aasx
+*.log

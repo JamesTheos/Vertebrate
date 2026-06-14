@@ -15,6 +15,7 @@ from demo_consumer import tempConsumerChatbot
 from auth import auth
 from models import db, User, Role, RolePermission, Permission, Subscriptions
 from functools import wraps
+import secrets
 from timeout import register_timeout_hook
 from subscriptions import check_subscription, subscriptions
 from audit_trail import log_audit, log_field_change
@@ -191,7 +192,15 @@ def create_app():
         db_url = 'sqlite:///' + db_file.replace('\\', '/')
     app.config['SQLALCHEMY_DATABASE_URI'] = db_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.secret_key = 'your_secret_key'
+    # Session-signing key: source from the environment.  Falling back to a
+    # generated key keeps dev/test working, but it is ephemeral — sessions won't
+    # survive a restart unless SECRET_KEY is set, so set it in any real deploy.
+    secret_key = os.environ.get('SECRET_KEY')
+    if not secret_key:
+        secret_key = secrets.token_hex(32)
+        print('WARNING: SECRET_KEY not set — using a generated ephemeral key; '
+              'set SECRET_KEY for stable sessions across restarts.', flush=True)
+    app.secret_key = secret_key
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=10)
 
     db.init_app(app)
