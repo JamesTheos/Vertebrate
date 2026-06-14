@@ -405,36 +405,85 @@ function setStatus(state, text) {
     span.textContent = text;
 }
 
+// ─── Session-aware fetch ─────────────────────────────────────
+// The backend answers /api/ calls with a JSON 401 when the session has expired
+// or the user isn't authenticated (instead of redirecting to the HTML login
+// page).  apiFetch turns that into a recoverable, clearly-labelled error so the
+// viewer never tries to JSON-parse a login page ("Unexpected token '<'").
+const LOGIN_URL = '/login?next=/aas-viewer';
+
+function sessionExpiredError() {
+    const e = new Error('Your session has expired. Please log in again.');
+    e.sessionExpired = true;
+    return e;
+}
+
+async function apiFetch(url, opts) {
+    const res = await fetch(url, opts);
+    if (res.status === 401) throw sessionExpiredError();
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    return res;
+}
+
+function showError(e) {
+    setStatus('err', e.sessionExpired ? 'Session expired — please log in again' : 'Error: ' + e.message);
+}
+
 // ─── Generate + render AAS ───────────────────────────────────
 async function generateAAS() {
     setStatus('busy', 'Generating AAS…');
     const url = buildURL('/api/aas');
     try {
-        const res  = await fetch(url);
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || `HTTP ${res.status}`);
-        }
+        const res  = await apiFetch(url);
         const data = await res.json();
         renderTree(data);
         const ts = new Date().toLocaleTimeString();
         setStatus('ok', `AAS generated at ${ts}`);
     } catch (e) {
-        setStatus('err', 'Error: ' + e.message);
+        showError(e);
         const box = document.getElementById('aas-tree');
         box.className = 'aas-tree-box empty-state';
-        box.innerHTML = '<span style="color:#c94040">&#9888; ' + e.message + '</span>';
+        box.innerHTML = e.sessionExpired
+            ? '<span style="color:#c94040">&#9888; Your session has expired. '
+              + '<a href="' + LOGIN_URL + '" style="color:var(--button-background)">Log in again</a> and retry.</span>'
+            : '<span style="color:#c94040">&#9888; ' + escHtml(e.message) + '</span>';
+    }
+}
+
+// ─── File download via fetch ─────────────────────────────────
+// Fetching (rather than navigating with window.location.href) lets us catch a
+// 401 and show "session expired" instead of replacing the page with a raw JSON
+// error or the login form.
+async function downloadFile(url, filename) {
+    setStatus('busy', 'Preparing download…');
+    try {
+        const res  = await apiFetch(url);
+        const blob = await res.blob();
+        const objUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = objUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(objUrl);
+        setStatus('ok', 'Downloaded ' + filename);
+    } catch (e) {
+        showError(e);
     }
 }
 
 // ─── Download AAS (JSON) ─────────────────────────────────────
 function downloadAAS() {
-    window.location.href = buildURL('/api/aas/export');
+    downloadFile(buildURL('/api/aas/export'), `aas_${_assetType()}_${_assetId()}.json`);
 }
 
 // ─── Download AASX ───────────────────────────────────────────
 function downloadAASX() {
-    window.location.href = buildURL('/api/aas/export-aasx');
+    downloadFile(buildURL('/api/aas/export-aasx'), `aas_${_assetType()}_${_assetId()}.aasx`);
 }
 
 // ─── JSON Tree Renderer ──────────────────────────────────────
@@ -464,14 +513,17 @@ function buildNode(val, key, expanded) {
               + `<span class="jt-bracket">${isArr ? '…]' : '…}'}</span>`;
 
         toggle.innerHTML = keySpan + preview;
-        toggle.addEventListener('click', () => {
-            toggle.classList.toggle('open');
-            kids.classList.toggle('open');
-        });
         wrapper.appendChild(toggle);
 
+        // `kids` must live in the function scope and be built BEFORE the click
+        // handler closes over it.  Declaring it with `const` inside the
+        // if-block put it out of the handler's scope, so every individual
+        // toggle click threw "kids is not defined" and the row never
+        // expanded/collapsed (Expand/Collapse-all still worked because they
+        // toggle the .jt-children elements directly).
+        let kids = null;
         if (!isEmpty) {
-            const kids = document.createElement('div');
+            kids = document.createElement('div');
             kids.className = 'jt-node jt-children' + (expanded ? ' open' : '');
             if (isArr) {
                 val.forEach((v, i) => kids.appendChild(buildNode(v, i, false)));
@@ -480,6 +532,11 @@ function buildNode(val, key, expanded) {
             }
             wrapper.appendChild(kids);
         }
+
+        toggle.addEventListener('click', () => {
+            toggle.classList.toggle('open');
+            if (kids) kids.classList.toggle('open');
+        });
     } else {
         const line = document.createElement('div');
         const keySpan = key !== null ? `<span class="jt-key">${escHtml(String(key))}</span>: ` : '';
@@ -533,18 +590,14 @@ async function saveNameplate() {
     setStatus('busy', 'Saving nameplate…');
     const url = `/api/aas/nameplate/${encodeURIComponent(_assetType())}/${encodeURIComponent(_assetId())}`;
     try {
-        const res = await fetch(url, {
+        await apiFetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
         });
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || `HTTP ${res.status}`);
-        }
         setStatus('ok', 'Nameplate saved');
     } catch (e) {
-        setStatus('err', 'Save failed: ' + e.message);
+        e.sessionExpired ? showError(e) : setStatus('err', 'Save failed: ' + e.message);
     }
 }
 
@@ -554,6 +607,7 @@ async function loadNameplate() {
     const url = `/api/aas/nameplate/${encodeURIComponent(_assetType())}/${encodeURIComponent(_assetId())}`;
     try {
         const res = await fetch(url);
+        if (res.status === 401) throw sessionExpiredError();
         if (res.status === 404) {
             setStatus('err', 'No saved nameplate for this asset');
             return;
@@ -567,7 +621,7 @@ async function loadNameplate() {
         });
         setStatus('ok', 'Nameplate loaded');
     } catch (e) {
-        setStatus('err', 'Load failed: ' + e.message);
+        e.sessionExpired ? showError(e) : setStatus('err', 'Load failed: ' + e.message);
     }
 }
 </script>

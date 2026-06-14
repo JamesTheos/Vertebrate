@@ -161,9 +161,11 @@ class TestLoginRequired:
 
 class TestAasApiAuth:
     """
-    The AAS API endpoints are called directly by JS and external M2M clients.
-    Without @login_required they are publicly accessible — this class enforces
-    that both routes redirect to /login when there is no active session.
+    The AAS API endpoints are called directly by JS (the AAS viewer) and external
+    M2M clients.  When there is no active session they must answer with a JSON
+    401 — not an HTML redirect to /login — so an XHR caller can surface a clean
+    "session expired" message instead of choking on "<!DOCTYPE …" when it parses
+    the body as JSON.
     """
     API_ROUTES = [
         '/api/aas/equipment/filling-machine-1',
@@ -171,16 +173,41 @@ class TestAasApiAuth:
         '/api/aas/export-aasx/equipment/filling-machine-1',
     ]
 
-    def test_unauthenticated_requests_redirect_to_login(self, client):
+    def test_unauthenticated_api_requests_return_401_json(self, client):
         for path in self.API_ROUTES:
             r = client.get(path, follow_redirects=False)
-            assert r.status_code in (302, 308), (
-                f"{path} expected redirect for unauthenticated request, got {r.status_code}"
+            assert r.status_code == 401, (
+                f"{path} expected 401 for unauthenticated request, got {r.status_code}"
             )
-            location = r.headers.get('Location', '')
-            assert 'login' in location.lower(), (
-                f"{path} redirect location '{location}' does not point to /login"
+            assert r.is_json, (
+                f"{path} 401 body must be JSON, got content-type {r.content_type}"
             )
+            assert 'error' in r.get_json(), f"{path} 401 JSON missing 'error' key"
+
+    def test_timed_out_api_request_returns_401_json(self, app, client):
+        """A session that has crossed the inactivity timeout must get a JSON 401
+        on /api/ routes (not a 302 redirect to /logout-message)."""
+        from datetime import datetime, timedelta, UTC
+        _seed_user(app)
+        _login(client)
+        with client.session_transaction() as sess:
+            sess['last_activity'] = (datetime.now(UTC) - timedelta(seconds=600)).isoformat()
+        r = client.get(self.API_ROUTES[0], follow_redirects=False)
+        assert r.status_code == 401, f"expected 401 on timed-out API request, got {r.status_code}"
+        assert r.is_json and 'error' in r.get_json()
+
+    def test_timed_out_html_request_still_redirects(self, app, client):
+        """Non-API (HTML) routes keep redirecting a timed-out user — only the
+        response format for /api/ changes."""
+        from datetime import datetime, timedelta, UTC
+        _seed_user(app)
+        _login(client)
+        with client.session_transaction() as sess:
+            sess['last_activity'] = (datetime.now(UTC) - timedelta(seconds=600)).isoformat()
+        r = client.get('/aas-viewer', follow_redirects=False)
+        assert r.status_code in (302, 308)
+        location = r.headers.get('Location', '').lower()
+        assert 'logout' in location or 'login' in location
 
     def test_authenticated_subscribed_permitted_requests_return_200(self, app, client):
         _seed_user(app)

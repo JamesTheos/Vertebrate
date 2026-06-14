@@ -234,6 +234,16 @@ def create_app():
     def load_user(user_id):
         return User.query.get(int(user_id))
 
+    @login_manager.unauthorized_handler
+    def handle_unauthorized():
+        # XHR/API callers (e.g. the AAS viewer) parse the response as JSON, so a
+        # 302 to the HTML login page makes them choke on "<!DOCTYPE …".  Answer
+        # /api/ requests with a JSON 401 instead; browser navigations still get
+        # the usual redirect to the login page.
+        if request.path.startswith('/api/'):
+            return jsonify({'error': 'Session expired or not authenticated. Please log in again.'}), 401
+        return redirect(url_for('login_page', next=request.path))
+
     register_timeout_hook(app)
 
     @app.context_processor
