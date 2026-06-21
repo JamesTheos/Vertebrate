@@ -10,7 +10,10 @@ Prep for the next-sprint BaSyx push.  Two seams:
     the app treats Kafka as optional.  Must not raise and must report 'skipped'.
 """
 
+import pytest
+
 import basyx.aas.model as model
+import aas_manager
 from aas_manager import build_aas_model, sync_to_basyx
 
 
@@ -31,6 +34,13 @@ class TestBuildAasModel:
 
 
 class TestSyncToBasyxSeam:
+    @pytest.fixture(autouse=True)
+    def _unconfigured(self, monkeypatch):
+        # Force the unconfigured state regardless of the ambient environment.
+        # The runtime container sets BASYX_AAS_ENV_URL (compose), so without this
+        # the "unconfigured" assumption would break and the seam would really sync.
+        monkeypatch.setattr(aas_manager, 'BASYX_AAS_ENV_URL', '')
+
     def test_unconfigured_sync_is_a_noop(self):
         result = sync_to_basyx(VALID_TYPE, VALID_ID)
         assert result['status'] == 'skipped'

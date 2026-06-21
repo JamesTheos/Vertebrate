@@ -337,6 +337,7 @@
             <div class="aas-btn-row" style="margin-top:8px">
                 <button class="aas-btn aas-btn-secondary" onclick="saveNameplate()">&#128190; Save Nameplate</button>
                 <button class="aas-btn aas-btn-secondary" onclick="loadNameplate()">&#8635; Load Saved</button>
+                <button class="aas-btn aas-btn-secondary" onclick="pushToBasyx()">&#8593; Push to BaSyx</button>
             </div>
         </div>
 
@@ -423,7 +424,7 @@ async function apiFetch(url, opts) {
     if (res.status === 401) throw sessionExpiredError();
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `HTTP ${res.status}`);
+        throw new Error(err.error || err.reason || `HTTP ${res.status}`);
     }
     return res;
 }
@@ -484,6 +485,27 @@ function downloadAAS() {
 // ─── Download AASX ───────────────────────────────────────────
 function downloadAASX() {
     downloadFile(buildURL('/api/aas/export-aasx'), `aas_${_assetType()}_${_assetId()}.aasx`);
+}
+
+// ─── Push to BaSyx server ────────────────────────────────────
+// POSTs the shell + submodels to the configured BaSyx environment.  When no
+// server is configured the backend returns {status:'skipped'} — surfaced here
+// as an informational message rather than an error.
+async function pushToBasyx() {
+    setStatus('busy', 'Pushing to BaSyx…');
+    try {
+        const res    = await apiFetch(buildURL('/api/aas/sync'), { method: 'POST' });
+        const result = await res.json();
+        if (result.status === 'synced') {
+            setStatus('ok', `Pushed to BaSyx — shell + ${result.submodel_count} submodels`);
+        } else if (result.status === 'skipped') {
+            setStatus('', 'BaSyx not configured — nothing pushed (set BASYX_AAS_ENV_URL)');
+        } else {
+            setStatus('err', 'BaSyx push failed: ' + (result.reason || 'unknown error'));
+        }
+    } catch (e) {
+        showError(e);
+    }
 }
 
 // ─── JSON Tree Renderer ──────────────────────────────────────

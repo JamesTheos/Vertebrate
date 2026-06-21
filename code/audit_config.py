@@ -21,6 +21,7 @@ ACTION_VIEW = 'VIEW'
 # System actions
 ACTION_SYSTEM = 'SYSTEM'
 ACTION_EXPORT = 'EXPORT'
+ACTION_SYNC = 'SYNC'
 
 # ============================================================================
 # RECORD TYPES - What was affected

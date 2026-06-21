@@ -278,6 +278,36 @@ class TestAasAccessControl:
         r = client.get('/api/aas/export-aasx/equipment/filling-machine-1')
         assert r.status_code == 403
 
+    def test_unsubscribed_sync_does_not_push(self, app, client):
+        _seed_user(app)
+        _login(client)
+        # No subscription — check_subscription renders the access-denied page
+        # (HTML) instead of running the sync, so the response is never AAS JSON.
+        r = client.post('/api/aas/sync/equipment/filling-machine-1')
+        assert 'application/json' not in r.content_type
+
+    def test_subscribed_no_permission_sync_returns_403(self, app, client):
+        _seed_user(app)
+        _login(client)
+        _seed_aas_subscription(app)
+        # Admin role has no aas_export permission
+        r = client.post('/api/aas/sync/equipment/filling-machine-1')
+        assert r.status_code == 403
+
+    def test_subscribed_with_permission_sync_passes_guards(self, app, client):
+        _seed_user(app)
+        _login(client)
+        _seed_aas_subscription(app)
+        _seed_aas_permission(app)
+        # All three guards pass → the route runs sync_to_basyx and returns its
+        # status dict.  The exact status (synced/skipped/error) depends on
+        # whether a BaSyx server is reachable in the runtime, so assert only
+        # that the guards let the request through to a JSON status response.
+        r = client.post('/api/aas/sync/equipment/filling-machine-1')
+        assert r.status_code not in (401, 403, 404)
+        body = r.get_json()
+        assert body is not None and 'status' in body
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 3. /index alias

@@ -27,16 +27,51 @@ Industrial Data Centric Tech Stack
    - pip install opcua confluent_kafka
    - pip install Flask
 
+# Docker architecture
+
+`docker compose up --build` brings up the full stack. Services:
+
+| Service | Image | Port(s) | Purpose |
+|---|---|---|---|
+| zookeeper | confluentinc/cp-zookeeper | (internal) | Kafka coordination |
+| kafka | confluentinc/cp-kafka | 9092 (host), 29092 (internal) | real-time data bus (PLC → app) |
+| db | postgres:15-alpine | (internal) | application database (PostgreSQL) |
+| vertebrate-app | built from `Dockerfile` | 5001 | Flask app — SCADA, orders, AAS export/sync |
+| **aas-environment** | eclipsebasyx/aas-environment | 8081 | Eclipse BaSyx v2 AAS + Submodel repositories (DotAAS Part 2 REST API) |
+| **aas-ui** | eclipsebasyx/aas-gui | 3000 | BaSyx AAS Web UI — browse synced shells/submodels |
+
+The app container is hardened (multi-stage build, non-root `appuser`, HEALTHCHECK
+on `/login`). The BaSyx environment is configured via
+`basyx/aas-env.properties` (in-memory backend + CORS for the Web UI).
+
+**Key environment variables** (set in your shell or a `.env` file):
+- `SECRET_KEY` — stable Flask session signing. If unset, the app generates an
+  ephemeral key (sessions don't survive a restart).
+- `BASYX_AAS_ENV_URL` — where the app pushes AAS to (default
+  `http://aas-environment:8081`, the internal Docker hostname). Blank disables sync.
+
+## AAS → BaSyx usage
+
+1. `docker compose up --build` — wait ~30s for `aas-environment` to finish booting.
+2. Log in (`User_Admin` / `12345`), open **AAS viewer** (`/aas-viewer`).
+3. Enter an asset (e.g. `equipment` / `filling-machine-1`), click **Push to BaSyx**
+   (or `POST /api/aas/sync/<type>/<id>`). Expect `{"status":"synced","submodel_count":3}`.
+4. Open the **BaSyx Web UI** at http://localhost:3000 and browse the shell plus
+   its DigitalNameplate / SiteHierarchy / OperationalData submodels.
+
+> The BaSyx backend is in-memory — shells are lost when the environment container
+> restarts. Persistent backends and a registry/discovery layer are planned follow-ups.
+> The pinned BaSyx image tags may need refreshing over time (`docker pull`).
+
 # Running the Program
 
 Option A: Docker Compose (recommended)
 - Prerequisites: Install Docker Desktop.
 - From the project root, run:
   - docker compose up --build
-- Services started:
-  - Zookeeper (internal)
-  - Kafka (exposes 9092 for host, 29092 for internal broker-to-broker and containers)
-  - Vertebrate Flask app (exposes http://localhost:5001)
+- Services started: see the **Docker architecture** table above
+  (Kafka stack, PostgreSQL, the Flask app on http://localhost:5001, plus the
+  BaSyx AAS environment on :8081 and Web UI on :3000).
 - Data persistence:
   - The SQLite database file is stored in code/instance/UserManagement.db and is bind-mounted into the container. Your data persists across container restarts.
 - Stop stack:

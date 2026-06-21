@@ -33,9 +33,11 @@ from flask_login import login_required
 from subscriptions import check_subscription
 from utils import permission_required
 from models import db, AssetNameplate
-from aas_manager import build_aas_export, build_aas_aasx, is_valid_asset
+from aas_manager import build_aas_export, build_aas_aasx, is_valid_asset, sync_to_basyx
 from audit_trail import log_audit
-from audit_config import ACTION_VIEW, ACTION_EXPORT, ACTION_CREATE, ACTION_UPDATE, RECORD_AAS
+from audit_config import (
+    ACTION_VIEW, ACTION_EXPORT, ACTION_SYNC, ACTION_CREATE, ACTION_UPDATE, RECORD_AAS,
+)
 
 aas_bp = Blueprint('aas', __name__, url_prefix='/api/aas')
 
@@ -174,6 +176,32 @@ def export_aasx(asset_type: str, asset_id: str):
         )
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# BaSyx server sync (Phase 5)
+# ---------------------------------------------------------------------------
+
+@aas_bp.route('/sync/<asset_type>/<asset_id>', methods=['POST'])
+@login_required
+@check_subscription('aas')
+@permission_required('aas_export')
+def sync_aas(asset_type: str, asset_id: str):
+    """Push the asset's AAS (shell + 3 submodels) to the configured BaSyx server.
+
+    Builds the same model as the JSON/AASX exports — DB nameplate values as the
+    base, query params override — and upserts it over the DotAAS Part 2 REST
+    API.  Returns the sync status dict.  A 'skipped'/'synced' result is 200; an
+    'error' result (network/HTTP failure) surfaces as 502.
+    """
+    if not is_valid_asset(asset_type, asset_id):
+        return jsonify({'error': f'Unknown asset: {asset_type}/{asset_id}'}), 404
+    extra = {**_load_db_nameplate(asset_type, asset_id), **_collect_extra(request)}
+    result = sync_to_basyx(asset_type, asset_id, extra,
+                           operational_data=_operational_snapshot())
+    log_audit(ACTION_SYNC, RECORD_AAS, record_id=f'{asset_type}/{asset_id}')
+    code = 200 if result.get('status') in ('synced', 'skipped') else 502
+    return jsonify(result), code
 
 
 # ---------------------------------------------------------------------------

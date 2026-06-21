@@ -16,6 +16,7 @@ package (IEC 63278-5).  Three submodels are always included:
 No continuous sync with a BaSyx server — exports are generated on demand.
 """
 
+import base64
 import json
 import os
 from datetime import datetime, timezone
@@ -24,6 +25,7 @@ import basyx.aas.model as model
 import basyx.aas.adapter.json as aas_json
 import basyx.aas.adapter.aasx as aas_aasx
 import io
+import requests
 
 # ---------------------------------------------------------------------------
 # Load site hierarchy from config.json
@@ -349,8 +351,55 @@ def build_aas_aasx(
 
 
 # ---------------------------------------------------------------------------
-# BaSyx server sync (seam — HTTP push lands next sprint)
+# BaSyx server sync (Eclipse BaSyx v2 — DotAAS Part 2 HTTP/REST API)
 # ---------------------------------------------------------------------------
+
+class BasyxSyncError(Exception):
+    """Raised when the BaSyx server rejects an object with an unexpected status."""
+
+
+_OK_STATUSES = {200, 201, 204}
+_HTTP_TIMEOUT = 5.0  # seconds — fail fast; sync is interactive, not background
+
+
+def _b64url(identifier: str) -> str:
+    """Base64URL-encode an AAS identifier for use in a REST path (no padding).
+
+    BaSyx Part 2 addresses shells/submodels by their Base64URL-encoded id, e.g.
+    GET /shells/{base64url(aasId)}.
+    """
+    return base64.urlsafe_b64encode(identifier.encode()).decode().rstrip('=')
+
+
+def _to_jsonable(obj) -> dict:
+    """Serialise a single AAS object to the Part 2 JSON dict the REST API wants."""
+    return json.loads(json.dumps(obj, cls=aas_json.AASToJsonEncoder))
+
+
+def _push_object(base_url: str, collection: str, obj) -> None:
+    """Idempotently upsert one AAS object into a BaSyx repository collection.
+
+    POST {base}/{collection}; if it already exists (HTTP 409) replace it with
+    PUT {base}/{collection}/{base64url(id)}.  Raises BasyxSyncError on any other
+    non-success status; lets requests' own RequestException propagate.
+
+    collection is 'shells' for the AAS or 'submodels' for a submodel.
+    """
+    body = _to_jsonable(obj)
+    resp = requests.post(f'{base_url}/{collection}', json=body, timeout=_HTTP_TIMEOUT)
+    if resp.status_code in _OK_STATUSES:
+        return
+    if resp.status_code == 409:
+        put = requests.put(
+            f'{base_url}/{collection}/{_b64url(obj.id)}',
+            json=body,
+            timeout=_HTTP_TIMEOUT,
+        )
+        if put.status_code in _OK_STATUSES:
+            return
+        raise BasyxSyncError(f'PUT {collection}/{obj.id} failed: HTTP {put.status_code}')
+    raise BasyxSyncError(f'POST {collection} failed: HTTP {resp.status_code}')
+
 
 def sync_to_basyx(
     asset_type: str,
@@ -360,17 +409,21 @@ def sync_to_basyx(
 ) -> dict:
     """Push an asset's AAS to the configured BaSyx server.
 
-    Extension point for the next-sprint BaSyx integration.  It already builds
-    the shell + submodels through build_aas_model() (the single source of
-    truth), so this path is exercised and can't drift; only the HTTP transport
-    is left to wire in.
+    Builds the shell + submodels through build_aas_model() (the single source of
+    truth), then upserts them into the BaSyx v2 environment over the DotAAS
+    Part 2 REST API: each submodel first, then the shell (so the shell's
+    references resolve).
 
     When no BaSyx server is configured (BASYX_AAS_ENV_URL blank) it is a clean
     no-op — the same way the app treats Kafka as an optional dependency — so a
-    caller can invoke it unconditionally without guarding.
+    caller can invoke it unconditionally without guarding.  Network/HTTP
+    failures are reported as a status dict, never raised, for the same reason.
 
-    Returns a status dict, e.g. {'status': 'skipped', 'reason': ...,
-    'shell_id': ..., 'submodel_count': 3}.
+    Returns a status dict:
+      - {'status': 'skipped', 'reason': 'BaSyx not configured', ...}
+      - {'status': 'synced',  'aas_env_url': ..., ...}
+      - {'status': 'error',   'reason': <message>, ...}
+    each carrying 'shell_id' and 'submodel_count'.
     """
     # Build via the shared seam regardless of config, so wiring stays honest.
     shell, submodels = build_aas_model(asset_type, asset_id, extra, operational_data)
@@ -379,8 +432,15 @@ def sync_to_basyx(
     if not BASYX_AAS_ENV_URL:
         return {'status': 'skipped', 'reason': 'BaSyx not configured', **base}
 
-    # TODO(next sprint): with a requests-based client, PUT the shell to
-    #   {BASYX_AAS_ENV_URL}/shells/{base64url(shell.id)} and each submodel to
-    #   /submodels/{base64url(sm.id)}, then register the shell descriptor at
-    #   BASYX_REGISTRY_URL.  Return {'status': 'synced', ...} on success.
-    return {'status': 'skipped', 'reason': 'BaSyx push not implemented yet', **base}
+    base_url = BASYX_AAS_ENV_URL.rstrip('/')
+    try:
+        for sm in submodels:
+            _push_object(base_url, 'submodels', sm)
+        _push_object(base_url, 'shells', shell)
+    except (requests.RequestException, BasyxSyncError) as e:
+        return {'status': 'error', 'reason': str(e), **base}
+
+    # NOTE(follow-up): when BASYX_REGISTRY_URL is configured, also register the
+    # shell descriptor (POST /shell-descriptors).  We chose Environment + Web UI
+    # this sprint, so no registry to register against yet.
+    return {'status': 'synced', 'aas_env_url': BASYX_AAS_ENV_URL, **base}

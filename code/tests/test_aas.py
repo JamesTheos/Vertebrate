@@ -647,6 +647,62 @@ class TestAasAasxEndpoint:
 
 
 # ---------------------------------------------------------------------------
+# BaSyx sync route — POST /api/aas/sync/<type>/<id>
+# ---------------------------------------------------------------------------
+
+class TestAasSyncEndpoint:
+    """POST /api/aas/sync/<asset_type>/<asset_id> — pushes to the BaSyx server."""
+
+    def test_synced_returns_200_and_echoes_status(self, client):
+        from unittest.mock import patch
+        import aas_api
+        result = {'status': 'synced', 'shell_id': 'urn:x', 'submodel_count': 3}
+        with patch.object(aas_api, 'sync_to_basyx', return_value=result) as m:
+            r = client.post('/api/aas/sync/equipment/filling-machine-1')
+        assert r.status_code == 200
+        assert r.get_json()['status'] == 'synced'
+        # Route forwards the same inputs the GET/export routes build:
+        # positional (type, id, extra-dict) + the operational snapshot kwarg.
+        m.assert_called_once()
+        args, kwargs = m.call_args
+        assert args[0] == 'equipment'
+        assert args[1] == 'filling-machine-1'
+        assert isinstance(args[2], dict)           # extra: DB nameplate + query params
+        assert 'operational_data' in kwargs
+
+    def test_skipped_when_basyx_unconfigured_returns_200(self, client):
+        from unittest.mock import patch
+        import aas_api
+        result = {'status': 'skipped', 'reason': 'BaSyx not configured',
+                  'shell_id': 'urn:x', 'submodel_count': 3}
+        with patch.object(aas_api, 'sync_to_basyx', return_value=result):
+            r = client.post('/api/aas/sync/equipment/filling-machine-1')
+        assert r.status_code == 200
+        assert r.get_json()['status'] == 'skipped'
+
+    def test_error_status_returns_502(self, client):
+        from unittest.mock import patch
+        import aas_api
+        result = {'status': 'error', 'reason': 'connection refused',
+                  'shell_id': 'urn:x', 'submodel_count': 3}
+        with patch.object(aas_api, 'sync_to_basyx', return_value=result):
+            r = client.post('/api/aas/sync/equipment/filling-machine-1')
+        assert r.status_code == 502
+        assert r.get_json()['status'] == 'error'
+
+    def test_unknown_asset_returns_404(self, client):
+        r = client.post('/api/aas/sync/equipment/ghost-machine')
+        assert r.status_code == 404
+
+    def test_unauthenticated_request_is_rejected(self):
+        from app import create_app
+        app = create_app()
+        with app.test_client() as anon:
+            r = anon.post('/api/aas/sync/equipment/filling-machine-1')
+        assert r.status_code in (302, 401)
+
+
+# ---------------------------------------------------------------------------
 # Operational data with real values (mocked snapshot)
 # ---------------------------------------------------------------------------
 

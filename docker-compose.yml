@@ -38,6 +38,32 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
 
+  # Eclipse BaSyx v2 AAS Environment — hosts the AAS + Submodel repositories and
+  # exposes the standardized DotAAS Part 2 REST API.  The app pushes shells here
+  # via the "Push to BaSyx" button (POST /api/aas/sync).  In-memory backend, so
+  # contents are lost on restart (persistence is a follow-up).
+  aas-environment:
+    image: eclipsebasyx/aas-environment:2.0.0-milestone-11
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./basyx/aas-env.properties:/application/application.properties
+
+  # Eclipse BaSyx v2 AAS Web UI — browse the synced shells/submodels at :3000.
+  # Endpoints point at the host-mapped environment port (the browser reaches it
+  # on localhost:8081).  Registry/discovery omitted: registry-less, the UI reads
+  # the AAS repo directly.
+  aas-ui:
+    image: eclipsebasyx/aas-gui:SNAPSHOT-20260619-062218-125f56f
+    depends_on:
+      - aas-environment
+    ports:
+      - "3000:3000"
+    environment:
+      AAS_REPO_PATH: "http://localhost:8081/shells"
+      SUBMODEL_REPO_PATH: "http://localhost:8081/submodels"
+      CD_REPO_PATH: "http://localhost:8081/concept-descriptions"
+
   vertebrate-app:
     build: .
     depends_on:
@@ -45,6 +71,8 @@ services:
         condition: service_started
       db:
         condition: service_healthy
+      aas-environment:
+        condition: service_started
     environment:
       KAFKASERVER: kafka:29092
       IN_DOCKER: "true"
@@ -52,6 +80,8 @@ services:
       # Set SECRET_KEY in your shell/.env for stable sessions; empty → the app
       # generates an ephemeral key (sessions won't survive a restart).
       SECRET_KEY: ${SECRET_KEY:-}
+      # Internal Docker hostname of the BaSyx environment; blank disables sync.
+      BASYX_AAS_ENV_URL: http://aas-environment:8081
     ports:
       - "5001:5001"
     volumes:
