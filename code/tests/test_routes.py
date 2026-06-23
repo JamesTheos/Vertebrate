@@ -80,6 +80,22 @@ def _seed_aas_permission(app, role_name='Admin'):
             _db.session.commit()
 
 
+def _grant(app, app_name, perm_key, role_name='Admin'):
+    """Enable a subscription `app_name` and grant `perm_key` to `role_name`."""
+    with app.app_context():
+        if not Subscriptions.query.filter_by(apps=app_name).first():
+            _db.session.add(Subscriptions(apps=app_name, subscribed=True))
+        role = Role.query.filter_by(name=role_name).first()
+        perm = Permission.query.filter_by(key=perm_key).first()
+        if not perm:
+            perm = Permission(key=perm_key)
+            _db.session.add(perm)
+            _db.session.flush()
+        if role and not RolePermission.query.filter_by(role_id=role.id, permission_id=perm.id).first():
+            _db.session.add(RolePermission(role_id=role.id, permission_id=perm.id))
+        _db.session.commit()
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Fixtures
 # ─────────────────────────────────────────────────────────────────────────────
@@ -307,6 +323,204 @@ class TestAasAccessControl:
         assert r.status_code not in (401, 403, 404)
         body = r.get_json()
         assert body is not None and 'status' in body
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2c. check_subscription — bare (callable-passed-directly) form
+#     The explicit @check_subscription('aas') form is covered above; the bare
+#     form (used on /scada, /manufacturing-orders, /order-management) derives the
+#     app name from the view's __name__. These pin both its deny and pass paths.
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestBareCheckSubscription:
+    def test_bare_form_denies_when_unsubscribed(self, app, client):
+        _seed_user(app)
+        _login(client)
+        # /scada is guarded by bare @check_subscription; no 'scada' subscription
+        # row exists, so it must render the access-denied page (not scada.html).
+        r = client.get('/scada')
+        assert b'Access denied' in r.data
+
+    def test_bare_form_allows_when_subscribed_and_permitted(self, app, client):
+        _seed_user(app)
+        _login(client)
+        with app.app_context():
+            _db.session.add(Subscriptions(apps='scada', subscribed=True))
+            role = Role.query.filter_by(name='Admin').first()
+            perm = Permission(key='scada')
+            _db.session.add(perm)
+            _db.session.flush()
+            _db.session.add(RolePermission(role_id=role.id, permission_id=perm.id))
+            _db.session.commit()
+        r = client.get('/scada')
+        assert r.status_code == 200
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2d. subscription_management POST — upsert branches
+#     test_aas_reachability covers create-new + subscribed=True; these pin the
+#     two untested branches: updating an existing row, and the not_subscribed
+#     (subscribed=False) path.
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestSubscriptionManagementUpsert:
+    def test_not_subscribed_disables_existing_row(self, app, client):
+        _seed_user(app)
+        _login(client)
+        with app.app_context():
+            _db.session.add(Subscriptions(apps='aas', subscribed=True))
+            _db.session.commit()
+        import json
+        r = client.post(
+            '/subscription-management',
+            data=json.dumps({'subscribed': [], 'not_subscribed': ['aas']}),
+            content_type='application/json',
+        )
+        assert r.status_code == 200
+        with app.app_context():
+            sub = Subscriptions.query.filter_by(apps='aas').first()
+            assert sub is not None and sub.subscribed is False
+
+    def test_subscribed_flips_existing_disabled_row(self, app, client):
+        _seed_user(app)
+        _login(client)
+        with app.app_context():
+            _db.session.add(Subscriptions(apps='aas', subscribed=False))
+            _db.session.commit()
+        import json
+        r = client.post(
+            '/subscription-management',
+            data=json.dumps({'subscribed': ['aas'], 'not_subscribed': []}),
+            content_type='application/json',
+        )
+        assert r.status_code == 200
+        with app.app_context():
+            sub = Subscriptions.query.filter_by(apps='aas').first()
+            assert sub is not None and sub.subscribed is True
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2e. Fully-authorized page routes behind the three-layer guard return 200
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestGuardedPagesAllow:
+    def test_login_redirects_when_already_authenticated(self, app, client):
+        _seed_user(app)
+        _login(client)
+        r = client.get('/login', follow_redirects=False)
+        assert r.status_code == 302
+        assert '/index' in r.headers.get('Location', '') or r.headers.get('Location', '').endswith('/')
+
+    def test_aas_viewer_renders_when_subscribed_and_permitted(self, app, client):
+        _seed_user(app)
+        _login(client)
+        _seed_aas_subscription(app)
+        _seed_aas_permission(app)
+        r = client.get('/aas-viewer')
+        assert r.status_code == 200
+
+    def test_manufacturing_orders_page_renders_when_authorized(self, app, client):
+        _seed_user(app)
+        _login(client)
+        _grant(app, 'manufacturing_orders', 'manufacturing_orders')
+        r = client.get('/manufacturing-orders')
+        assert r.status_code == 200
+
+    def test_order_management_page_renders_when_authorized(self, app, client):
+        _seed_user(app)
+        _login(client)
+        # bare @check_subscription derives the app name from the view's __name__
+        _grant(app, 'order_management_page', 'order_management')
+        r = client.get('/order-management')
+        assert r.status_code == 200
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2f. order-management POST — action branches
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestOrderManagementAction:
+    def test_missing_fields_returns_400(self, app, client):
+        _seed_user(app)
+        _login(client)
+        r = client.post('/order-management', json={'action': 'release'})
+        assert r.status_code == 400
+
+    def test_unknown_order_returns_404(self, app, client):
+        _seed_user(app)
+        _login(client)
+        r = client.post('/order-management',
+                        json={'action': 'release', 'order_id': 'NOPE-999'})
+        assert r.status_code == 404
+
+    def test_unknown_action_returns_400(self, app, client):
+        from app import data_store
+        _seed_user(app)
+        _login(client)
+        data_store['manufacturing_orders'].append(
+            {'orderNumber': 'OM-1', 'product': 'P', 'status': 'Created'})
+        try:
+            r = client.post('/order-management',
+                            json={'action': 'frobnicate', 'order_id': 'OM-1'})
+            assert r.status_code == 400
+        finally:
+            data_store['manufacturing_orders'].clear()
+
+    def test_release_updates_status(self, app, client):
+        from app import data_store
+        _seed_user(app)
+        _login(client)
+        data_store['manufacturing_orders'].append(
+            {'orderNumber': 'OM-2', 'product': 'P', 'status': 'Created'})
+        try:
+            r = client.post('/order-management',
+                            json={'action': 'release', 'order_id': 'OM-2'})
+            assert r.status_code == 200
+            assert r.get_json()['newStatus'] == 'Released'
+        finally:
+            data_store['manufacturing_orders'].clear()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2g. Remaining authenticated POST/GET routes
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestMiscAuthenticatedRoutes:
+    def test_start_phase1_returns_200(self, app, client):
+        _seed_user(app)
+        _login(client)
+        r = client.post('/start-phase1', json={'topic': 'ISPEStartPhase1', 'value': 1})
+        assert r.status_code == 200
+
+    def test_add_manufacturing_order_returns_200(self, app, client):
+        _seed_user(app)
+        _login(client)
+        r = client.post('/add-manufacturing-order', json={'orderNumber': 'X'})
+        assert r.status_code == 200
+
+    def test_update_user_changes_role(self, app, client):
+        _seed_user(app)
+        _login(client)
+        with app.app_context():
+            if not Role.query.filter_by(name='Operator').first():
+                _db.session.add(Role(name='Operator'))
+                _db.session.commit()
+        r = client.post('/update-user',
+                        json={'username': 'testuser', 'new_role': 'Operator'})
+        assert r.status_code == 200
+        with app.app_context():
+            user = User.query.filter_by(username='testuser').first()
+            assert [role.name for role in user.roles] == ['Operator']
+
+    def test_check_permission_no_roles_returns_404(self, app, client):
+        # A user with no roles must get the "User has no roles" 404 branch.
+        with app.app_context():
+            u = User(username='noroles', password=generate_password_hash('pw'))
+            _db.session.add(u)
+            _db.session.commit()
+        _login(client, username='noroles', password='pw')
+        r = client.get('/check-permission?key=anything')
+        assert r.status_code == 404
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -599,6 +813,8 @@ class TestAuthenticatedPages:
     PAGES = [
         '/settings', '/basesettings', '/user-management',
         '/role-management', '/user-profile', '/subscription-management',
+        '/3d-view', '/workflow-overview', '/equipment-overview',
+        '/sampling', '/batch', '/updated-user', '/plant-config', '/process-config',
     ]
 
     def test_pages_return_200_when_logged_in(self, app, client):

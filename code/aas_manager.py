@@ -49,12 +49,10 @@ KNOWN_ASSETS: frozenset = frozenset(
     for a in _SITE_CONFIG.get('assets', [])
 )
 
-# BaSyx AAS-server endpoints.  Env overrides config.json (same precedence as
-# KAFKASERVER/DATABASE_URL).  Empty until the BaSyx server lands next sprint —
-# see sync_to_basyx(), which no-ops while these are blank.
+# BaSyx AAS-server endpoint.  Env overrides config.json (same precedence as
+# KAFKASERVER/DATABASE_URL).  When blank, sync_to_basyx() is a clean no-op.
 _BASYX_CONFIG = _SITE_CONFIG.get('basyx', {})
-BASYX_AAS_ENV_URL  = os.environ.get('BASYX_AAS_ENV_URL')  or _BASYX_CONFIG.get('aas_env_url', '')
-BASYX_REGISTRY_URL = os.environ.get('BASYX_REGISTRY_URL') or _BASYX_CONFIG.get('registry_url', '')
+BASYX_AAS_ENV_URL = os.environ.get('BASYX_AAS_ENV_URL') or _BASYX_CONFIG.get('aas_env_url', '')
 
 
 def is_valid_asset(asset_type: str, asset_id: str) -> bool:
@@ -440,7 +438,4 @@ def sync_to_basyx(
     except (requests.RequestException, BasyxSyncError) as e:
         return {'status': 'error', 'reason': str(e), **base}
 
-    # NOTE(follow-up): when BASYX_REGISTRY_URL is configured, also register the
-    # shell descriptor (POST /shell-descriptors).  We chose Environment + Web UI
-    # this sprint, so no registry to register against yet.
     return {'status': 'synced', 'aas_env_url': BASYX_AAS_ENV_URL, **base}
