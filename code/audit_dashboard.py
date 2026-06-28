@@ -8,7 +8,7 @@ from flask import Blueprint, render_template, jsonify, request, Response, stream
 from flask_login import login_required, current_user
 from functools import wraps
 from models import db, AuditLog
-from sqlalchemy import func, cast, Date
+from sqlalchemy import func
 from audit_trail import _generate_checksum
 import csv
 import io
@@ -98,8 +98,11 @@ def api_stats():
         AuditLog.action_type == 'LOGIN_FAILED'
     ).scalar() or 0
 
+    # func.date() is portable across SQLite and PostgreSQL (both return a
+    # 'YYYY-MM-DD' day bucket).  cast(..., Date) breaks on SQLite, which has no
+    # real DATE type, so the Date result-processor chokes on fromisoformat.
     day_rows = db.session.query(
-        cast(AuditLog.timestamp, Date).label('day'),
+        func.date(AuditLog.timestamp).label('day'),
         func.count(AuditLog.id).label('cnt')
     ).group_by('day').order_by('day').all()
 
