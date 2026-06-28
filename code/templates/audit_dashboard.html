@@ -289,12 +289,23 @@
   }
 
   // ── Log Table ───────────────────────────────────────────────────────────────
+  // Audit values (usernames, change reasons, old/new values) are user-controlled
+  // and rendered via innerHTML, so every interpolated value MUST be escaped to
+  // prevent stored XSS in the compliance dashboard.
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+  }
+
   function badgeHtml(action) {
-    return `<span class="badge badge-${action}">${action}</span>`;
+    const a = escapeHtml(action);
+    return `<span class="badge badge-${a}">${a}</span>`;
   }
 
   function cell(val) {
-    return `<td title="${val ?? ''}">${val ?? ''}</td>`;
+    const v = escapeHtml(val);
+    return `<td title="${v}">${v}</td>`;
   }
 
   async function loadLogs() {
@@ -325,9 +336,9 @@
 
     tbody.innerHTML = data.logs.map(e => `
       <tr>
-        <td>${e.id}</td>
-        <td style="white-space:nowrap">${e.timestamp ? e.timestamp.replace('T',' ').slice(0,19) : ''}</td>
-        <td>${e.username ?? ''}</td>
+        <td>${escapeHtml(e.id)}</td>
+        <td style="white-space:nowrap">${escapeHtml(e.timestamp ? e.timestamp.replace('T',' ').slice(0,19) : '')}</td>
+        <td>${escapeHtml(e.username ?? '')}</td>
         <td>${badgeHtml(e.action_type)}</td>
         ${cell(e.record_type)}
         ${cell(e.record_id)}

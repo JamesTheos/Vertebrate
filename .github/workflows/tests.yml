@@ -1,0 +1,55 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  # Default fast lane: isolated in-memory SQLite. The 9 postgres_only tests
+  # (incl. the audit-log immutability trigger) are skipped here — see `postgres`.
+  sqlite:
+    runs-on: ubuntu-latest
+    env:
+      DISABLE_KAFKA: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r Requirements.txt
+      - run: python -m pytest code/tests -q
+
+  # Compliance lane: real PostgreSQL so the 21 CFR Part 11 immutability trigger
+  # (blocks UPDATE/DELETE on audit_trail.audit_logs) is actually installed and
+  # the postgres_only tests run instead of being silently skipped.
+  postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: vertebrate
+          POSTGRES_PASSWORD: vertebrate
+          POSTGRES_DB: vertebrate
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vertebrate"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DISABLE_KAFKA: '1'
+      # create_app() resolves DATABASE_URL or SQLALCHEMY_DATABASE_URI; conftest
+      # drives pytest off SQLALCHEMY_DATABASE_URI. Set both to the service.
+      SQLALCHEMY_DATABASE_URI: postgresql://vertebrate:vertebrate@localhost:5432/vertebrate
+      DATABASE_URL: postgresql://vertebrate:vertebrate@localhost:5432/vertebrate
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r Requirements.txt
+      # Bootstrap the audit_trail schema + immutability trigger on the PG service.
+      - run: python code/createDB.py
+      - run: python -m pytest code/tests -q

@@ -101,6 +101,10 @@
                                 <label for="role-management">Role Management</label>
                                 <input type="checkbox" id="role-management" disabled>
                             </td>
+                            <td>
+                                <label for="audit-view">Audit Trail</label>
+                                <input type="checkbox" id="audit-view" disabled>
+                            </td>
                         </tr>
                     </table>
                 </fieldset>
@@ -243,10 +247,11 @@ saveBtn.addEventListener('click', () => {
     console.log("Updated:", roleToUpdate, checkedBoxes);
 });
 
-// Enable checkboxes for subscribed apps
+// Enable checkboxes for subscribed apps.  'audit-view' is a pure permission
+// (no subscription gates the audit trail), so it is always grantable.
 const subscribedAppsList = JSON.parse('{{ subscribed_apps | tojson | safe }}');
 roleForm.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-    if (subscribedAppsList.includes(cb.id)) {
+    if (subscribedAppsList.includes(cb.id) || cb.id === 'audit-view') {
         cb.disabled = false;
     }
 });

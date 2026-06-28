@@ -1,15 +1,17 @@
 """
 audit_dashboard.py
 Flask Blueprint: Audit Log Dashboard — 21 CFR Part 11 compliance.
-Read-only routes, protected by @api_login_required / @login_required.
+Read-only routes, gated by @api_permission_required / @login_required +
+@permission_required('audit-view').
 """
 
 from flask import Blueprint, render_template, jsonify, request, Response, stream_with_context
 from flask_login import login_required, current_user
 from functools import wraps
-from models import db, AuditLog
+from models import db, AuditLog, RolePermission, Permission
 from sqlalchemy import func
 from audit_trail import _generate_checksum
+from utils import permission_required
 import csv
 import io
 from datetime import datetime, timezone, timedelta
@@ -18,17 +20,52 @@ audit_bp = Blueprint('audit', __name__, url_prefix='/audit')
 
 INTEGRITY_LIMIT = 500  # max rows per integrity check request
 
+AUDIT_PERMISSION = 'audit-view'  # permission key required to read the audit trail
 
-def api_login_required(f):
-    """Returns 401 JSON for unauthenticated API calls — never redirects.
-    Required for 21 CFR Part 11: API consumers must receive machine-readable errors.
+
+def _has_permission(*permission_keys):
+    """True if any role the current user holds grants any of permission_keys."""
+    role_ids = {
+        r.id for r in getattr(current_user, 'roles', None) or []
+        if getattr(r, 'id', None) is not None
+    }
+    if not role_ids:
+        return False
+    return db.session.query(RolePermission).join(
+        Permission, RolePermission.permission_id == Permission.id
+    ).filter(
+        RolePermission.role_id.in_(list(role_ids)),
+        Permission.key.in_(permission_keys)
+    ).first() is not None
+
+
+def api_permission_required(*permission_keys):
+    """Machine-readable auth for API calls — never redirects (21 CFR Part 11).
+
+    Returns 401 JSON when unauthenticated, 403 JSON when authenticated but
+    lacking every one of permission_keys.
     """
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not current_user.is_authenticated:
-            return jsonify({'error': 'Authentication required'}), 401
-        return f(*args, **kwargs)
-    return decorated
+    def decorator(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            if not current_user.is_authenticated:
+                return jsonify({'error': 'Authentication required'}), 401
+            if not _has_permission(*permission_keys):
+                return jsonify({'error': 'Permission required'}), 403
+            return f(*args, **kwargs)
+        return decorated
+    return decorator
+
+
+def _csv_safe(value):
+    """Neutralise CSV/Excel formula injection (OWASP): a cell beginning with
+    = + - @ (or tab/CR) is treated as a formula by spreadsheet apps, so prefix
+    it with a single quote.  Always returns a string.
+    """
+    s = '' if value is None else str(value)
+    if s and s[0] in ('=', '+', '-', '@', '\t', '\r'):
+        return "'" + s
+    return s
 
 
 def _parse_date_param(value, field_name, end_of_day=False):
@@ -69,6 +106,7 @@ def _apply_filters(q):
 
 @audit_bp.route('/')
 @login_required
+@permission_required(AUDIT_PERMISSION)
 def dashboard():
     return render_template('audit_dashboard.html')
 
@@ -76,7 +114,7 @@ def dashboard():
 # ── API: Summary Stats ────────────────────────────────────────────────────────
 
 @audit_bp.route('/api/stats')
-@api_login_required
+@api_permission_required(AUDIT_PERMISSION)
 def api_stats():
     total = db.session.query(func.count(AuditLog.id)).scalar() or 0
 
@@ -120,7 +158,7 @@ def api_stats():
 # ── API: Paginated, Filterable Log Table ──────────────────────────────────────
 
 @audit_bp.route('/api/logs')
-@api_login_required
+@api_permission_required(AUDIT_PERMISSION)
 def api_logs():
     page     = request.args.get('page', 1, type=int)
     per_page = min(request.args.get('per_page', 50, type=int), 200)
@@ -164,7 +202,7 @@ def api_logs():
 # ── API: Integrity Check (paginated, max 500 rows per call) ──────────────────
 
 @audit_bp.route('/api/integrity')
-@api_login_required
+@api_permission_required(AUDIT_PERMISSION)
 def api_integrity():
     limit    = min(request.args.get('limit', INTEGRITY_LIMIT, type=int), 5000)
     since_id = request.args.get('since_id', type=int)
@@ -199,7 +237,7 @@ def api_integrity():
 # ── API: CSV Export (streamed) ────────────────────────────────────────────────
 
 @audit_bp.route('/api/logs/export')
-@api_login_required
+@api_permission_required(AUDIT_PERMISSION)
 def api_logs_export():
     q, err = _apply_filters(AuditLog.query)
     if err:
@@ -226,17 +264,17 @@ def api_logs_export():
             writer.writerow([
                 e.id,
                 e.timestamp.isoformat() if e.timestamp else '',
-                e.username       or '',
-                e.action_type    or '',
-                e.record_type    or '',
-                e.record_id      or '',
-                e.field_name     or '',
-                e.old_value      or '',
-                e.new_value      or '',
-                e.change_reason  or '',
-                e.ip_address     or '',
-                e.endpoint       or '',
-                e.checksum       or '',
+                _csv_safe(e.username),
+                _csv_safe(e.action_type),
+                _csv_safe(e.record_type),
+                _csv_safe(e.record_id),
+                _csv_safe(e.field_name),
+                _csv_safe(e.old_value),
+                _csv_safe(e.new_value),
+                _csv_safe(e.change_reason),
+                _csv_safe(e.ip_address),
+                _csv_safe(e.endpoint),
+                _csv_safe(e.checksum),
             ])
             yield buf.getvalue()
 
