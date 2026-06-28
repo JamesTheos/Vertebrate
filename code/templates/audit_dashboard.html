@@ -1,99 +1,15 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Audit Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
-    header { padding: 1.2rem 2rem; background: #1a1d27; border-bottom: 1px solid #2d3148;
-             display: flex; align-items: center; justify-content: space-between; }
-    header h1 { font-size: 1.3rem; font-weight: 600; color: #a78bfa; }
-    header span { font-size: 0.8rem; color: #64748b; }
-    .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem 2rem; }
+{% extends "base.html" %}
 
-    /* ── Summary Cards ── */
-    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-    .card { background: #1a1d27; border: 1px solid #2d3148; border-radius: 10px; padding: 1.2rem; }
-    .card .label { font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: .05em; }
-    .card .value { font-size: 2rem; font-weight: 700; margin-top: .3rem; }
-    .card.danger .value { color: #f87171; }
-    .card.ok    .value { color: #34d399; }
-    .card.info  .value { color: #60a5fa; }
-    .card.warn  .value { color: #fbbf24; }
+{% block title %}Audit Trail{% endblock %}
+{% block header_title %}Audit Trail Dashboard{% endblock %}
 
-    /* ── Charts Row ── */
-    .charts { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
-    .chart-box { background: #1a1d27; border: 1px solid #2d3148; border-radius: 10px; padding: 1.2rem; }
-    .chart-box h3 { font-size: 0.85rem; color: #94a3b8; margin-bottom: 1rem; }
-    .chart-box canvas { max-height: 220px; }
+{% block content %}
+<div class="audit-dashboard">
 
-    /* ── Integrity Banner ── */
-    #integrity-banner { border-radius: 8px; padding: .8rem 1.2rem; margin-bottom: 1.5rem;
-                        font-size: .85rem; display: none; }
-    #integrity-banner.ok     { background: #14532d; border: 1px solid #22c55e; color: #86efac; }
-    #integrity-banner.tamper { background: #7f1d1d; border: 1px solid #ef4444; color: #fca5a5; }
-
-    /* ── Filters ── */
-    .filters { display: flex; gap: .75rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: flex-end; }
-    .filters label { font-size: .75rem; color: #64748b; display: flex; flex-direction: column; gap: .25rem; }
-    .filters select, .filters input {
-      background: #1a1d27; border: 1px solid #2d3148; color: #e2e8f0;
-      padding: .4rem .7rem; border-radius: 6px; font-size: .85rem; }
-    .filters button {
-      padding: .45rem 1rem; background: #6d28d9; color: #fff;
-      border: none; border-radius: 6px; cursor: pointer; font-size: .85rem; }
-    .filters button:hover { background: #7c3aed; }
-    .filters button.secondary {
-      background: #1e293b; border: 1px solid #334155; color: #94a3b8; }
-
-    .filters button.export {
-      padding: .45rem 1rem; background: #064e3b;
-      border: 1px solid #065f46; color: #6ee7b7;
-      border-radius: 6px; cursor: pointer; font-size: .85rem; }
-    .filters button.export:hover { background: #065f46; }
-
-    /* ── Table ── */
-    .table-wrap { background: #1a1d27; border: 1px solid #2d3148; border-radius: 10px; overflow: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: .82rem; }
-    thead th { padding: .7rem 1rem; text-align: left; background: #12151f;
-               color: #64748b; font-weight: 600; text-transform: uppercase;
-               font-size: .7rem; letter-spacing: .05em; white-space: nowrap; }
-    tbody tr { border-top: 1px solid #1e2235; }
-    tbody tr:hover { background: #1e2235; }
-    tbody td { padding: .6rem 1rem; vertical-align: top; max-width: 200px;
-               overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .badge { display: inline-block; padding: .15rem .55rem; border-radius: 4px;
-             font-size: .72rem; font-weight: 600; }
-    .badge-LOGIN        { background:#1e3a5f; color:#60a5fa; }
-    .badge-LOGOUT       { background:#1e2a3a; color:#94a3b8; }
-    .badge-LOGIN_FAILED { background:#4c1d1d; color:#f87171; }
-    .badge-CREATE       { background:#14532d; color:#4ade80; }
-    .badge-UPDATE       { background:#713f12; color:#fcd34d; }
-    .badge-DELETE       { background:#7f1d1d; color:#fca5a5; }
-    .badge-VIEW         { background:#1e2a3a; color:#94a3b8; }
-    .badge-SYSTEM       { background:#2d1b69; color:#a78bfa; }
-
-    /* ── Pagination ── */
-    .pagination { display: flex; gap: .5rem; justify-content: center;
-                  align-items: center; margin-top: 1rem; }
-    .pagination button { padding: .35rem .8rem; background: #1e293b;
-      border: 1px solid #334155; color: #94a3b8; border-radius: 5px; cursor: pointer; }
-    .pagination button:disabled { opacity: .3; cursor: default; }
-    .pagination button:hover:not(:disabled) { background: #334155; }
-    #page-info { font-size: .82rem; color: #64748b; }
-  </style>
-</head>
-<body>
-
-<header>
-  <h1>🔍 Audit Trail Dashboard</h1>
-  <span id="last-updated">Loading…</span>
-</header>
-
-<div class="container">
+  <div class="ad-topbar">
+    <span class="ad-subtitle">21 CFR Part 11 — audit log overview</span>
+    <span id="last-updated" class="ad-updated">Loading…</span>
+  </div>
 
   <!-- Summary Cards -->
   <div class="cards">
@@ -174,7 +90,7 @@
         </tr>
       </thead>
       <tbody id="log-tbody">
-        <tr><td colspan="12" style="text-align:center;padding:2rem;color:#475569">Loading…</td></tr>
+        <tr><td colspan="12" style="text-align:center;padding:2rem;color:#94a3b8">Loading…</td></tr>
       </tbody>
     </table>
   </div>
@@ -188,6 +104,83 @@
 
 </div>
 
+<style>
+  /* Scoped to .audit-dashboard so nothing leaks into the base shell, and these
+     rules out-specify any base globals.  Themed via base.html CSS variables. */
+  .audit-dashboard *, .audit-dashboard *::before, .audit-dashboard *::after { box-sizing: border-box; }
+  .audit-dashboard { color: var(--text-color); }
+
+  .audit-dashboard .ad-topbar { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 1.2rem; }
+  .audit-dashboard .ad-subtitle { font-size: .8rem; color: #64748b; }
+  .audit-dashboard .ad-updated  { font-size: .78rem; color: #94a3b8; }
+
+  /* ── Summary Cards ── */
+  .audit-dashboard .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .audit-dashboard .card { background: var(--card-background); border: 1px solid var(--table-border); border-radius: 4px; padding: 1.2rem; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .audit-dashboard .card .label { font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: .05em; }
+  .audit-dashboard .card .value { font-size: 2rem; font-weight: 700; margin-top: .3rem; color: var(--text-color); }
+  .audit-dashboard .card.danger .value { color: #dc2626; }
+  .audit-dashboard .card.ok    .value { color: #059669; }
+  .audit-dashboard .card.info  .value { color: #2563eb; }
+  .audit-dashboard .card.warn  .value { color: #d97706; }
+
+  /* ── Charts Row ── */
+  .audit-dashboard .charts { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+  .audit-dashboard .chart-box { background: #ffffff; border: 1px solid var(--table-border); border-radius: 4px; padding: 1.2rem; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .audit-dashboard .chart-box h3 { font-size: 0.85rem; color: #475569; margin-bottom: 1rem; }
+  .audit-dashboard .chart-box canvas { max-height: 220px; }
+
+  /* ── Integrity Banner ── */
+  .audit-dashboard #integrity-banner { border-radius: 4px; padding: .8rem 1.2rem; margin-bottom: 1.5rem; font-size: .85rem; display: none; }
+  .audit-dashboard #integrity-banner.ok     { background: #dcfce7; border: 1px solid #22c55e; color: #166534; }
+  .audit-dashboard #integrity-banner.tamper { background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; }
+
+  /* ── Filters ── */
+  .audit-dashboard .filters { display: flex; gap: .75rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: flex-end; }
+  .audit-dashboard .filters label { font-size: .75rem; color: #64748b; display: flex; flex-direction: column; gap: .25rem; }
+  .audit-dashboard .filters select, .audit-dashboard .filters input {
+    background: var(--dropdown-background); border: 1px solid var(--dropdown-border); color: var(--dropdown-textcolor);
+    padding: .4rem .7rem; border-radius: 4px; font-size: .85rem; transition: border-color .2s, box-shadow .2s; }
+  .audit-dashboard .filters select:focus, .audit-dashboard .filters input:focus {
+    outline: none; border-color: var(--border-focus-color); box-shadow: 0 0 6px rgba(102,175,233,.5); }
+  .audit-dashboard .filters button {
+    padding: .45rem 1rem; background: var(--button-background); color: var(--button-text-color);
+    border: none; border-radius: 4px; cursor: pointer; font-size: .85rem; transition: background-color .2s, box-shadow .2s; }
+  .audit-dashboard .filters button:hover { background: var(--button-hover-color-view); box-shadow: 0 0 8px rgba(0,0,0,.2); }
+  .audit-dashboard .filters button.secondary { background: #e2e8f0; border: 1px solid #cbd5e1; color: #475569; }
+  .audit-dashboard .filters button.secondary:hover { background: #cbd5e1; box-shadow: none; }
+  .audit-dashboard .filters button.export { background: #059669; border: 1px solid #047857; color: #ffffff; }
+  .audit-dashboard .filters button.export:hover { background: #047857; }
+
+  /* ── Table ── */
+  .audit-dashboard .table-wrap { background: #ffffff; border: 1px solid var(--table-border); border-radius: 4px; overflow: auto; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .audit-dashboard table { width: 100%; border-collapse: collapse; font-size: .82rem; color: var(--text-color); }
+  .audit-dashboard thead th { padding: .7rem 1rem; text-align: left; background: var(--card-background);
+             color: #475569; font-weight: 600; text-transform: uppercase;
+             font-size: .7rem; letter-spacing: .05em; white-space: nowrap; border-bottom: 1px solid var(--table-border); }
+  .audit-dashboard tbody tr { border-top: 1px solid var(--table-border); }
+  .audit-dashboard tbody tr:hover { background: #f8fafc; }
+  .audit-dashboard tbody td { padding: .6rem 1rem; vertical-align: top; max-width: 200px;
+             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .audit-dashboard .badge { display: inline-block; padding: .15rem .55rem; border-radius: 4px; font-size: .72rem; font-weight: 600; }
+  .audit-dashboard .badge-LOGIN        { background:#dbeafe; color:#1e40af; }
+  .audit-dashboard .badge-LOGOUT       { background:#e2e8f0; color:#475569; }
+  .audit-dashboard .badge-LOGIN_FAILED { background:#fee2e2; color:#991b1b; }
+  .audit-dashboard .badge-CREATE       { background:#dcfce7; color:#166534; }
+  .audit-dashboard .badge-UPDATE       { background:#fef3c7; color:#92400e; }
+  .audit-dashboard .badge-DELETE       { background:#fee2e2; color:#991b1b; }
+  .audit-dashboard .badge-VIEW         { background:#e2e8f0; color:#475569; }
+  .audit-dashboard .badge-SYSTEM       { background:#ede9fe; color:#5b21b6; }
+
+  /* ── Pagination ── */
+  .audit-dashboard .pagination { display: flex; gap: .5rem; justify-content: center; align-items: center; margin-top: 1rem; }
+  .audit-dashboard .pagination button { padding: .35rem .8rem; background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; border-radius: 4px; cursor: pointer; }
+  .audit-dashboard .pagination button:disabled { opacity: .4; cursor: default; }
+  .audit-dashboard .pagination button:hover:not(:disabled) { background: #e2e8f0; }
+  .audit-dashboard #page-info { font-size: .82rem; color: #64748b; }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 <script>
   let currentPage = 1;
   let totalPages  = 1;
@@ -196,6 +189,8 @@
   // ── Chart instances ─────────────────────────────────────────────────────────
   const PALETTE = ['#6d28d9','#2563eb','#059669','#d97706','#dc2626',
                    '#7c3aed','#0891b2','#65a30d','#ea580c','#db2777'];
+  const AXIS_COLOR = '#64748b';
+  const GRID_COLOR = '#e5e7eb';
 
   let timelineChart = null;
   let actionsChart  = null;
@@ -211,7 +206,7 @@
           label: 'Log entries',
           data,
           borderColor: '#6d28d9',
-          backgroundColor: 'rgba(109,40,217,.15)',
+          backgroundColor: 'rgba(109,40,217,.12)',
           fill: true,
           tension: 0.3,
           pointRadius: 3,
@@ -221,8 +216,8 @@
         responsive: true,
         plugins: { legend: { display: false } },
         scales: {
-          x: { ticks: { color: '#64748b' }, grid: { color: '#1e2235' } },
-          y: { ticks: { color: '#64748b' }, grid: { color: '#1e2235' }, beginAtZero: true }
+          x: { ticks: { color: AXIS_COLOR }, grid: { color: GRID_COLOR } },
+          y: { ticks: { color: AXIS_COLOR }, grid: { color: GRID_COLOR }, beginAtZero: true }
         }
       }
     });
@@ -240,7 +235,7 @@
       options: {
         responsive: true,
         plugins: {
-          legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 12 } }
+          legend: { position: 'bottom', labels: { color: '#475569', boxWidth: 12 } }
         }
       }
     });
@@ -330,7 +325,7 @@
     const tbody = document.getElementById('log-tbody');
     if (!data.logs.length) {
       tbody.innerHTML =
-        '<tr><td colspan="12" style="text-align:center;padding:2rem;color:#475569">No entries found.</td></tr>';
+        '<tr><td colspan="12" style="text-align:center;padding:2rem;color:#94a3b8">No entries found.</td></tr>';
       return;
     }
 
@@ -376,6 +371,7 @@
     // Trigger browser download directly — no JS fetch needed
     window.location.href = `/audit/api/logs/export?${params}`;
   }
+
   // ── Init ────────────────────────────────────────────────────────────────────
   document.getElementById('last-updated').textContent =
     'Last updated: ' + new Date().toLocaleTimeString();
@@ -384,5 +380,4 @@
   loadIntegrity();
   loadLogs();
 </script>
-</body>
-</html>
+{% endblock %}
