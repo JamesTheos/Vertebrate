@@ -453,3 +453,23 @@ class TestDashboardXSS:
         html = logged_in_client.get('/audit/').data.decode('utf-8')
         assert 'function escapeHtml' in html, "escapeHtml helper must be defined"
         assert 'escapeHtml(val)' in html, "cell() must route values through escapeHtml"
+
+
+# ── UI requirements: UTC label, on-demand integrity, expandable rows ──────────
+
+class TestDashboardUI:
+
+    def test_timestamp_column_labelled_utc(self, logged_in_client):
+        html = logged_in_client.get('/audit/').data.decode('utf-8')
+        assert 'Timestamp (UTC)' in html, "timestamp column must be labelled UTC"
+
+    def test_integrity_is_on_demand_button(self, logged_in_client):
+        html = logged_in_client.get('/audit/').data.decode('utf-8')
+        assert 'id="btn-verify"' in html and 'runIntegrity()' in html, \
+            "integrity must be triggered by an explicit Run check button"
+        assert 'Not verified' in html, "integrity card starts as 'Not verified'"
+
+    def test_rows_are_expandable(self, logged_in_client):
+        html = logged_in_client.get('/audit/').data.decode('utf-8')
+        assert 'tr.expanded' in html, "expanded-row styling must be present"
+        assert "toggle('expanded')" in html, "rows must toggle an expanded class on click"

@@ -23,7 +23,7 @@
     </div>
     <div class="card" id="c-integrity-card">
       <div class="label">Integrity</div>
-      <div class="value" id="c-integrity">—</div>
+      <div class="value" id="c-integrity">Not verified</div>
     </div>
     <div class="card info">
       <div class="label">Action Types</div>
@@ -31,7 +31,11 @@
     </div>
   </div>
 
-  <!-- Integrity Banner -->
+  <!-- Integrity check (on demand — verifies every row) -->
+  <div class="integrity-controls">
+    <button id="btn-verify" onclick="runIntegrity()">Run integrity check</button>
+    <span class="ad-hint">Re-hashes every record and compares against its stored checksum.</span>
+  </div>
   <div id="integrity-banner"></div>
 
   <!-- Charts -->
@@ -83,7 +87,7 @@
     <table>
       <thead>
         <tr>
-          <th>ID</th><th>Timestamp</th><th>User</th><th>Action</th>
+          <th>ID</th><th>Timestamp (UTC)</th><th>User</th><th>Action</th>
           <th>Record Type</th><th>Record ID</th><th>Field</th>
           <th>Old Value</th><th>New Value</th><th>Reason</th>
           <th>IP</th><th>Endpoint</th>
@@ -130,7 +134,14 @@
   .audit-dashboard .chart-box h3 { font-size: 0.85rem; color: #475569; margin-bottom: 1rem; }
   .audit-dashboard .chart-box canvas { max-height: 220px; }
 
-  /* ── Integrity Banner ── */
+  /* ── Integrity check ── */
+  .audit-dashboard .integrity-controls { display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem; }
+  .audit-dashboard .integrity-controls button {
+    padding: .45rem 1rem; background: var(--button-background); color: var(--button-text-color);
+    border: none; border-radius: 4px; cursor: pointer; font-size: .85rem; transition: background-color .2s; }
+  .audit-dashboard .integrity-controls button:hover { background: var(--button-hover-color-view); }
+  .audit-dashboard .integrity-controls button:disabled { opacity: .6; cursor: default; }
+  .audit-dashboard .ad-hint { font-size: .75rem; color: #94a3b8; }
   .audit-dashboard #integrity-banner { border-radius: 4px; padding: .8rem 1.2rem; margin-bottom: 1.5rem; font-size: .85rem; display: none; }
   .audit-dashboard #integrity-banner.ok     { background: #dcfce7; border: 1px solid #22c55e; color: #166534; }
   .audit-dashboard #integrity-banner.tamper { background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; }
@@ -158,10 +169,13 @@
   .audit-dashboard thead th { padding: .7rem 1rem; text-align: left; background: var(--card-background);
              color: #475569; font-weight: 600; text-transform: uppercase;
              font-size: .7rem; letter-spacing: .05em; white-space: nowrap; border-bottom: 1px solid var(--table-border); }
-  .audit-dashboard tbody tr { border-top: 1px solid var(--table-border); }
+  .audit-dashboard tbody tr { border-top: 1px solid var(--table-border); cursor: pointer; }
   .audit-dashboard tbody tr:hover { background: #f8fafc; }
-  .audit-dashboard tbody td { padding: .6rem 1rem; vertical-align: top; max-width: 200px;
+  .audit-dashboard tbody td { padding: .6rem 1rem; vertical-align: top; max-width: 180px;
              overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Click a row to reveal full, untruncated values (long old/new/reason fields) */
+  .audit-dashboard tbody tr.expanded td { white-space: normal; overflow: visible;
+             max-width: 460px; word-break: break-word; }
   .audit-dashboard .badge { display: inline-block; padding: .15rem .55rem; border-radius: 4px; font-size: .72rem; font-weight: 600; }
   .audit-dashboard .badge-LOGIN        { background:#dbeafe; color:#1e40af; }
   .audit-dashboard .badge-LOGOUT       { background:#e2e8f0; color:#475569; }
@@ -184,6 +198,7 @@
 <script>
   let currentPage = 1;
   let totalPages  = 1;
+  let statsTotalLogs = null;   // total rows, for honest integrity reporting
   const perPage   = 50;
 
   // ── Chart instances ─────────────────────────────────────────────────────────
@@ -246,6 +261,7 @@
     const res  = await fetch('/audit/api/stats');
     const data = await res.json();
 
+    statsTotalLogs = data.total_logs;
     document.getElementById('c-total').textContent   = data.total_logs.toLocaleString();
     document.getElementById('c-failed').textContent  = data.failed_logins;
     document.getElementById('c-actions').textContent = Object.keys(data.by_action).length;
@@ -261,26 +277,67 @@
   }
 
   // ── Integrity ───────────────────────────────────────────────────────────────
-  async function loadIntegrity() {
-    const res  = await fetch('/audit/api/integrity');
-    const data = await res.json();
+  // On demand: re-hash EVERY record by paging through the endpoint until
+  // has_more is false, so the result reflects the whole trail (not a 500-row
+  // sample) and we can honestly flag any rows that carry no checksum.
+  async function runIntegrity() {
+    const btn     = document.getElementById('btn-verify');
     const card    = document.getElementById('c-integrity-card');
     const val     = document.getElementById('c-integrity');
     const banner  = document.getElementById('integrity-banner');
 
-    if (data.tampered === 0) {
-      val.textContent = '✓ OK';
-      card.classList.add('ok');
-      banner.className  = 'ok';
-      banner.textContent = `✓ All ${data.total_checked} checksums verified — no tampering detected.`;
+    btn.disabled = true;
+    const oldLabel = btn.textContent;
+    btn.textContent = 'Verifying…';
+    card.classList.remove('ok', 'danger');
+    val.textContent = 'Verifying…';
+
+    let totalChecked = 0;
+    let tamperedIds  = [];
+    let sinceId      = null;
+
+    try {
+      while (true) {
+        const qs  = new URLSearchParams({ limit: 5000 });
+        if (sinceId != null) qs.set('since_id', sinceId);
+        const res = await fetch(`/audit/api/integrity?${qs}`);
+        if (!res.ok) throw new Error(`integrity ${res.status}`);
+        const data = await res.json();
+        totalChecked += data.total_checked;
+        tamperedIds   = tamperedIds.concat(data.tampered_ids);
+        if (!data.has_more) break;
+        sinceId = data.next_since_id;
+      }
+    } catch (e) {
+      val.textContent = 'Check failed';
+      banner.className = 'tamper';
+      banner.textContent = `⚠ Integrity check failed: ${e.message}`;
+      banner.style.display = 'block';
+      btn.disabled = false; btn.textContent = oldLabel;
+      return;
+    }
+
+    // Rows the endpoint skips (null / non-64-char checksum) are unverifiable.
+    const missing = (statsTotalLogs != null) ? Math.max(0, statsTotalLogs - totalChecked) : 0;
+    const missingNote = missing > 0
+      ? ` ⚠ ${missing.toLocaleString()} record(s) have no checksum and could not be verified.` : '';
+
+    if (tamperedIds.length === 0) {
+      val.textContent = missing > 0 ? `⚠ ${missing} unverifiable` : '✓ OK';
+      card.classList.add(missing > 0 ? 'warn' : 'ok');
+      banner.className  = missing > 0 ? 'tamper' : 'ok';
+      banner.textContent =
+        `✓ ${totalChecked.toLocaleString()} checksum(s) verified — no tampering detected.` + missingNote;
     } else {
-      val.textContent = `⚠ ${data.tampered} tampered`;
+      val.textContent = `⚠ ${tamperedIds.length} tampered`;
       card.classList.add('danger');
       banner.className  = 'tamper';
       banner.textContent =
-        `⚠ ${data.tampered} tampered record(s) detected! IDs: ${data.tampered_ids.join(', ')}`;
+        `⚠ ${tamperedIds.length} tampered record(s) detected out of ${totalChecked.toLocaleString()} checked! `
+        + `IDs: ${tamperedIds.join(', ')}` + missingNote;
     }
     banner.style.display = 'block';
+    btn.disabled = false; btn.textContent = oldLabel;
   }
 
   // ── Log Table ───────────────────────────────────────────────────────────────
@@ -372,12 +429,20 @@
     window.location.href = `/audit/api/logs/export?${params}`;
   }
 
+  // ── Row expand ──────────────────────────────────────────────────────────────
+  // Rows are rebuilt on every loadLogs(), so use one delegated listener: click a
+  // row to toggle full, untruncated values.
+  document.getElementById('log-tbody').addEventListener('click', (ev) => {
+    const tr = ev.target.closest('tr');
+    if (tr && tr.parentElement.id === 'log-tbody') tr.classList.toggle('expanded');
+  });
+
   // ── Init ────────────────────────────────────────────────────────────────────
+  // UTC to match the table timestamps (audit records are stored in UTC).
   document.getElementById('last-updated').textContent =
-    'Last updated: ' + new Date().toLocaleTimeString();
+    'Last updated: ' + new Date().toISOString().slice(0, 19).replace('T', ' ') + ' UTC';
 
   loadStats();
-  loadIntegrity();
-  loadLogs();
+  loadLogs();   // integrity runs on demand via the "Run integrity check" button
 </script>
 {% endblock %}
