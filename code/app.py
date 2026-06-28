@@ -17,6 +17,7 @@ from colorsettings import colorsettings
 from demo_consumer import tempConsumerChatbot
 from auth import auth
 from models import db, User, Role, RolePermission, Permission, Subscriptions
+from werkzeug.security import generate_password_hash
 from functools import wraps
 from timeout import register_timeout_hook
 from subscriptions import check_subscription,subscriptions
@@ -257,6 +258,27 @@ def create_app():
 
         # Now create all tables
         db.create_all()
+
+        # Seed the default admin on a fresh DB so the app (and the test suite)
+        # has a working login.  Idempotent: only runs when User_Admin is absent.
+        try:
+            if not User.query.filter_by(username='User_Admin').first():
+                admin_role = Role.query.filter_by(name='Admin').first()
+                if not admin_role:
+                    admin_role = Role(name='Admin')
+                    db.session.add(admin_role)
+                    db.session.flush()
+                admin_user = User(
+                    username='User_Admin',
+                    password=generate_password_hash('12345')
+                )
+                admin_user.roles.append(admin_role)
+                db.session.add(admin_user)
+                db.session.commit()
+                print("Seeded default admin: User_Admin / 12345", flush=True)
+        except Exception as e:
+            print(f"Note: Could not seed admin user: {e}", flush=True)
+            db.session.rollback()
 
     login_manager = LoginManager()
     login_manager.init_app(app)
