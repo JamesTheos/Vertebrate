@@ -331,7 +331,9 @@ def api_siem(api_key):
                        SIEM_MAX_LIMIT))
     since_id = request.args.get('since_id', type=int)
 
-    q = AuditLog.query
+    q, err = _apply_filters(AuditLog.query)
+    if err:
+        return err
     if since_id is not None:
         q = q.filter(AuditLog.id > since_id)
 

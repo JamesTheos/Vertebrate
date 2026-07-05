@@ -189,3 +189,28 @@ def test_siem_payload_includes_checksum_and_core_fields(client, siem_key, seeded
         assert field in event, f'missing {field}'
     assert event['username'] == 'User_Admin'
     assert len(event['checksum']) == 64      # SHA-256 hex — tamper-evidence travels with the event
+
+
+# ── Step 4: Filters + input hardening ─────────────────────────────────────────
+
+def test_siem_filters_by_action_and_date(client, siem_key, seeded_logs):
+    data = _get_json(client, siem_key, action_type='LOGIN_FAILED',
+                     date_from='2026-04-01', date_to='2026-04-01')
+    assert [e['id'] for e in data['events']] == [seeded_logs[3]]
+    assert data['events'][0]['action_type'] == 'LOGIN_FAILED'
+
+
+def test_siem_rejects_bad_date_param(client, siem_key, seeded_logs):
+    resp = client.get('/audit/api/siem?date_from=not-a-date',
+                      headers=_bearer(siem_key))
+    assert resp.status_code == 400
+    assert resp.is_json
+    assert 'error' in resp.get_json()
+
+
+def test_siem_limit_is_capped(client, siem_key, seeded_logs):
+    data = _get_json(client, siem_key, limit=999999)
+    assert data['applied_limit'] == 5000
+
+    lines = _get_ndjson_lines(client, siem_key, limit=999999)
+    assert lines[-1]['_meta']['applied_limit'] == 5000
