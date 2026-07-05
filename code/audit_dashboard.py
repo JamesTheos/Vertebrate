@@ -8,11 +8,12 @@ Read-only routes, gated by @api_permission_required / @login_required +
 from flask import Blueprint, render_template, jsonify, request, Response, stream_with_context
 from flask_login import login_required, current_user
 from functools import wraps
-from models import db, AuditLog, RolePermission, Permission
+from models import db, AuditLog, RolePermission, Permission, SiemApiKey
 from sqlalchemy import func
 from audit_trail import _generate_checksum
 from utils import permission_required
 import csv
+import hashlib
 import io
 from datetime import datetime, timezone, timedelta
 
@@ -55,6 +56,34 @@ def api_permission_required(*permission_keys):
             return f(*args, **kwargs)
         return decorated
     return decorator
+
+
+def _authenticate_siem_key():
+    """Resolve the presented API key (Authorization: Bearer <key> or X-API-Key
+    header) to an active SiemApiKey row.  Returns the row or None.  Machine
+    auth only — session cookies deliberately grant nothing here.
+    """
+    raw = None
+    auth = request.headers.get('Authorization', '')
+    if auth.startswith('Bearer '):
+        raw = auth[len('Bearer '):].strip()
+    if not raw:
+        raw = request.headers.get('X-API-Key', '').strip() or None
+    if not raw:
+        return None
+    key_hash = hashlib.sha256(raw.encode()).hexdigest()
+    return SiemApiKey.query.filter_by(key_hash=key_hash, active=True).first()
+
+
+def siem_key_required(f):
+    """401 JSON unless a valid, active SIEM API key is presented. Never redirects."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        api_key = _authenticate_siem_key()
+        if api_key is None:
+            return jsonify({'error': 'Valid API key required'}), 401
+        return f(api_key, *args, **kwargs)
+    return decorated
 
 
 def _csv_safe(value):
@@ -283,3 +312,11 @@ def api_logs_export():
         mimetype='text/csv',
         headers={'Content-Disposition': f'attachment; filename="{filename}"'}
     )
+
+
+# ── API: SIEM Feed (token-authenticated, incremental NDJSON) ─────────────────
+
+@audit_bp.route('/api/siem')
+@siem_key_required
+def api_siem(api_key):
+    return jsonify({'ok': True})
