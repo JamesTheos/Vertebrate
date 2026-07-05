@@ -83,6 +83,8 @@ def siem_key_required(f):
         api_key = _authenticate_siem_key()
         if api_key is None:
             return jsonify({'error': 'Valid API key required'}), 401
+        api_key.last_used_at = datetime.now(timezone.utc)
+        db.session.commit()
         return f(api_key, *args, **kwargs)
     return decorated
 

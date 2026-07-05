@@ -214,3 +214,55 @@ def test_siem_limit_is_capped(client, siem_key, seeded_logs):
 
     lines = _get_ndjson_lines(client, siem_key, limit=999999)
     assert lines[-1]['_meta']['applied_limit'] == 5000
+
+
+# ── Step 5: Key lifecycle ─────────────────────────────────────────────────────
+
+def test_siem_updates_last_used_at(app, client, siem_key):
+    from models import db, SiemApiKey
+
+    with app.app_context():
+        key = SiemApiKey.query.filter_by(name='pytest-active').first()
+        key.last_used_at = None
+        db.session.commit()
+
+    resp = client.get('/audit/api/siem', headers=_bearer(siem_key))
+    assert resp.status_code == 200
+
+    with app.app_context():
+        key = SiemApiKey.query.filter_by(name='pytest-active').first()
+        assert key.last_used_at is not None   # liveness signal for ops
+
+
+def test_cli_create_key_stores_hash_and_returns_raw_once(app):
+    from create_siem_key import create_key
+    from models import SiemApiKey
+
+    with app.app_context():
+        raw = create_key('pytest-cli-key')
+        row = SiemApiKey.query.filter_by(name='pytest-cli-key').first()
+        assert row is not None
+        assert row.active is True
+        assert row.key_hash == hashlib.sha256(raw.encode()).hexdigest()
+        assert raw not in (row.key_hash, row.name)   # raw key never persisted
+
+
+def test_cli_create_key_rejects_duplicate_name(app):
+    from create_siem_key import create_key
+
+    with app.app_context():
+        create_key('pytest-cli-dup')
+        with pytest.raises(ValueError):
+            create_key('pytest-cli-dup')
+
+
+def test_cli_deactivated_key_is_rejected_by_feed(app, client):
+    from create_siem_key import create_key, deactivate_key
+
+    with app.app_context():
+        raw = create_key('pytest-cli-revoked')
+    assert client.get('/audit/api/siem', headers=_bearer(raw)).status_code == 200
+
+    with app.app_context():
+        deactivate_key('pytest-cli-revoked')
+    assert client.get('/audit/api/siem', headers=_bearer(raw)).status_code == 401
