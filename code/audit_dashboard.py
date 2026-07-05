@@ -110,6 +110,26 @@ def _parse_date_param(value, field_name, end_of_day=False):
         return None, (jsonify({'error': f'Invalid {field_name}. Use YYYY-MM-DD format.'}), 400)
 
 
+def _serialize_log(e):
+    """Single JSON shape for one audit entry — used by /api/logs and /api/siem
+    so human dashboard and SIEM feed can never drift apart."""
+    return {
+        'id':            e.id,
+        'timestamp':     e.timestamp.isoformat() if e.timestamp else None,
+        'username':      e.username,
+        'action_type':   e.action_type,
+        'record_type':   e.record_type,
+        'record_id':     e.record_id,
+        'field_name':    e.field_name,
+        'old_value':     e.old_value,
+        'new_value':     e.new_value,
+        'change_reason': e.change_reason,
+        'ip_address':    e.ip_address,
+        'endpoint':      e.endpoint,
+        'checksum':      e.checksum,
+    }
+
+
 def _apply_filters(q):
     """Apply common query filters from request args. Returns (query, error_response|None)."""
     if action_type := request.args.get('action_type'):
@@ -200,24 +220,7 @@ def api_logs():
         page=page, per_page=per_page, error_out=False
     )
 
-    logs = [
-        {
-            'id':            e.id,
-            'timestamp':     e.timestamp.isoformat() if e.timestamp else None,
-            'username':      e.username,
-            'action_type':   e.action_type,
-            'record_type':   e.record_type,
-            'record_id':     e.record_id,
-            'field_name':    e.field_name,
-            'old_value':     e.old_value,
-            'new_value':     e.new_value,
-            'change_reason': e.change_reason,
-            'ip_address':    e.ip_address,
-            'endpoint':      e.endpoint,
-            'checksum':      e.checksum,
-        }
-        for e in paginated.items
-    ]
+    logs = [_serialize_log(e) for e in paginated.items]
 
     return jsonify({
         'logs':     logs,
@@ -316,7 +319,33 @@ def api_logs_export():
 
 # ── API: SIEM Feed (token-authenticated, incremental NDJSON) ─────────────────
 
+SIEM_DEFAULT_LIMIT = 500   # events per pull if the SIEM doesn't ask
+SIEM_MAX_LIMIT = 5000      # hard cap, mirrors api_integrity
+
+
 @audit_bp.route('/api/siem')
 @siem_key_required
 def api_siem(api_key):
-    return jsonify({'ok': True})
+    limit = max(1, min(request.args.get('limit', SIEM_DEFAULT_LIMIT, type=int),
+                       SIEM_MAX_LIMIT))
+    since_id = request.args.get('since_id', type=int)
+
+    q = AuditLog.query
+    if since_id is not None:
+        q = q.filter(AuditLog.id > since_id)
+
+    entries = q.order_by(AuditLog.id.asc()).limit(limit + 1).all()
+    has_more = len(entries) > limit
+    if has_more:
+        entries = entries[:limit]
+
+    # Cursor the SIEM should present on its next pull: last id delivered, or
+    # its own cursor echoed back when there was nothing new.
+    next_since_id = entries[-1].id if entries else since_id
+
+    return jsonify({
+        'events':        [_serialize_log(e) for e in entries],
+        'has_more':      has_more,
+        'next_since_id': next_since_id,
+        'applied_limit': limit,
+    })
