@@ -9,6 +9,7 @@ Run: docker cp code/tests/test_siem_feed.py <app-container>:/app/code/tests/ &&
 """
 import os
 import hashlib
+import json
 import pytest
 from datetime import datetime, timezone
 
@@ -153,3 +154,38 @@ def test_siem_empty_when_caught_up(client, siem_key, seeded_logs):
     data = _get_json(client, siem_key, since_id=seeded_logs[-1])
     assert data['events'] == []
     assert data['has_more'] is False
+
+
+# ── Step 3: NDJSON default format ─────────────────────────────────────────────
+
+def _get_ndjson_lines(client, key, **params):
+    qs = '&'.join(f'{k}={v}' for k, v in params.items())
+    resp = client.get(f'/audit/api/siem?{qs}', headers=_bearer(key))
+    assert resp.status_code == 200
+    assert resp.mimetype == 'application/x-ndjson'
+    text = resp.get_data(as_text=True)
+    return [json.loads(line) for line in text.splitlines() if line.strip()]
+
+
+def test_siem_emits_ndjson_one_event_per_line(client, siem_key, seeded_logs):
+    lines = _get_ndjson_lines(client, siem_key, since_id=seeded_logs[0])
+    events = [l for l in lines if '_meta' not in l]
+    assert [e['id'] for e in events] == seeded_logs[1:]
+
+
+def test_siem_ndjson_final_meta_line_carries_cursor(client, siem_key, seeded_logs):
+    lines = _get_ndjson_lines(client, siem_key, since_id=seeded_logs[0], limit=2)
+    assert '_meta' in lines[-1]
+    meta = lines[-1]['_meta']
+    assert meta['has_more'] is True
+    assert meta['next_since_id'] == seeded_logs[2]
+
+
+def test_siem_payload_includes_checksum_and_core_fields(client, siem_key, seeded_logs):
+    lines = _get_ndjson_lines(client, siem_key, since_id=seeded_logs[1], limit=1)
+    event = lines[0]
+    for field in ('id', 'timestamp', 'username', 'action_type', 'record_type',
+                  'ip_address', 'endpoint', 'checksum'):
+        assert field in event, f'missing {field}'
+    assert event['username'] == 'User_Admin'
+    assert len(event['checksum']) == 64      # SHA-256 hex — tamper-evidence travels with the event

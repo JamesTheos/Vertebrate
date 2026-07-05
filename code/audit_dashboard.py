@@ -15,6 +15,7 @@ from utils import permission_required
 import csv
 import hashlib
 import io
+import json
 from datetime import datetime, timezone, timedelta
 
 audit_bp = Blueprint('audit', __name__, url_prefix='/audit')
@@ -341,11 +342,21 @@ def api_siem(api_key):
 
     # Cursor the SIEM should present on its next pull: last id delivered, or
     # its own cursor echoed back when there was nothing new.
-    next_since_id = entries[-1].id if entries else since_id
-
-    return jsonify({
-        'events':        [_serialize_log(e) for e in entries],
+    meta = {
         'has_more':      has_more,
-        'next_since_id': next_since_id,
+        'next_since_id': entries[-1].id if entries else since_id,
         'applied_limit': limit,
-    })
+    }
+
+    if request.args.get('format', '').lower() == 'json':
+        return jsonify({'events': [_serialize_log(e) for e in entries], **meta})
+
+    # Default: NDJSON — one event per line, closed by a `_meta` cursor line
+    # (NDJSON has no envelope, so the cursor travels as the final record).
+    def generate():
+        for e in entries:
+            yield json.dumps(_serialize_log(e)) + '\n'
+        yield json.dumps({'_meta': meta}) + '\n'
+
+    return Response(stream_with_context(generate()),
+                    mimetype='application/x-ndjson')
