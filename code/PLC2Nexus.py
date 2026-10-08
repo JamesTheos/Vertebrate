@@ -12,7 +12,7 @@ config_path = os.path.join(os.path.dirname(__file__), 'config.json')
 with open(config_path) as config_file:
         config = json.load(config_file)
     
-Kafkaserver= config['Kafkaserver']
+Kafkaserver = os.environ.get('KAFKASERVER', config['Kafkaserver'])
 clusterid= config['clusterid']
 enterprise = config['enterprise']
 site = config['site']
@@ -21,7 +21,7 @@ process_cell = config['process_cell']
 unit= config['unit']
 
 # OPC UA server details
-opcua_url = "opc.tcp://localhost:4840"
+opcua_url = os.environ.get("OPCUA_URL", "opc.tcp://localhost:4840")
 
 # Connect to OPC UA server
 opcua_client = Client(opcua_url)

@@ -1,24 +1,28 @@
 document.addEventListener('DOMContentLoaded', function() {
     const modal = document.getElementById("loginModal");
     const userInfo = document.querySelector(".user-info");
-    const loginButton = document.querySelector(".button-style-login");
+    const loginForm = document.getElementById("login-form");
     const closeButton = document.getElementById("close-login");
     const userlogout = document.querySelector(".user-logout");
+    const userlogin = document.querySelector(".user-login");
 
-
-    userInfo.onclick = function() {
+    function openLogin() {
         modal.style.display = "block";
+        document.getElementById("username").focus();
     }
 
-    closeButton.onclick = function() { 
+    userInfo.onclick = openLogin;
+    if (userlogin) userlogin.onclick = openLogin;
+
+    closeButton.onclick = function(event) { 
         event.preventDefault();
         modal.style.display = "none"; 
     }
     
-    loginButton.onclick = async function() {
+    loginForm.addEventListener('submit', async function(event) {
+            event.preventDefault();  // never fall back to a native submit
             const userName = document.getElementById("username").value;
             const password = document.getElementById("password").value;
-            console.log(userName, password);
             try {
                 const response = await fetch('/loginUser', {
                     method: 'POST',
@@ -34,9 +38,9 @@ document.addEventListener('DOMContentLoaded', function() {
             } catch (error) {
                 console.error('Error:', error);
             }
-        };
+        });
     
-    userlogout.onclick = async function() {
+    if (userlogout) userlogout.onclick = async function() {
             try {
                 const response_logout = await fetch('/logoutUser', {
                     method: 'POST',

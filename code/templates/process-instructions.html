@@ -53,7 +53,15 @@
             }
             fetch(`/api/get-workflow?orderNumber=${orderNumber}`)
             .then(response => response.json())
-            .then(({ workflows, workflow_name }) => {
+            .then(({ workflows, workflow_name, currentStep }) => {
+                // The server derives the step from the order status; localStorage is only a fallback
+                // for a started order the server has no step for (e.g. after an app restart)
+                let serverStep = currentStep;
+                if (serverStep === null || serverStep === undefined) {
+                    serverStep = Math.max(1, parseInt(localStorage.getItem(`currentStep-${orderNumber}`) || '1', 10));
+                }
+                localStorage.setItem(`currentStep-${orderNumber}`, serverStep);
+
                 const workflowOverview = document.getElementById('workflow-overview');
                 workflowOverview.innerHTML = ''; // Clear previous workflow steps
 
@@ -80,12 +88,7 @@
                     workflowOverview.appendChild(stepDiv);
 
                     // Mark the current step
-                    let currentStepIndex = localStorage.getItem(`currentStep-${orderNumber}`);
-                    if (currentStepIndex === null) {
-                        currentStepIndex = 0;
-                        localStorage.setItem(`currentStep-${orderNumber}`, currentStepIndex);
-                    }
-                    if (currentStepIndex == index) {
+                    if (serverStep == index) {
                         stepDiv.classList.add('current-step');
                     } else {
                         buttonContainer.querySelectorAll('button').forEach(button => {
@@ -142,7 +145,7 @@
                 // Update sidebar details and make it visible
                 document.getElementById('order-number').textContent = `Order Number: ${orderNumber}`;
                 document.getElementById('workflow-name').textContent = `Workflow: ${workflow_name}`;
-                document.getElementById('current-step-name').textContent = `Current Step: ${workflows[localStorage.getItem(`currentStep-${orderNumber}`)].option}`;
+                document.getElementById('current-step-name').textContent = `Current Step: ${workflows[serverStep]?.option || 'Completed'}`;
             })
             .catch(error => console.error('Error fetching workflow steps:', error));
     });

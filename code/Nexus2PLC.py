@@ -13,7 +13,7 @@ config_path = os.path.join(os.path.dirname(__file__), 'config.json')
 with open(config_path) as config_file:
         config = json.load(config_file)
     
-Kafkaserver= config['Kafkaserver']
+Kafkaserver = os.environ.get('KAFKASERVER', config['Kafkaserver'])
 clusterid= config['clusterid']
 
 # Create a blueprint
@@ -30,7 +30,7 @@ consumer = Consumer(kafka_conf)
 consumer.subscribe(['ISPEScene1', 'ISPEScene2', 'ISPEStartPhase1'])
 
 # OPC UA client configuration
-opcua_client = Client("opc.tcp://localhost:4840")
+opcua_client = Client(os.environ.get("OPCUA_URL", "opc.tcp://localhost:4840"))
 opcua_client.connect()
 
 # Node to topic mapping

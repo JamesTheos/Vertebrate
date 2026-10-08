@@ -22,13 +22,45 @@
 
 
 .logo{
-    font-size: 20px;
-    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 10px;
     padding-left: 16px;
     height: 60px;
     color: var(--sidebar-text-color);
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.logo:hover,
+.logo:visited{
+    color: var(--sidebar-text-color);
+    text-decoration: none;
+}
+
+.logo-mark{
+    flex: none;
+    width: 24px;
+    height: 24px;
+}
+
+.logo-text{
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    line-height: 1.15;
+}
+
+.logo-company{
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.7;
+}
+
+.logo-product{
+    font-size: 18px;
+    font-weight: bold;
 }
 
 .menu-content{

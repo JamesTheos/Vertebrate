@@ -1,17 +1,18 @@
-from flask import Blueprint, Flask, request, jsonify, render_template
+from flask import Blueprint, request, jsonify
 from kafka import KafkaProducer, KafkaConsumer, TopicPartition
 from kafka.errors import NoBrokersAvailable
 import json
 import logging
 import uuid
 import os
+from models import db, DesignSpaceSet
 
 # Load the configuration for the ISA95 model
 config_path = os.path.join(os.path.dirname(__file__), 'config.json')
 with open(config_path) as config_file:
         config = json.load(config_file)
     
-Kafkaserver= config['Kafkaserver']
+Kafkaserver = os.environ.get('KAFKASERVER', config['Kafkaserver'])
 clusterid= config['clusterid']
 
 
@@ -31,62 +32,6 @@ except NoBrokersAvailable:
     print("Kafka broker not available. Please check your configuration and broker status.")
     producer = None
 
-# Kafka consumer for receiving data
-try:
-    consumer = KafkaConsumer(
-        'design-space-topic',
-        bootstrap_servers=Kafkaserver,
-        auto_offset_reset='earliest',  # Read from the beginning of the topic
-        value_deserializer=lambda m: json.loads(m.decode('utf-8'))
-    )
-except NoBrokersAvailable:
-    print("Kafka broker not available. Please check your configuration and broker status.")
-    consumer = None
-
-
-# Initialize storage for sets
-sets_storage = {}
-
-# Load existing sets from Kafka topic
-def load_existing_sets():
-    if consumer is None:
-        print("Kafka consumer is not available.")
-        return
-    while not consumer.assignment():
-        while not consumer.assignment():
-            consumer.poll(timeout_ms=1000)
-        partitions = consumer.assignment()
-        consumer.seek_to_beginning(*partitions)
-        while True:
-            raw_msgs = consumer.poll(timeout_ms=1000)
-            if not raw_msgs:
-                break
-            for tp, msgs in raw_msgs.items():
-                for message in msgs:
-                    sets_storage[message.value['id']] = message.value
-
-
-
-# Kafka consumer for receiving data
-try:
-    consumer = KafkaConsumer(
-        'design-space-topic',
-        bootstrap_servers=Kafkaserver,
-        auto_offset_reset='earliest',  # Read from the beginning of the topic
-        value_deserializer=lambda m: json.loads(m.decode('utf-8'))
-    )
-except NoBrokersAvailable:
-    print("Kafka broker not available. Please check your configuration and broker status.")
-    consumer = None
-
-# Only call load_existing_sets if consumer is defined
-if 'consumer' in locals():
-    try:
-        load_existing_sets()
-    except Exception as e:
-        print(f"Error loading existing sets: {e}")
-else:
-    print("Consumer not defined, skipping load_existing_sets()")
 
 try:
     temp_consumer = KafkaConsumer(
@@ -108,25 +53,25 @@ except NoBrokersAvailable:
     print("Kafka broker not available for speed_consumer.")
     speed_consumer = None
 
-@design_space_app.route('/design-space-definition')
-def design_space_definition():
-    return render_template('design-space-definition.html')
-
-@design_space_app.route('/design-space-representation')
-def design_space_representation():
-    return render_template('design-space-representation.html')
-
 @design_space_app.route('/save-set', methods=['POST'])
 def save_set():
     try:
         data = request.json
         if not data.get('id'):
             data['id'] = str(uuid.uuid4())
-        sets_storage[data['id']] = data
-        producer.send('design-space-topic', data)
-        producer.flush()  # Ensure the message is sent
+        design_set = db.session.get(DesignSpaceSet, data['id'])
+        if design_set is None:
+            design_set = DesignSpaceSet(id=data['id'])
+            db.session.add(design_set)
+        design_set.name = data.get('name') or data['id']
+        design_set.data = data
+        db.session.commit()
+        if producer is not None:
+            producer.send('design-space-topic', data)
+            producer.flush()  # Ensure the message is sent
         return jsonify({'status': 'success'}), 200
     except Exception as e:
+        db.session.rollback()
         logging.error(f"Error saving set: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
@@ -134,7 +79,7 @@ def save_set():
 
 # Endpoint to retrieve all sets from the storage.
 # This function handles GET requests to the '/get-sets' route. It attempts to 
-# fetch all sets stored in the `sets_storage` and return them as a JSON response.
+# fetch all sets stored in the design_space_sets table and return them as a JSON response.
 # If an error occurs during the fetching process, it logs the error and returns 
 # a JSON response with an error message and a 500 status code.
 # Returns:
@@ -143,7 +88,7 @@ def save_set():
 #               exception occurs.
 def get_sets():
     try:
-        sets = list(sets_storage.values())
+        sets = [s.data for s in DesignSpaceSet.query.order_by(DesignSpaceSet.name).all()]
         return jsonify(sets)
     except Exception as e:
         logging.error(f"Error fetching sets: {e}")
@@ -152,7 +97,8 @@ def get_sets():
 @design_space_app.route('/get-set/<set_id>', methods=['GET'])
 def get_set(set_id):
     try:
-        set_data = sets_storage.get(set_id)
+        design_set = db.session.get(DesignSpaceSet, set_id)
+        set_data = design_set.data if design_set else None
         if set_data:
             # print(f"DesignSpace:Fetched set with ID {set_id}: {set_data}")
             # border_points = [

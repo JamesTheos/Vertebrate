@@ -12,7 +12,7 @@ config_path = os.path.join(os.path.dirname(__file__), 'config.json')
 with open(config_path) as config_file:
         config = json.load(config_file)
     
-Kafkaserver= config['Kafkaserver']
+Kafkaserver = os.environ.get('KAFKASERVER', config['Kafkaserver'])
 clusterid= config['clusterid']
 
 orders_lock = threading.Lock()

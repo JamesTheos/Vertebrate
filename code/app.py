@@ -1,4 +1,4 @@
-from flask import Flask, app, render_template, jsonify, request, abort
+from flask import Flask, app, render_template, jsonify, request, abort, send_from_directory
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_sqlalchemy import SQLAlchemy
 import sqlite3
@@ -7,7 +7,7 @@ from confluent_kafka import KafkaException
 from confluent_kafka.admin import AdminClient, NewTopic
 #from LLM_Consumer import get_kafka_data
 #from Neo4j import get_neo4j_data
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 ## Import the blueprints from the other modules
 from product_analytics_app import product_analytics_app
 from DesignSpaceApp import design_space_app  # Import the blueprint from the DesignSpaceApp module
@@ -284,6 +284,13 @@ def create_app():
         with open(config_path) as config_file:
             config = json.load(config_file)
         return dict(appconfig=config)
+
+    @app.context_processor
+    def inject_user_permissions():
+        """Permission keys of the logged-in user's roles (empty for guests), used to build the sidebar."""
+        if not current_user.is_authenticated:
+            return dict(user_permissions=set())
+        return dict(user_permissions={perm.key for role in current_user.roles for perm in role.permissions})
     
     #######################################################################################
     
@@ -308,6 +315,11 @@ def create_app():
     def index():
         return render_template('index.html')
     
+    # Browsers request /favicon.ico directly, regardless of the <link rel="icon"> tags
+    @app.route('/favicon.ico')
+    def favicon():
+        return send_from_directory(app.static_folder, 'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
     #login-error route
     @app.route('/login-error')
     def Login_error():
@@ -345,7 +357,7 @@ def create_app():
     #######################################################################################
     #Orders route
     @app.route('/manufacturing-orders', methods=['GET', 'POST'])
-    @check_subscription("order-overview")
+    @check_subscription("manufacturing-orders")
     @permission_required('manufacturing-orders')
 
     def manufacturing_orders():
@@ -546,7 +558,7 @@ def create_app():
                 for order in data_store['manufacturing_orders']:
                     if order['orderNumber'] == order_number:
                         order['status'] = 'Started'
-                        order['timestamp'] = datetime.now(datetime.UTC).isoformat()
+                        order['timestamp'] = datetime.now(timezone.utc).isoformat()
                         for actions in workflow_data['options'][0].get('actions', []):
                             if actions.get('action') == button_pressed:
                                 if actions.get('external'):
@@ -572,7 +584,7 @@ def create_app():
             if current_step_index < total_steps and current_step_index > 1:
                 for order in data_store['manufacturing_orders']:
                     if order['orderNumber'] == order_number:
-                        order['timestamp'] = datetime.now(datetime.UTC).isoformat()
+                        order['timestamp'] = datetime.now(timezone.utc).isoformat()
 
                         for option in workflow_data['options'][current_step_index - 1].get('actions', []):
                             if option.get('action') == button_pressed:
@@ -599,7 +611,7 @@ def create_app():
                 for order in data_store['manufacturing_orders']:
                     if order['orderNumber'] == order_number:
                         order['status'] = 'Completed'
-                        order['timestamp'] = datetime.now(datetime.UTC).isoformat()
+                        order['timestamp'] = datetime.now(timezone.utc).isoformat()
 
                         for actions in workflow_data['options'][current_step_index - 1].get('actions', []):
             
@@ -632,6 +644,11 @@ def create_app():
                                     topic = action.get('topic')
                                     send_to_kafka(topic, {'value': False, **order})
 
+            # Remember progress on the server so Process Instructions doesn't depend on localStorage
+            for order in data_store['manufacturing_orders']:
+                if order['orderNumber'] == order_number:
+                    order['currentStep'] = current_step_index
+
             return jsonify({'success': True})
 
         except Exception as e:
@@ -656,9 +673,19 @@ def create_app():
             with open(workflow_path) as workflow_file:
                 workflow_data = json.load(workflow_file)
 
+            steps = workflow_data.get('options') or []
+            status = order.get('status')
+            if status == 'Completed':
+                current_step = len(steps)
+            elif status == 'Started':
+                current_step = order.get('currentStep')  # None -> client falls back to localStorage
+            else:
+                current_step = 0
+
             data = {
-                'workflows': workflow_data.get('options'),
+                'workflows': steps,
                 'workflow_name': workflow_data.get('workflowName'),
+                'currentStep': current_step,
             }
             return jsonify(data)
         else:
@@ -772,168 +799,168 @@ def create_app():
     ###########################################################################################################################
 
 
-@app.route('/get-role', methods=["POST"])
-def define_role():
-    data = request.get_json()
-    new_role = data.get('created_role')
-    allowed_apps = data.get('role_apps')
+    @app.route('/get-role', methods=["POST"])
+    def define_role():
+        data = request.get_json()
+        new_role = data.get('created_role')
+        allowed_apps = data.get('role_apps')
 
-    if not new_role or not allowed_apps:
-        return jsonify({'message': 'Role name and at least one function required.'}), 400
+        if not new_role or not allowed_apps:
+            return jsonify({'message': 'Role name and at least one function required.'}), 400
 
-    if isinstance(allowed_apps, dict):
-        perm_keys = list(allowed_apps.keys())
-    else:
-        perm_keys = list(allowed_apps)
+        if isinstance(allowed_apps, dict):
+            perm_keys = list(allowed_apps.keys())
+        else:
+            perm_keys = list(allowed_apps)
 
-    # Capture existence BEFORE any mutations
-    existing_role = Role.query.filter_by(name=new_role).first()
-    is_existing = existing_role is not None
+        # Capture existence BEFORE any mutations
+        existing_role = Role.query.filter_by(name=new_role).first()
+        is_existing = existing_role is not None
 
-    if is_existing:
+        if is_existing:
+            # Capture real old permissions BEFORE deletion
+            old_perm_keys = [
+                row[0] for row in
+                db.session.query(Permission.key)
+                .join(RolePermission, RolePermission.permission_id == Permission.id)
+                .filter(RolePermission.role_id == existing_role.id)
+                .all()
+            ]
+            RolePermission.query.filter_by(role_id=existing_role.id).delete()
+            db.session.flush()
+            role = existing_role
+        else:
+            old_perm_keys = []
+            role = Role(name=new_role)
+            db.session.add(role)
+            db.session.flush()
+
+        for key in perm_keys:
+            perm = Permission.query.filter_by(key=key).first()
+            if not perm:
+                perm = Permission(key=key)
+                db.session.add(perm)
+                db.session.flush()
+            rp = RolePermission(role_id=role.id, permission_id=perm.id)
+            db.session.add(rp)
+
+        db.session.commit()
+
+        action_type = 'UPDATE' if is_existing else 'CREATE'
+        log_audit(
+            action_type=action_type,
+            record_type='ROLE',
+            record_id=str(role.id),
+            change_reason=f'Role "{new_role}" {"updated" if is_existing else "created"} with permissions: {perm_keys}'
+        )
+
+        # Log field-level change for UPDATE so old vs new permissions are captured
+        if is_existing:
+            log_field_change(
+                action_type='UPDATE',
+                record_type='ROLE',
+                record_id=str(role.id),
+                field_name='permissions',
+                old_value=str(old_perm_keys),
+                new_value=str(perm_keys),
+                change_reason=f'Role "{new_role}" permissions updated'
+            )
+
+        return jsonify({'message': f'Role "{new_role}" saved in database.', 'role_id': role.id, 'permissions': perm_keys})
+
+        @app.route('/get-role/<role_name>', methods=["GET"])
+        def get_role(role_name):
+            role = Role.query.filter_by(name=role_name).first()
+            if not role:
+                return jsonify({'message': 'Role not found'}), 404
+
+            permissions = [
+                {'key': perm.key} for perm in 
+                Permission.query.join(RolePermission, Permission.id == RolePermission.permission_id)
+                .filter(RolePermission.role_id == role.id).all()
+            ]
+
+            return jsonify({'name': role.name, 'permissions': permissions})
+
+
+    @app.route('/update-role', methods=["POST"])
+    def update_role():
+        data = request.get_json()
+        role_name = data.get('role_name')
+        updated_apps = data.get('updated_role_apps')
+
+        if not role_name or not updated_apps:
+            return jsonify({'message': 'Role name and at least one function required.'}), 400
+
+        role = Role.query.filter_by(name=role_name).first()
+        if not role:
+            return jsonify({'message': 'Role not found'}), 404
+
+        if isinstance(updated_apps, dict):
+            perm_keys = list(updated_apps.keys())
+        else:
+            perm_keys = list(updated_apps)
+
         # Capture real old permissions BEFORE deletion
         old_perm_keys = [
             row[0] for row in
             db.session.query(Permission.key)
             .join(RolePermission, RolePermission.permission_id == Permission.id)
-            .filter(RolePermission.role_id == existing_role.id)
+            .filter(RolePermission.role_id == role.id)
             .all()
         ]
-        RolePermission.query.filter_by(role_id=existing_role.id).delete()
-        db.session.flush()
-        role = existing_role
-    else:
-        old_perm_keys = []
-        role = Role(name=new_role)
-        db.session.add(role)
+
+        # Remove existing permissions
+        RolePermission.query.filter_by(role_id=role.id).delete()
         db.session.flush()
 
-    for key in perm_keys:
-        perm = Permission.query.filter_by(key=key).first()
-        if not perm:
-            perm = Permission(key=key)
-            db.session.add(perm)
-            db.session.flush()
-        rp = RolePermission(role_id=role.id, permission_id=perm.id)
-        db.session.add(rp)
+        # Recreate permissions
+        for key in perm_keys:
+            perm = Permission.query.filter_by(key=key).first()
+            if not perm:
+                perm = Permission(key=key)
+                db.session.add(perm)
+                db.session.flush()
+            rp = RolePermission(role_id=role.id, permission_id=perm.id)
+            db.session.add(rp)
 
-    db.session.commit()
+        db.session.commit()
 
-    action_type = 'UPDATE' if is_existing else 'CREATE'
-    log_audit(
-        action_type=action_type,
-        record_type='ROLE',
-        record_id=str(role.id),
-        change_reason=f'Role "{new_role}" {"updated" if is_existing else "created"} with permissions: {perm_keys}'
-    )
-
-    # Log field-level change for UPDATE so old vs new permissions are captured
-    if is_existing:
         log_field_change(
             action_type='UPDATE',
             record_type='ROLE',
             record_id=str(role.id),
             field_name='permissions',
-            old_value=str(old_perm_keys),
+            old_value=str(old_perm_keys),  # ← real previous state
             new_value=str(perm_keys),
-            change_reason=f'Role "{new_role}" permissions updated'
+            change_reason=f'Role "{role_name}" permissions updated'
         )
 
-    return jsonify({'message': f'Role "{new_role}" saved in database.', 'role_id': role.id, 'permissions': perm_keys})
+        return jsonify({'message': f'Role "{role_name}" updated successfully.', 'permissions': perm_keys})
 
-    @app.route('/get-role/<role_name>', methods=["GET"])
-    def get_role(role_name):
-        role = Role.query.filter_by(name=role_name).first()
-        if not role:
-            return jsonify({'message': 'Role not found'}), 404
-
-        permissions = [
-            {'key': perm.key} for perm in 
-            Permission.query.join(RolePermission, Permission.id == RolePermission.permission_id)
-            .filter(RolePermission.role_id == role.id).all()
-        ]
-
-        return jsonify({'name': role.name, 'permissions': permissions})
-
-
-@app.route('/update-role', methods=["POST"])
-def update_role():
-    data = request.get_json()
-    role_name = data.get('role_name')
-    updated_apps = data.get('updated_role_apps')
-
-    if not role_name or not updated_apps:
-        return jsonify({'message': 'Role name and at least one function required.'}), 400
-
-    role = Role.query.filter_by(name=role_name).first()
-    if not role:
-        return jsonify({'message': 'Role not found'}), 404
-
-    if isinstance(updated_apps, dict):
-        perm_keys = list(updated_apps.keys())
-    else:
-        perm_keys = list(updated_apps)
-
-    # Capture real old permissions BEFORE deletion
-    old_perm_keys = [
-        row[0] for row in
-        db.session.query(Permission.key)
-        .join(RolePermission, RolePermission.permission_id == Permission.id)
-        .filter(RolePermission.role_id == role.id)
-        .all()
-    ]
-
-    # Remove existing permissions
-    RolePermission.query.filter_by(role_id=role.id).delete()
-    db.session.flush()
-
-    # Recreate permissions
-    for key in perm_keys:
-        perm = Permission.query.filter_by(key=key).first()
-        if not perm:
-            perm = Permission(key=key)
-            db.session.add(perm)
-            db.session.flush()
-        rp = RolePermission(role_id=role.id, permission_id=perm.id)
-        db.session.add(rp)
-
-    db.session.commit()
-
-    log_field_change(
-        action_type='UPDATE',
-        record_type='ROLE',
-        record_id=str(role.id),
-        field_name='permissions',
-        old_value=str(old_perm_keys),  # ← real previous state
-        new_value=str(perm_keys),
-        change_reason=f'Role "{role_name}" permissions updated'
-    )
-
-    return jsonify({'message': f'Role "{role_name}" updated successfully.', 'permissions': perm_keys})
-
-    ##########################################################################################################################
-    #LOGIN - USERNAME
-    ##########################################################################################################################
+        ##########################################################################################################################
+        #LOGIN - USERNAME
+        ##########################################################################################################################
 
 
 
-    @app.route('/api/login', methods=['POST'])
-    def login():
+        @app.route('/api/login', methods=['POST'])
+        def login():
 
-        username = request.json.get('username')
-        password = request.json.get('password')
+            username = request.json.get('username')
+            password = request.json.get('password')
 
-        config_path = os.path.join(os.path.dirname(__file__), 'appconfig.json')
-        with open(config_path) as config_file:
-            config = json.load(config_file)
+            config_path = os.path.join(os.path.dirname(__file__), 'appconfig.json')
+            with open(config_path) as config_file:
+                config = json.load(config_file)
 
-        config['Username'] = username
+            config['Username'] = username
 
-        with open(config_path, 'w') as config_file:
-            json.dump(config, config_file, indent=4)
+            with open(config_path, 'w') as config_file:
+                json.dump(config, config_file, indent=4)
 
-        return jsonify({'status': 'Username saved successfully'})
-    
+            return jsonify({'status': 'Username saved successfully'})
+        
 
     return app
     

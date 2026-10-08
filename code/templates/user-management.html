@@ -21,12 +21,33 @@
                 <option value="{{ role.id }}">{{ role.name }}</option>
             {% endfor %}
         </select>
-        <small>Halte Strg (Windows) oder ⌘ (Mac) gedrückt, um mehrere Rollen auszuwählen</small>
+        <small>Hold Ctrl (Windows) or ⌘ (Mac) to select multiple roles</small>
     </div>
     <button type="submit">Add User</button>
 </form>
 
+<!-- Result message (reuses the login modal styles from login.css) -->
+<div id="userMessageModal" class="modal-login">
+    <div class="modal-content-login">
+        <p id="userMessageText"></p>
+        <button type="button" id="userMessageClose" class="button-style-login">Close</button>
+    </div>
+</div>
+
 <script>
+let reloadOnClose = false;
+
+function showUserMessage(text, reload) {
+    document.getElementById('userMessageText').textContent = text;
+    reloadOnClose = reload;
+    document.getElementById('userMessageModal').style.display = 'block';
+}
+
+document.getElementById('userMessageClose').addEventListener('click', function() {
+    document.getElementById('userMessageModal').style.display = 'none';
+    if (reloadOnClose) location.reload();
+});
+
 document.getElementById('addUserForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const username = document.getElementById('usernameReg').value.trim();
@@ -49,11 +70,10 @@ document.getElementById('addUserForm').addEventListener('submit', async function
     });
 
     if (response.ok) {
-        alert("User registered successfully.");
-        location.reload();
+        showUserMessage(`User "${username}" registered successfully.`, true);
     } else {
         const error = await response.text();
-        alert("Error: " + error);
+        showUserMessage("Error: " + error, false);
     }
 });
 </script>

@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}My Application{% endblock %}</title>
+    <title>Data Vertebrate · {% block title %}Home{% endblock %}</title>
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon-32.png') }}" sizes="32x32">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
 
     <script>
         
@@ -118,6 +121,13 @@
             </span>
 
         </div>
+        {% if current_user.is_authenticated %}
+        <button type="button" class="user-logout" id="logout-button" title="Logout" aria-label="Logout">
+            <img src="{{ url_for('static', filename='images/icons/logout.svg') }}" alt="Logout" class="logout-icon">
+        </button>
+        {% else %}
+        <button type="button" class="user-login" id="login-button">Login</button>
+        {% endif %}
         <a href="/index" class="settings active"> 
             <img src="{{ url_for('static', filename='images/icons/settings.svg') }}" alt="Settings" class="settings-icon" style="width: 32px; height: 32px;">
         </a>
@@ -130,17 +140,17 @@
 
     <div id="loginModal" class="modal-login">
         <div class="modal-content-login">
-            <form>
+            <form id="login-form" method="post" action="#">
                 <div class="form-group-login">
                     <label for="username">Username:</label>
-                    <input type="text" id="username" class="input-style-login" name="username">
+                    <input type="text" id="username" class="input-style-login" name="username" autocomplete="username">
                 </div>
                 <div class="form-group-login">
                     <label for="password">Password:</label>
-                    <input type="password" id="password" class="input-style-login" name="password">
+                    <input type="password" id="password" class="input-style-login" name="password" autocomplete="current-password">
                 </div>
-                <button class="button-style-login">Log In</button>
-                <button id = "close-login" class="button-style-login">Close</button>
+                <button type="submit" class="button-style-login">Log In</button>
+                <button type="button" id="close-login" class="button-style-login">Close</button>
             </form>
         </div>
     </div>
@@ -154,7 +164,13 @@
     ********************************************************************************************************************
      -->
     <nav class = "sidebar"> 
-        <div href="/index" class="logo">ISPE Demo</div>
+        <a href="/index" class="logo" aria-label="Theos-CES Data Vertebrate – Home">
+            <img src="{{ url_for('static', filename='images/favicon.svg') }}" alt="" class="logo-mark">
+            <span class="logo-text">
+                <span class="logo-company">Theos-CES</span>
+                <span class="logo-product">Data Vertebrate</span>
+            </span>
+        </a>
 
         <div id = "settings-sidebar" class = "menu-content-settings show-sidebar">
             <div class = "menu-items-setting">

@@ -54,5 +54,38 @@ services:
     volumes:
       - ./code/instance:/app/code/instance
 
+  # ---- Demo PLC (no Windows/CODESYS needed): docker compose --profile sim up --build
+  plc-sim:
+    profiles: ["sim"]
+    build: ./plc-sim
+    ports:
+      - "4840:4840"   # OPC UA, same node IDs as the CODESYS project
+      - "8081:8081"   # status page
+    restart: unless-stopped
+
+  plc2nexus:
+    profiles: ["sim"]
+    build:
+      context: .
+      dockerfile: Dockerfile.bridges
+    command: ["python", "PLC2Nexus.py"]
+    depends_on: [kafka, plc-sim]
+    environment:
+      KAFKASERVER: kafka:29092
+      OPCUA_URL: opc.tcp://plc-sim:4840
+    restart: unless-stopped
+
+  nexus2plc:
+    profiles: ["sim"]
+    build:
+      context: .
+      dockerfile: Dockerfile.bridges
+    command: ["python", "Nexus2PLC.py"]
+    depends_on: [kafka, plc-sim]
+    environment:
+      KAFKASERVER: kafka:29092
+      OPCUA_URL: opc.tcp://plc-sim:4840
+    restart: unless-stopped
+
 volumes:
   db_data:

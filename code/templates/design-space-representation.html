@@ -5,19 +5,115 @@
 
 {% block content %}
 <!-- Dropdown to select different sets -->
+<div class="dsr-page">
 <select id="set-select" class="dropdown-dsr" onchange="loadSet(this.value)"></select>
-    <!-- <option value="Select a set"></option> -->
-</select>
 
 
-<!-- Canvas for the chart -->
-<canvas id="chart"></canvas>
+<!-- Shown while the latest value lies outside the selected design space -->
+<!-- Space is always reserved so the chart doesn't jump when the banner appears -->
+<div id="outside-banner" class="dsr-outside-banner" role="alert">&#9888; Outside design space</div>
 
+<!-- Canvas for the chart: fills the remaining viewport height -->
+<div class="dsr-chart">
+    <canvas id="chart"></canvas>
+</div>
+</div>
+
+
+<style>
+    /* 130px = content top offset (70) + content padding (2 x 20) + gap below content (20) */
+    .dsr-page {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 130px);
+    }
+    .dsr-page .dropdown-dsr {
+        flex: none;
+        align-self: flex-start;
+    }
+    .dsr-chart {
+        position: relative;
+        flex: 1;
+        min-height: 0;
+    }
+    .dsr-outside-banner {
+        flex: none;
+        visibility: hidden;
+        margin: 0 0 12px;
+        padding: 12px 20px;
+        border-radius: 8px;
+        background: #b91c1c;
+        color: #fff;
+        font-size: 22px;
+        font-weight: 700;
+        text-align: center;
+    }
+</style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     let chart;
     let latestDatasetIndex = null;
+    let designPolygon = [];  // outer design space, sorted around the centroid
+
+    const SET_PADDING = 0.2;      // set min/max +/- 20 %
+    const LATEST_PADDING = 0.05;  // latest value +/- 5 %
+    let setRange = null;          // {x: {min, max}, y: {min, max}} of the selected set, padded
+    let stickyRange = null;       // set range grown by every value seen; only expands until another set is loaded
+
+    function padRange(values, factor) {
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        return { min: min - Math.abs(min) * factor, max: max + Math.abs(max) * factor };
+    }
+
+    // Round a raw step to 1, 2, 2.5 or 5 x 10^n
+    function niceStep(raw) {
+        const exp = Math.pow(10, Math.floor(Math.log10(raw)));
+        const f = raw / exp;
+        return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * exp;
+    }
+
+    // Grow range (in place) to include value +/- 5 %; returns nothing, never shrinks
+    function expandRange(range, value) {
+        if (value === undefined || !Number.isFinite(value)) return;
+        // 5 % of the value, but never less than 5 % of the current span (a value of 0 would get no margin)
+        const pad = Math.max(Math.abs(value), range.max - range.min) * LATEST_PADDING;
+        range.min = Math.min(range.min, value - pad);
+        range.max = Math.max(range.max, value + pad);
+    }
+
+    // Snap a range to nice ticks
+    function niceAxis(range) {
+        const step = niceStep((range.max - range.min) / 8);
+        return { min: Math.floor(range.min / step) * step, max: Math.ceil(range.max / step) * step, step };
+    }
+
+    // Sticky axes: start from the set +/- 20 %, only ever expand, so the design-space box doesn't jump
+    function applyAxes(latestPoint) {
+        if (!chart || !stickyRange) return;
+        for (const [key, value] of [['x', latestPoint?.x], ['y', latestPoint?.y]]) {
+            expandRange(stickyRange[key], value);
+            const axis = niceAxis(stickyRange[key]);
+            const scale = chart.options.scales[key];
+            scale.min = axis.min;
+            scale.max = axis.max;
+            scale.ticks = { ...(scale.ticks || {}), stepSize: axis.step };
+        }
+    }
+
+    // Ray casting: true if point p lies inside polygon (array of {x, y})
+    function insidePolygon(p, polygon) {
+        let inside = false;
+        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+            const a = polygon[i], b = polygon[j];
+            if ((a.y > p.y) !== (b.y > p.y) &&
+                p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x) {
+                inside = !inside;
+            }
+        }
+        return inside;
+    }
 
     document.addEventListener('DOMContentLoaded', function() {
         fetch('/get-sets')
@@ -34,8 +130,14 @@
                     option.value = set.id;
                     option.textContent = set.name;
                     select.appendChild(option);
-                    loadSet(set.id); 
                 });
+
+                // Restore the last selected set, otherwise show the first one
+                const savedId = localStorage.getItem('selectedSetId');
+                if (savedId && data.some(set => set.id === savedId)) {
+                    select.value = savedId;
+                }
+                loadSet(select.value);
             });
 
         // Start polling for the latest values
@@ -60,14 +162,14 @@
 
                 const ctx = document.getElementById('chart').getContext('2d');
                 const dataset = data.values.map(value => ({
-                    x: value.ispespeed,
-                    y: value.ispetemp
+                    x: parseFloat(value.ispespeed),
+                    y: parseFloat(value.ispetemp)
                 }));
 
                 // Add a second dataset
                 const secondDataset = data.values.map(value => ({
-                    x: value.innerMarginSpeed, // Assuming the second dataset has these properties
-                    y: value.innerMarginTemp
+                    x: parseFloat(value.innerMarginSpeed),
+                    y: parseFloat(value.innerMarginTemp)
                 }));
 
                 // Berechne den geometrischen Schwerpunkt (Centroid)
@@ -102,6 +204,14 @@
                 centroid2.y /= dataset.length;
 
 
+
+                designPolygon = dataset.slice();
+                setRange = {
+                    x: padRange(dataset.map(p => p.x), SET_PADDING),
+                    y: padRange(dataset.map(p => p.y), SET_PADDING)
+                };
+                // a newly selected set starts again from its default range
+                stickyRange = { x: { ...setRange.x }, y: { ...setRange.y } };
 
                 if (dataset.length > 0) {
                     dataset.push(dataset[0]);
@@ -138,22 +248,18 @@
                     },
                     options: {
                         responsive: true,
-                        maintainAspectRatio: true,
+                        maintainAspectRatio: false,
                         animation: false,
                         scales: {
                             x: {
                                 type: 'linear',
                                 position: 'bottom',
-                                min: 0,
-                                max: 700,
                                 title: {
                                     display: true,
                                     text: 'ISPESpeed'
                                 }
                             },
                             y: {
-                                min: 0,
-                                max: 80,
                                 title: {
                                     display: true,
                                     text: 'ISPETemp'
@@ -168,8 +274,13 @@
                 chart.data.datasets.push({
                     label: 'Latest Value',
                     data: [],
-                    backgroundColor: 'red',
+                    backgroundColor: 'green',
+                    borderColor: 'green',
+                    pointRadius: 9,
+                    pointHoverRadius: 11,
+                    showLine: false
                 });
+                applyAxes();
                 chart.update();
             });
     }
@@ -189,12 +300,19 @@
                 }
 
                 const latestPoint = {
-                    x: latestData.ispespeed,
-                    y: latestData.ispetemp
+                    x: parseFloat(latestData.ispespeed),
+                    y: parseFloat(latestData.ispetemp)
                 };
 
                 if (chart && latestDatasetIndex !== null) {
-                    chart.data.datasets[latestDatasetIndex].data = [latestPoint];
+                    const inside = insidePolygon(latestPoint, designPolygon);
+                    const color = inside ? 'green' : 'red';
+                    const latest = chart.data.datasets[latestDatasetIndex];
+                    latest.data = [latestPoint];
+                    latest.backgroundColor = color;
+                    latest.borderColor = color;
+                    document.getElementById('outside-banner').style.visibility = inside ? 'hidden' : 'visible';
+                    applyAxes(latestPoint);
                     chart.update();
                 }
             })
