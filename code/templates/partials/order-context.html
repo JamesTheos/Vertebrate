@@ -1,0 +1,76 @@
+{# Order context bar: include once per page, directly at the top of the content block. #}
+<style>
+    .order-context {
+        flex: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 32px;
+        margin-bottom: 12px;
+        padding: 4px 12px;
+        border-radius: 8px;
+        background: #eef0f3;
+        color: #6b7280;
+        font-size: 14px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .order-context-spec {
+        margin-left: auto;
+        padding: 2px 10px;
+        border-radius: 999px;
+        background: #dc2626;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+    }
+    .order-context.running {
+        background: var(--accent-soft, rgba(15, 118, 110, 0.12));
+        color: var(--accent, #0f766e);
+        font-weight: 600;
+    }
+</style>
+<div class="order-context" id="order-context" role="status" aria-live="polite">No active order</div>
+<script>
+(function () {
+    const bar = document.getElementById('order-context');
+
+    function render(running) {
+        if (!running) {
+            bar.classList.remove('running');
+            bar.textContent = 'No active order';
+            return;
+        }
+        const parts = [`▶ Running: Order ${running.orderNumber}`];
+        if (running.product) parts.push(running.product);
+        if (running.lotNumber) parts.push(`Lot ${running.lotNumber}`);
+        if (running.step) parts.push(`Step: ${running.step}`);
+        if (running.since) {
+            const since = new Date(running.since);
+            if (!isNaN(since)) parts.push(`since ${since.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`);
+        }
+        bar.classList.add('running');
+        bar.textContent = parts.join(' · ');
+        if (running.quality && running.quality.state === 'outside') {
+            const badge = document.createElement('span');
+            badge.className = 'order-context-spec';
+            badge.textContent = 'OUT OF SPEC';
+            bar.appendChild(badge);
+        }
+    }
+
+    async function refresh() {
+        try {
+            const r = await fetch('/api/running-order', {cache: 'no-store'});
+            if (r.ok) render((await r.json()).running);
+        } catch (e) {
+            /* keep the last state while the app restarts */
+        }
+    }
+
+    refresh();
+    setInterval(refresh, 2000);
+})();
+</script>

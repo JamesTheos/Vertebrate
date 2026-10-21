@@ -56,6 +56,16 @@
     height: 32px;
 }
 
+.user-role {
+    font-size: 15px;
+    opacity: 0.75;
+}
+
+/* Thin accent stripe under the header per role, so two demo tabs are easy to tell apart */
+.header.role-production-manager { box-shadow: inset 0 -3px 0 #2563eb; }
+.header.role-operator { box-shadow: inset 0 -3px 0 #d97706; }
+.header.role-admin-all { box-shadow: inset 0 -3px 0 #7c3aed; }
+
 .user-name {
     margin-left: 10px;
     font-size: 18px;

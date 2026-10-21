@@ -4,6 +4,7 @@
 {% block header_title %}Workflow - Process Instructions{% endblock %}
 
 {% block content %}
+{% include "partials/order-context.html" %}
 <div>
     <div class="order-dropdown-container no-order-selected" id="order-dropdown-container">
         <div class="order-dropdown">
@@ -29,6 +30,19 @@
     
 </div>
 <script>
+    // Number the steps: completed ones get a check mark, only the current step's buttons are enabled
+    function paintSteps(current) {
+        document.querySelectorAll('.workflow-step-process-instr').forEach((div, idx) => {
+            div.classList.toggle('current-step', idx === current);
+            div.classList.toggle('completed-step', idx < current);
+            const number = div.querySelector('.step-number');
+            if (number) number.textContent = idx < current ? '✓' : String(idx + 1);
+            div.querySelectorAll('button').forEach(btn => {
+                btn.disabled = idx !== current;
+            });
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         fetch('/api/released-orders')
             .then(response => response.json())
@@ -70,7 +84,10 @@
                     stepDiv.className = 'workflow-step-process-instr';
 
                     const stepText = document.createElement('p');
-                    stepText.textContent = step.option;
+                    const stepNumber = document.createElement('span');
+                    stepNumber.className = 'step-number';
+                    stepNumber.textContent = String(index + 1);
+                    stepText.append(stepNumber, step.option);
                     stepDiv.appendChild(stepText);
 
                     const buttonContainer = document.createElement('div');
@@ -86,15 +103,6 @@
 
                     stepDiv.appendChild(buttonContainer);
                     workflowOverview.appendChild(stepDiv);
-
-                    // Mark the current step
-                    if (serverStep == index) {
-                        stepDiv.classList.add('current-step');
-                    } else {
-                        buttonContainer.querySelectorAll('button').forEach(button => {
-                            button.disabled = true;
-                        });
-                    }
 
                     // Add event listeners to buttons to update the current step
                     buttonContainer.querySelectorAll('button').forEach(button => {
@@ -126,21 +134,15 @@
                                 .catch(error => console.error('Error calling API:', error));
 
                             // Update UI for current step
-                            document.querySelectorAll('.workflow-step-process-instr').forEach((div, idx) => {
-                                div.classList.remove('current-step');
-                                div.querySelectorAll('button').forEach(btn => {
-                                    btn.disabled = idx !== nextStepIndex;
-                                });
-                            });
-                            if (nextStepIndex < workflows.length) {
-                                document.querySelectorAll('.workflow-step-process-instr')[nextStepIndex].classList.add('current-step');
-                            }
+                            paintSteps(nextStepIndex);
 
                             // Update sidebar details
                             document.getElementById('current-step-name').textContent = `Current Step: ${workflows[nextStepIndex]?.option || 'Completed'}`;
                         });
                     });
                 });
+
+                paintSteps(Number(serverStep));
 
                 // Update sidebar details and make it visible
                 document.getElementById('order-number').textContent = `Order Number: ${orderNumber}`;

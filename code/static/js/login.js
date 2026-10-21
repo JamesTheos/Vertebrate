@@ -11,12 +11,21 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById("username").focus();
     }
 
+    function closeLogin() {
+        modal.style.display = "none";
+    }
+
+    // Esc closes the dialog
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && modal.style.display === 'block') closeLogin();
+    });
+
     userInfo.onclick = openLogin;
     if (userlogin) userlogin.onclick = openLogin;
 
     closeButton.onclick = function(event) { 
         event.preventDefault();
-        modal.style.display = "none"; 
+        closeLogin();
     }
     
     loginForm.addEventListener('submit', async function(event) {

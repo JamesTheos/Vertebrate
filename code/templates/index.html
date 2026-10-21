@@ -4,5 +4,402 @@
 {% block header_title %}Home{% endblock %}
 
 {% block content %}
-Welcome to Theos-CES Data Vertebrate – the data backbone that connects your plant, orders and people.
+<style>
+    .home-wrap { display: flex; flex-direction: column; height: 100%; }
+    .home-subtitle { flex: none; margin: 0 0 12px; color: #4b5563; font-size: 15px; }
+    .home-hint { color: #6b7280; }
+    #home-dashboard { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+    #home-dashboard[hidden] { display: none; }
+    .home-tiles {
+        flex: none;
+        display: grid;
+        grid-template-columns: 1.2fr 1.6fr 1.6fr 1.2fr 1fr;  /* sized to the tile texts: one line each at 1568 px */
+        gap: 14px;
+    }
+    .home-tile, .home-card {
+        background: #fff;
+        border: 1px solid var(--table-border, #ddd);
+        border-radius: 10px;
+        padding: 12px 16px;
+    }
+    .home-tile h2, .home-card h2 {
+        margin: 0 0 8px;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #6b7280;
+    }
+    .home-tile-body { min-height: 46px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+    .home-big { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .home-muted { color: #6b7280; }
+    .home-order-line { font-size: 16px; font-weight: 600; }
+    .home-plc { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+    .home-plc-dot { width: 12px; height: 12px; border-radius: 50%; background: #9ca3af; flex: none; }
+    .home-plc.ok { color: #15803d; }
+    .home-plc.ok .home-plc-dot { background: #16a34a; }
+    .home-plc.idle { color: #6b7280; }
+    .home-plc.down { color: #b91c1c; }
+    .home-plc.down .home-plc-dot { background: #dc2626; }
+    .home-quality { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+    .home-quality.inside { color: #15803d; }
+    .home-quality.inside .home-plc-dot { background: #16a34a; }
+    .home-quality.outside { color: #b91c1c; }
+    .home-quality.outside .home-plc-dot { background: #dc2626; }
+
+    /* main area: running order | recent orders + events */
+    .home-main {
+        flex: 1;
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 1.2fr 1fr;
+        gap: 14px;
+    }
+    .home-col { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+    .home-main.pm-first .home-col-orders { order: -1; }
+    .home-card { display: flex; flex-direction: column; min-height: 0; }
+    .home-card-head { flex: none; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+    .home-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+    .home-col-running .home-card { flex: 1; }
+    .home-col-orders .home-card-events { flex: 1; }
+
+    .home-order-title { font-size: 17px; font-weight: 700; }
+    .home-path { color: #6b7280; font-size: 13px; margin: 2px 0 10px; }
+    .home-facts { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 8px 0 10px; color: #374151; }
+    .home-facts strong { font-variant-numeric: tabular-nums; }
+
+    .home-tracker { display: flex; margin: 4px 0 6px; }
+    .home-step { flex: 1; position: relative; text-align: center; font-size: 13px; padding: 0 4px; }
+    .home-step::before {
+        content: '';
+        position: absolute;
+        top: 12px;
+        left: -50%;
+        width: 100%;
+        height: 2px;
+        background: #d1d5db;
+    }
+    .home-step:first-child::before { display: none; }
+    .home-step.done::before, .home-step.current::before { background: var(--accent, #0f766e); }
+    .home-step-dot {
+        position: relative;
+        z-index: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: #e5e7eb;
+        color: #6b7280;
+        font-weight: 700;
+        font-size: 13px;
+    }
+    .home-step.done .home-step-dot { background: var(--status-completed, #16a34a); color: #fff; }
+    .home-step.current .home-step-dot { background: var(--accent, #0f766e); color: #fff; box-shadow: 0 0 0 4px var(--accent-soft, rgba(15,118,110,.15)); }
+    .home-step-name { margin-top: 4px; font-weight: 600; color: #374151; }
+    .home-step.next .home-step-name { color: #9ca3af; font-weight: 500; }
+    .home-step-time { font-size: 12px; color: #6b7280; min-height: 1.2em; font-variant-numeric: tabular-nums; }
+
+    .home-values { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 14px; }
+    .home-value { border-left: 3px solid var(--accent, #0f766e); padding: 2px 10px; }
+    .home-value-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+    .home-value-name { color: #6b7280; font-size: 13px; }
+    .home-value-num { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .home-value-num small { font-size: 12px; font-weight: 500; color: #6b7280; margin-left: 3px; }
+    .home-spark { height: 46px; margin-top: 2px; }
+    .home-spark svg { width: 100%; height: 100%; display: block; }
+    .home-spark polyline { fill: none; stroke: var(--accent, #0f766e); stroke-width: 2; vector-effect: non-scaling-stroke; }
+    .home-spark .band { fill: rgba(22, 163, 74, 0.13); }
+    .home-spark .band-edge { stroke: rgba(22, 163, 74, 0.55); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+    .home-spark-note { font-size: 11px; color: #6b7280; }
+
+    .home-table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+    .home-table th { text-align: left; font-size: 12px; font-weight: 600; color: #6b7280; padding: 4px 6px; border-bottom: 1px solid #e5e7eb; }
+    .home-table td { padding: 5px 6px; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
+    .home-event { display: flex; gap: 10px; padding: 4px 0; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+    .home-event-time { color: #6b7280; font-variant-numeric: tabular-nums; flex: none; }
+    .home-event-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .home-link { color: var(--accent, #0f766e); font-weight: 600; text-decoration: none; white-space: nowrap; }
+    .home-link:hover { text-decoration: underline; }
+
+    .home-health {
+        flex: none;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 24px;
+        padding: 8px 16px;
+        background: #fff;
+        border: 1px solid var(--table-border, #ddd);
+        border-radius: 10px;
+        font-size: 14px;
+    }
+    .home-health-title { font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: #6b7280; }
+    .home-health-item { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+    .home-health-item.ok .home-plc-dot { background: #16a34a; }
+    .home-health-item.down { color: #b91c1c; }
+    .home-health-item.down .home-plc-dot { background: #dc2626; }
+    .home-health-time { margin-left: auto; color: #6b7280; font-variant-numeric: tabular-nums; }
+
+    /* below 1440 px: stack the columns and let the page scroll */
+    @media (max-width: 1439px) {
+        .home-wrap { height: auto; }
+        .home-main { grid-template-columns: 1fr; }
+        .home-scroll { overflow: visible; }
+    }
+</style>
+
+<div class="home-wrap">
+<p class="home-subtitle">Welcome to Theos-CES Data Vertebrate – the data backbone that connects your plant, orders and people.</p>
+
+{% if not current_user.is_authenticated %}
+<p class="home-hint">Log in to see live orders, plant values and events.</p>
+{% else %}
+{# Production Manager: orders first; Operator (and everyone running orders): running order first #}
+{% set pm_first = 'manufacturing-orders' in user_permissions and 'process-instructions' not in user_permissions %}
+<div id="home-dashboard" hidden>
+    <div class="home-tiles">
+        <section class="home-tile" aria-label="Orders">
+            <h2>Orders</h2>
+            <div class="home-tile-body" id="tile-orders"><span class="home-muted">Waiting for data…</span></div>
+        </section>
+        <section class="home-tile" aria-label="Running order">
+            <h2>Running order</h2>
+            <div class="home-tile-body" id="tile-running"><span class="home-muted">Waiting for data…</span></div>
+        </section>
+        <section class="home-tile" aria-label="PLC connection">
+            <h2>PLC connection</h2>
+            <div class="home-tile-body" id="tile-plc"><span class="home-muted">Waiting for data…</span></div>
+        </section>
+        <section class="home-tile" aria-label="Quality">
+            <h2>Quality</h2>
+            <div class="home-tile-body" id="tile-quality"><span class="home-muted">Waiting for data…</span></div>
+        </section>
+        <section class="home-tile" aria-label="Events in the last minute">
+            <h2>Events last minute</h2>
+            <div class="home-tile-body"><span class="home-big" id="tile-events">–</span></div>
+        </section>
+    </div>
+
+    <div class="home-main{% if pm_first %} pm-first{% endif %}">
+        <div class="home-col home-col-running">
+            <section class="home-card" aria-label="Running order">
+                <div class="home-card-head"><h2 id="card-heading">Running order</h2></div>
+                <div class="home-scroll">
+                    <div id="card-order"><span class="home-muted">Waiting for data…</span></div>
+                    <div class="home-values" id="card-values"></div>
+                </div>
+            </section>
+        </div>
+
+        <div class="home-col home-col-orders">
+            <section class="home-card" aria-label="Recent orders">
+                <div class="home-card-head"><h2>Recent orders</h2></div>
+                <div class="home-scroll" id="recent-orders"><span class="home-muted">Waiting for data…</span></div>
+            </section>
+            <section class="home-card home-card-events" aria-label="Recent events">
+                <div class="home-card-head">
+                    <h2>Recent events</h2>
+                    {% if 'data-tree' in user_permissions %}
+                    <a class="home-link" href="/data-tree">Open Data Tree →</a>
+                    {% endif %}
+                </div>
+                <div class="home-scroll" id="recent-events"><span class="home-muted">Waiting for data…</span></div>
+            </section>
+        </div>
+    </div>
+
+    <div class="home-health" id="home-health" aria-label="System health">
+        <span class="home-health-title">System health</span>
+        <span class="home-muted">Waiting for data…</span>
+    </div>
+</div>
+
+<script>
+(function () {
+    const STATUS_ORDER = ['Created', 'Released', 'Started', 'Completed', 'Aborted'];
+    const SPARK_WINDOW_MS = 5 * 60 * 1000;
+    const $ = id => document.getElementById(id);
+
+    function esc(v) {
+        return String(v ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+    }
+
+    function ageText(ms) {
+        const s = Math.max(0, Math.round(ms / 1000));
+        if (s < 60) return `${s} s ago`;
+        if (s < 3600) return `${Math.round(s / 60)} min ago`;
+        return `${Math.round(s / 3600)} h ago`;
+    }
+
+    function duration(ms) {
+        if (ms === null || ms === undefined) return '–';
+        const s = Math.max(0, Math.round(ms / 1000));
+        const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sec = s % 60;
+        const pad = n => String(n).padStart(2, '0');
+        return h ? `${h}:${pad(m)}:${pad(sec)}` : `${m}:${pad(sec)}`;
+    }
+
+    const clock = ts => ts ? new Date(ts).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit', second: '2-digit'}) : '–';
+    const hm = ts => ts ? new Date(ts).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : '–';
+    const pill = status => `<span class="status-pill status-${esc(String(status).toLowerCase())}">${esc(status)}</span>`;
+
+    // ── tiles ───────────────────────────────────────────────────────────────
+    function renderTiles(d) {
+        const rank = s => (STATUS_ORDER.includes(s) ? STATUS_ORDER.indexOf(s) : STATUS_ORDER.length);
+        const statuses = Object.keys(d.orders_by_status).sort((a, b) => rank(a) - rank(b));
+        $('tile-orders').innerHTML = statuses.length
+            ? statuses.map(s => `<span class="status-pill status-${esc(s.toLowerCase())}">${esc(d.orders_by_status[s])} ${esc(s)}</span>`).join('')
+            : '<span class="home-muted">No orders yet</span>';
+
+        const r = d.running;
+        $('tile-running').innerHTML = r
+            ? `<div><div class="home-order-line">${esc(r.orderNumber)} · ${esc(r.product)} · ${esc(r.lotNumber)}</div>
+               <div class="home-muted">${r.step ? `Step: ${esc(r.step)}` : 'Started'}</div></div>`
+            : '<span class="home-muted">No active order</span>';
+
+        // PLC: the bridge only publishes value changes, so an idle machine sends nothing
+        let plc;
+        if (d.plc.age_ms === null) {
+            plc = '<div class="home-plc down"><span class="home-plc-dot"></span>No PLC data received</div>';
+        } else if (d.plc.age_ms < 10000) {
+            plc = `<div class="home-plc ok"><span class="home-plc-dot"></span>Connected · last value ${ageText(d.plc.age_ms)}</div>`;
+        } else {
+            plc = `<div class="home-plc idle"><span class="home-plc-dot"></span>Idle · last value ${ageText(d.plc.age_ms)}</div>`;
+        }
+        $('tile-plc').innerHTML = plc;
+
+        // Quality: same design-space check as the Design Space page, only meaningful while an order runs
+        const q = r && r.quality;
+        if (!r) {
+            $('tile-quality').innerHTML = '<span class="home-muted">No active order</span>';
+        } else if (q && q.state === 'inside') {
+            $('tile-quality').innerHTML = '<div class="home-quality inside"><span class="home-plc-dot"></span>In design space</div>';
+        } else if (q && q.state === 'outside') {
+            $('tile-quality').innerHTML = '<div class="home-quality outside"><span class="home-plc-dot"></span>Outside design space</div>';
+        } else {
+            $('tile-quality').innerHTML = '<span class="home-muted">Waiting for process values…</span>';
+        }
+
+        $('tile-events').textContent = d.events_last_minute;
+    }
+
+    // ── running order / last completed order ────────────────────────────────
+    function renderOrderCard(d) {
+        const c = d.order_card;
+        const running = c && c.status === 'Started';
+        $('card-heading').textContent = running ? 'Running order' : (c ? 'Last completed order' : 'Running order');
+        if (!c) {
+            $('card-order').innerHTML = `<div class="home-muted">No active order. Live plant values below.</div>
+                <div class="home-path">${esc(d.path.map(p => p.name).join(' › '))}</div>`;
+            return;
+        }
+        const tracker = c.steps.map((s, i) => `
+            <div class="home-step ${esc(s.state)}">
+                <span class="home-step-dot">${s.state === 'done' ? '✓' : i + 1}</span>
+                <div class="home-step-name">${esc(s.name)}</div>
+                <div class="home-step-time">${s.state === 'done' && s.done_at ? esc(clock(s.done_at)) : (s.state === 'current' ? 'now' : '')}</div>
+            </div>`).join('');
+        const spec = c.out_of_spec_seconds;
+        const facts = running
+            ? `<span>Running for <strong>${esc(duration(c.duration_ms))}</strong></span>
+               <span>Started <strong>${esc(hm(c.started))}</strong></span>
+               <span>Out of spec <strong>${spec === null || spec === undefined ? '–' : esc(spec) + ' s'}</strong></span>`
+            : `<span>Duration <strong>${esc(duration(c.duration_ms))}</strong></span>
+               <span>Out of spec <strong>${spec === null || spec === undefined ? '–' : esc(spec) + ' s'}</strong></span>
+               <span>Final status ${pill(c.status)}</span>`;
+        $('card-order').innerHTML = `
+            <div class="home-order-title">Order ${esc(c.orderNumber)} · ${esc(c.product)} · Lot ${esc(c.lotNumber)} · ${esc(c.workflow)}</div>
+            <div class="home-path">${esc(d.path.map(p => p.name).join(' › '))}</div>
+            <div class="home-tracker">${tracker}</div>
+            <div class="home-facts">${facts}</div>`;
+    }
+
+    // Sparkline over the last 5 minutes; temperature and speed get the design-space band
+    function sparkline(v, now) {
+        const pts = v.series || [];
+        if (!pts.length) return '<div class="home-spark-note">Waiting for data…</div>';
+        const values = pts.map(p => p[1]).concat(v.band || []);
+        let min = Math.min(...values), max = Math.max(...values);
+        const pad = (max - min || 1) * 0.12;
+        min -= pad; max += pad;
+        const x = ts => ((ts - (now - SPARK_WINDOW_MS)) / SPARK_WINDOW_MS * 100).toFixed(2);
+        const y = val => (40 - (val - min) / (max - min) * 40).toFixed(2);
+        let band = '';
+        if (v.band) {
+            const [lo, hi] = v.band;
+            band = `<rect class="band" x="0" width="100" y="${y(hi)}" height="${(y(lo) - y(hi)).toFixed(2)}"/>
+                    <line class="band-edge" x1="0" x2="100" y1="${y(hi)}" y2="${y(hi)}"/>
+                    <line class="band-edge" x1="0" x2="100" y1="${y(lo)}" y2="${y(lo)}"/>`;
+        }
+        // hold the last value until now, like the PLC does
+        const line = pts.map(p => `${x(Math.max(p[0], now - SPARK_WINDOW_MS))},${y(p[1])}`)
+            .concat([`100,${y(pts[pts.length - 1][1])}`]).join(' ');
+        return `<svg viewBox="0 0 100 40" preserveAspectRatio="none" role="img"
+                    aria-label="${esc(v.name)}, last 5 minutes${v.band ? ', design space band shaded' : ''}">
+                    ${band}<polyline points="${line}"/></svg>`;
+    }
+
+    function renderValues(d) {
+        $('card-values').innerHTML = d.live_values.map(v => {
+            const num = v.value === null || v.value === undefined ? '–' : parseFloat(v.value).toFixed(2);
+            return `<div class="home-value">
+                <div class="home-value-head">
+                    <span class="home-value-name">${esc(v.name)}</span>
+                    <span class="home-value-num">${esc(num)}<small>${esc(v.unit)}</small></span>
+                </div>
+                <div class="home-spark">${sparkline(v, d.server_time)}</div>
+            </div>`;
+        }).join('');
+    }
+
+    // ── right column ────────────────────────────────────────────────────────
+    function renderRecent(d) {
+        $('recent-orders').innerHTML = d.recent_orders.length
+            ? `<table class="home-table"><thead><tr><th>Order</th><th>Product</th><th>Lot</th><th>Status</th><th>Started</th><th>Duration</th></tr></thead>
+               <tbody>${d.recent_orders.map(o => `<tr>
+                   <td>${esc(o.orderNumber)}</td><td>${esc(o.product)}</td><td>${esc(o.lotNumber)}</td>
+                   <td>${pill(o.status)}</td><td>${esc(hm(o.started))}</td><td>${esc(duration(o.duration_ms))}</td></tr>`).join('')}</tbody></table>`
+            : '<span class="home-muted">No orders yet</span>';
+
+        $('recent-events').innerHTML = d.recent_events.length
+            ? d.recent_events.map(e => `<div class="home-event">
+                   <span class="home-event-time">${esc(clock(e.timestamp))}</span>
+                   <span class="home-event-text">${esc(e.text)}</span></div>`).join('')
+            : '<span class="home-muted">Waiting for data…</span>';
+    }
+
+    function renderHealth(d) {
+        const checks = Object.values(d.health || {});
+        const checked = Math.max(...checks.map(c => c.checked_at || 0));
+        $('home-health').innerHTML = `<span class="home-health-title">System health</span>`
+            + checks.map(c => `<span class="home-health-item ${c.ok ? 'ok' : 'down'}"><span class="home-plc-dot"></span>${esc(c.label)} ${c.ok ? 'OK' : 'unreachable'}</span>`).join('')
+            + `<span class="home-health-time">Last check ${esc(clock(checked))}</span>`;
+    }
+
+    function render(d) {
+        $('home-dashboard').hidden = false;
+        renderTiles(d);
+        renderOrderCard(d);
+        renderValues(d);
+        renderRecent(d);
+        renderHealth(d);
+    }
+
+    async function refresh() {
+        try {
+            const r = await fetch('/api/dashboard', {cache: 'no-store'});
+            if (r.ok) render(await r.json());
+        } catch (e) {
+            console.error('Dashboard refresh failed:', e);
+        }
+    }
+
+    refresh();
+    setInterval(refresh, 2000);
+})();
+</script>
+{% endif %}
+</div>
 {% endblock %}

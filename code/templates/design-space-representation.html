@@ -6,6 +6,7 @@
 {% block content %}
 <!-- Dropdown to select different sets -->
 <div class="dsr-page">
+{% include "partials/order-context.html" %}
 <select id="set-select" class="dropdown-dsr" onchange="loadSet(this.value)"></select>
 
 
@@ -237,7 +238,7 @@
                             pointRadius: 0 // Hides the points on the line
                         },
                         {
-                            label: 'Alarm limits',
+                            label: 'Alert band (margin)',
                             data: secondDataset,
                             backgroundColor: 'rgba(255, 165, 0, 0.6)', // Adjusted for transparency
                             borderColor: 'rgba(255, 165, 0, 0.6)',
@@ -256,13 +257,13 @@
                                 position: 'bottom',
                                 title: {
                                     display: true,
-                                    text: 'ISPESpeed'
+                                    text: 'Filling speed [units/min]'
                                 }
                             },
                             y: {
                                 title: {
                                     display: true,
-                                    text: 'ISPETemp'
+                                    text: 'Material temperature [°C]'
                                 }
                             }
                         }

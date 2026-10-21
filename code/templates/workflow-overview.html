@@ -24,7 +24,7 @@
                         <td class="order-columns-overview">{{ order.product }}</td>
                         <td class="order-columns-overview">{{ order.lotNumber }}</td>
                         <td class="order-columns-overview">{{ order.workflow }}</td>
-                        <td class="order-columns-overview">{{ order.status }}</td>
+                        <td class="order-columns-overview"><span class="status-pill status-{{ order.status | lower }}">{{ order.status }}</span></td>
                     </tr>
                 {% endfor %}
             </tbody>
@@ -43,7 +43,7 @@
                 {% for workflow in workflows %}
                     <tr>
                         <td class="order-columns-overview">{{ workflow.workflow_name }}</td>
-                        <td class="order-columns-overview">{{ workflow.state }}</td>
+                        <td class="order-columns-overview"><span class="status-pill status-{{ workflow.state | lower }}">{{ workflow.state }}</span></td>
                     </tr>
                 {% endfor %}
             </tbody>
