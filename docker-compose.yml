@@ -1,6 +1,7 @@
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
+    restart: unless-stopped
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -9,6 +10,9 @@ services:
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
+    # On a quick restart Zookeeper still holds the old broker registration for a few seconds and
+    # Kafka exits; restarting it until the registration has expired brings it back on its own.
+    restart: unless-stopped
     depends_on:
       - zookeeper
     ports:
@@ -21,11 +25,21 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:29092 > /dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
     logging:
-      driver: "none"
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   db:
     image: postgres:15-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: vertebrate
       POSTGRES_PASSWORD: vertebrate
@@ -40,15 +54,19 @@ services:
 
   vertebrate-app:
     build: .
+    restart: unless-stopped
     depends_on:
       kafka:
-        condition: service_started
+        condition: service_healthy
       db:
         condition: service_healthy
     environment:
       KAFKASERVER: kafka:29092
       IN_DOCKER: "true"
       DATABASE_URL: postgresql+psycopg2://vertebrate:vertebrate@db:5432/vertebrate
+      SHOW_CHATBOT: ${SHOW_CHATBOT:-false}
+      SESSION_IDLE_MINUTES: ${SESSION_IDLE_MINUTES:-60}   # demo: idle tab stays logged in
+      OPCUA_URL: ${OPCUA_URL:-opc.tcp://plc-sim:4840}     # PLC endpoint for the dashboard health check
     ports:
       - "5001:5001"
     volumes:
@@ -58,6 +76,8 @@ services:
   plc-sim:
     profiles: ["sim"]
     build: ./plc-sim
+    environment:
+      PRESSURE_OFFSET: "8.5"   # demo: keeps pressure positive on camera (Sim 1 6–14, Sim 2 0.5–16.5 bar)
     ports:
       - "4840:4840"   # OPC UA, same node IDs as the CODESYS project
       - "8081:8081"   # status page

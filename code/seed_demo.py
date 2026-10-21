@@ -1,7 +1,11 @@
 """
 Demo seed for the Vertebrate demo video. Idempotent, safe to run repeatedly:
 
-    docker compose exec vertebrate-app python seed_demo.py
+    docker compose exec vertebrate-app python seed_demo.py            # full: also resets demo passwords etc.
+    python seed_demo.py --startup                                      # run.py on container start: only adds what is missing
+
+--startup never changes existing rows: no password resets, subscriptions, roles or the QbD set
+stay as they are, and the workflow is only released if no release state is stored yet.
 
 - Role 'Admin-All' (every permission key) -> User_Admin
 - Roles 'Production Manager' / 'Operator' + users prod.manager / operator
@@ -12,6 +16,7 @@ Demo seed for the Vertebrate demo video. Idempotent, safe to run repeatedly:
 """
 import json
 import os
+import sys
 from datetime import datetime
 
 from confluent_kafka import Producer
@@ -20,7 +25,7 @@ from sqlalchemy import text
 from werkzeug.security import generate_password_hash
 
 from audit_trail import log_audit
-from models import db, User, Role, Permission, Subscriptions, DesignSpaceSet
+from models import db, User, Role, Permission, Subscriptions, DesignSpaceSet, WorkflowRelease
 
 # Every permission key checked by @permission_required / @check_subscription
 ALL_PERMISSION_KEYS = [
@@ -29,12 +34,12 @@ ALL_PERMISSION_KEYS = [
     "pid", "3d-view", "design-space-definition", "design-space-representation",
     "product-analytics", "process-qbd-analytics", "plant-configuration",
     "process-configuration", "workflow-management", "user-management",
-    "role-management",
+    "role-management", "data-tree",
 ]
 
 ROLES = {
-    "Production Manager": ["manufacturing-orders", "order-management", "workflow-overview"],
-    "Operator": ["workflow-overview", "process-instructions", "pid", "design-space-representation"],
+    "Production Manager": ["manufacturing-orders", "order-management", "workflow-overview", "data-tree"],
+    "Operator": ["workflow-overview", "process-instructions", "pid", "design-space-representation", "data-tree"],
 }
 
 USERS = [
@@ -79,11 +84,18 @@ def build_qbd_set():
     return {"id": QBD_SET_ID, "name": QBD_SET_NAME, "values": values}
 
 
+STARTUP = '--startup' in sys.argv
+changes = []  # what this run created/changed, for the audit entry
+
+
 def get_or_create_role(name, perm_keys):
     role = Role.query.filter_by(name=name).first()
+    if role and STARTUP:
+        return role  # never touch an existing role on startup
     if not role:
         role = Role(name=name)
         db.session.add(role)
+        changes.append(f'role {name}')
         print(f"Role '{name}' created.")
     for key in perm_keys:
         perm = Permission.query.filter_by(key=key).first()
@@ -107,9 +119,12 @@ def seed_roles():
 def seed_users():
     for username, password, role_names, reset_pw in USERS:
         user = User.query.filter_by(username=username).first()
+        if user and STARTUP:
+            continue  # never touch an existing user on startup
         if not user:
             user = User(username=username, password=generate_password_hash(password))
             db.session.add(user)
+            changes.append(f'user {username}')
             print(f"User '{username}' created.")
         elif reset_pw:
             user.password = generate_password_hash(password)
@@ -126,7 +141,8 @@ def seed_subscriptions():
         sub = existing.get(app_name)
         if sub is None:
             db.session.add(Subscriptions(apps=app_name, subscribed=True))
-        else:
+            changes.append(f'subscription {app_name}')
+        elif not STARTUP:
             sub.subscribed = True
     db.session.flush()
 
@@ -134,24 +150,43 @@ def seed_subscriptions():
 def seed_qbd_set():
     data = build_qbd_set()
     design_set = db.session.get(DesignSpaceSet, QBD_SET_ID)
+    if design_set is not None and STARTUP:
+        return
     if design_set is None:
         design_set = DesignSpaceSet(id=QBD_SET_ID)
         db.session.add(design_set)
+        changes.append(f'QbD set {QBD_SET_NAME}')
     design_set.name = QBD_SET_NAME
     design_set.data = data
     db.session.flush()
 
 
 def release_workflow():
-    """Publish the same message as consumeWorkflows.release_workflow()."""
+    """Release like consumeWorkflows.release_workflow(): Kafka message + stored release state.
+
+    On startup only if no release state is stored yet (a deliberate Deactivate is kept)."""
+    row = db.session.get(WorkflowRelease, WORKFLOW)
+    if row is not None and STARTUP:
+        return False
+    changed_at = datetime.now()
+    if row is None:
+        row = WorkflowRelease(name=WORKFLOW)
+        db.session.add(row)
+    row.released = True
+    row.changed_at = changed_at
+    db.session.commit()
+    changes.append(f'workflow {WORKFLOW} released')
+
     producer = Producer({"bootstrap.servers": Kafkaserver})
     producer.produce("workflows", key="FromWorkflowRelease", value=json.dumps({
         "workflow_name": WORKFLOW, "released": 1,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": changed_at.isoformat(),
     }).encode("utf-8"))
     remaining = producer.flush(10)
     if remaining:
-        raise RuntimeError(f"Could not publish workflow release to Kafka at {Kafkaserver}")
+        # the stored release state already makes the workflow show as released
+        print(f"Warning: could not publish workflow release to Kafka at {Kafkaserver}")
+    return True
 
 
 def create_seed_app():
@@ -181,12 +216,14 @@ def main():
         db.session.commit()
         print("Roles, users, subscriptions and QbD set seeded.")
 
-        release_workflow()
-        print(f"Workflow '{WORKFLOW}' released.")
+        if release_workflow():
+            print(f"Workflow '{WORKFLOW}' released.")
 
-        log_audit(action_type='CREATE', record_type='DEMO_SEED', record_id='seed_demo',
-                  change_reason='Demo seed: roles, users, subscriptions, QbD set FluVaccine, workflow FluVaccineISPE released')
-    print("Demo seed complete.")
+        if changes or not STARTUP:
+            log_audit(action_type='CREATE', record_type='DEMO_SEED',
+                      record_id='seed_demo --startup' if STARTUP else 'seed_demo',
+                      change_reason='Demo seed: ' + (', '.join(changes) if changes else 'demo data refreshed'))
+    print("Demo seed complete" + (f" (startup: {len(changes)} item(s) added)." if STARTUP else "."))
 
 
 if __name__ == "__main__":

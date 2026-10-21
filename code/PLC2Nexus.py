@@ -3,7 +3,8 @@ from opcua import Client, ua
 from opcua.common.subscription import Subscription
 from confluent_kafka import Producer, Consumer, KafkaException, OFFSET_BEGINNING
 import json
-#import time
+import threading
+import time
 from datetime import datetime, timezone
 import os
 
@@ -23,9 +24,8 @@ unit= config['unit']
 # OPC UA server details
 opcua_url = os.environ.get("OPCUA_URL", "opc.tcp://localhost:4840")
 
-# Connect to OPC UA server
-opcua_client = Client(opcua_url)
-opcua_client.connect()
+PLC_WATCHDOG_S = 5    # how often the OPC UA connection is checked
+PLC_RETRY_S = 3       # wait between reconnect attempts
 
 
 # Kafka producer configuration
@@ -38,7 +38,10 @@ Consumer_conf = {
     'bootstrap.servers': Kafkaserver,
     'client.id': clusterid,
     'group.id': 'plc-consumer-group',
-    'auto.offset.reset': 'earliest'
+    'auto.offset.reset': 'earliest',
+    # after a restart the new member gets the partitions after ~6 s instead of 45 s
+    'session.timeout.ms': 6000,
+    'heartbeat.interval.ms': 2000,
 }
 
 producer = Producer(Producer_conf)
@@ -112,51 +115,94 @@ def consume_messages():
         consumer.close()
     
     
+def publish(node_id, val, source_timestamp, health_status, force=False):
+    """Send one tag value to Kafka (same message as before); unchanged values are skipped unless forced."""
+    topic = node_topic_mapping.get(node_id)
+    if topic is None:
+        return
+    if not force and val == previous_values.get(node_id):
+        return
+    data_dict = {
+        "Enterprise": enterprise,
+        "Site": site,
+        "Area": area,
+        "Process Cell": process_cell,
+        'Unit': unit,
+        "value": val,
+        "timestamp": (source_timestamp or datetime.now(timezone.utc)).isoformat(),
+        "Producertimestamp": datetime.now(timezone.utc).isoformat(),
+        "health_status": health_status,
+        "orderNumber": orderNumber, #not in 2nd message
+        "product": product,  #not in 2nd message
+        "lotNumber" : lotNumber,  #not in 2nd message
+        "QbD": topic
+    }
+    producer.produce(topic, key="FromPLC", value=json.dumps(data_dict))
+    producer.flush()
+    previous_values[node_id] = val
+    print(f"Sent data to Kafka: {data_dict}")
+
+
 # Handler for subscription events
 class SubHandler(object):
     def datachange_notification(self, node, val, data):
-        node_id = node.nodeid.to_string()
-        if node_id in node_topic_mapping:
-            topic = node_topic_mapping[node_id]
-            timestamp = data.monitored_item.Value.SourceTimestamp
-            producertimestamp = datetime.now(timezone.utc).isoformat()
-            health_status = data.monitored_item.Value.StatusCode.name
-            data_dict = {
-                "Enterprise": enterprise,
-                "Site": site,
-                "Area": area,
-                "Process Cell": process_cell,
-                'Unit': unit,
-                "value": val,
-                "timestamp": timestamp.isoformat(),
-                "Producertimestamp": producertimestamp,
-                "health_status": health_status,
-                "orderNumber": orderNumber, #not in 2nd message
-                "product": product,  #not in 2nd message
-                "lotNumber" : lotNumber,  #not in 2nd message
-                "QbD": topic
-            }
-        if val != previous_values.get(node_id):
-            producer.produce(topic, key="FromPLC", value=json.dumps(data_dict))
-            producer.flush()
-            previous_values[node_id] = val
-            print(f"Sent data to Kafka: {data_dict}")
+        value = data.monitored_item.Value
+        publish(node.nodeid.to_string(), val, value.SourceTimestamp, value.StatusCode.name)
 
 
-# Create a subscription
-subscription = opcua_client.create_subscription(1000, SubHandler())
+def publish_current_values(client):
+    """Publish the current value of every subscribed tag once, so consumers see the last known
+    PLC state right after a (re)start, even if nothing changes on the PLC."""
+    for node_id in node_topic_mapping:
+        try:
+            data_value = client.get_node(node_id).get_data_value()
+            publish(node_id, data_value.Value.Value, data_value.SourceTimestamp, data_value.StatusCode.name, force=True)
+        except Exception as e:
+            print(f"PLC2Nexus: could not read {node_id}: {e}", flush=True)
 
-# Subscribe to nodes
-for node_id in node_topic_mapping.keys():
-    node = opcua_client.get_node(node_id)
-    subscription.subscribe_data_change(node)
+
+def connect_and_subscribe():
+    """Connect to the OPC UA server (retrying until it answers) and subscribe to all tags."""
+    while True:
+        client = Client(opcua_url)
+        try:
+            client.connect()
+            subscription = client.create_subscription(1000, SubHandler())
+            for node_id in node_topic_mapping:
+                subscription.subscribe_data_change(client.get_node(node_id))
+            print(f"PLC2Nexus: connected to {opcua_url}", flush=True)
+            publish_current_values(client)
+            return client, subscription
+        except Exception as e:
+            print(f"PLC2Nexus: OPC UA connect to {opcua_url} failed ({e}); retrying in {PLC_RETRY_S} s", flush=True)
+            try:
+                client.disconnect()
+            except Exception:
+                pass
+            time.sleep(PLC_RETRY_S)
+
+
+def plc_watchdog():
+    """Keep the OPC UA connection alive: check it every few seconds and reconnect after a PLC restart."""
+    client, subscription = connect_and_subscribe()
+    status_node = ua.NodeId(ua.ObjectIds.Server_ServerStatus_State)
+    while True:
+        time.sleep(PLC_WATCHDOG_S)
+        try:
+            client.get_node(status_node).get_value()
+        except Exception as e:
+            print(f"PLC2Nexus: lost OPC UA connection ({e}); reconnecting", flush=True)
+            for close in (subscription.delete, client.disconnect):
+                try:
+                    close()
+                except Exception:
+                    pass
+            client, subscription = connect_and_subscribe()
+
+
+threading.Thread(target=plc_watchdog, daemon=True).start()
 
 try:
     consume_messages()
-    
-
 except KeyboardInterrupt:
     pass
-finally:
-    subscription.delete()
-    opcua_client.disconnect()

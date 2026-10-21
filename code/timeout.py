@@ -1,8 +1,19 @@
+import os
 from flask import session, redirect, url_for
 from flask_login import current_user, logout_user
 from datetime import datetime, UTC
 
-INACTIVITY_TIMEOUT = 300  # seconds
+
+def session_idle_minutes():
+    """Idle logout in minutes: env SESSION_IDLE_MINUTES (the demo sets 60), default 5."""
+    try:
+        return max(1.0, float(os.environ.get('SESSION_IDLE_MINUTES', '5')))
+    except ValueError:
+        return 5.0
+
+
+INACTIVITY_TIMEOUT = int(session_idle_minutes() * 60)  # seconds
+
 
 def register_timeout_hook(app):
     @app.before_request

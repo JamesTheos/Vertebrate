@@ -24,14 +24,35 @@ nexus2plc = Blueprint('nexus2plc', __name__)
 kafka_conf = {
     'bootstrap.servers': Kafkaserver,
     'group.id': 'plc-consumer-group',
-    'auto.offset.reset': 'earliest'
+    'auto.offset.reset': 'earliest',
+    # after a restart the new member gets the partitions after ~6 s instead of 45 s
+    'session.timeout.ms': 6000,
+    'heartbeat.interval.ms': 2000,
 }
 consumer = Consumer(kafka_conf)
 consumer.subscribe(['ISPEScene1', 'ISPEScene2', 'ISPEStartPhase1'])
 
 # OPC UA client configuration
-opcua_client = Client(os.environ.get("OPCUA_URL", "opc.tcp://localhost:4840"))
-opcua_client.connect()
+OPCUA_URL = os.environ.get("OPCUA_URL", "opc.tcp://localhost:4840")
+opcua_client = None
+
+
+def connect_opcua():
+    """(Re)connect to the PLC, retrying until it answers."""
+    global opcua_client
+    while True:
+        client = Client(OPCUA_URL)
+        try:
+            client.connect()
+            opcua_client = client
+            print(f"N2P connected to {OPCUA_URL}", flush=True)
+            return
+        except Exception as e:
+            print(f"N2P OPC UA connect to {OPCUA_URL} failed ({e}); retrying in 3 s", flush=True)
+            time.sleep(3)
+
+
+connect_opcua()
 
 # Node to topic mapping
 node_topic_mapping = {
@@ -53,9 +74,22 @@ def start_consumer():
 
 # Function to update OPC UA node value
 def update_opcua_node(node_id, value):
-    node = opcua_client.get_node(node_id)
-    node.set_value(bool(value))  # Ensure the value is written as a boolean
-    print(f"N2P Updated OPC UA node {node_id} with value {value}")
+    """Write a boolean tag; after a PLC restart the old connection is dead, so reconnect and retry once."""
+    for attempt in (1, 2):
+        try:
+            opcua_client.get_node(node_id).set_value(bool(value))  # Ensure the value is written as a boolean
+            print(f"N2P Updated OPC UA node {node_id} with value {value}")
+            return
+        except Exception as e:
+            if attempt == 2:
+                raise
+            print(f"N2P write failed ({e}); reconnecting to the PLC", flush=True)
+            try:
+                opcua_client.disconnect()
+            except Exception:
+                pass
+            connect_opcua()
+            previous_values.clear()  # the PLC may have restarted with default values
 
 def consume_messages():
     num_messages = 10
@@ -71,23 +105,27 @@ def consume_messages():
                         print(f"NexustoPLCerror",msg.error())
                         continue
 
-                # Parse the message
-                topic = msg.topic()
-                message = json.loads(msg.value().decode('utf-8'))
-                value = message['value']
-                timestamp = message['timestamp']
+                # one bad message or failed write must not stop the loop
+                try:
+                    # Parse the message
+                    topic = msg.topic()
+                    message = json.loads(msg.value().decode('utf-8'))
+                    value = message['value']
+                    timestamp = message['timestamp']
 
-                # Find the corresponding OPC UA node ID
-                node_id = None
-                for key, val in node_topic_mapping.items():
-                    if val == topic:
-                        node_id = key
-                        break
+                    # Find the corresponding OPC UA node ID
+                    node_id = None
+                    for key, val in node_topic_mapping.items():
+                        if val == topic:
+                            node_id = key
+                            break
 
-                # Update OPC UA node if the value has changed
-                if node_id and (topic not in previous_values or previous_values[topic] != value):
-                    update_opcua_node(node_id, value)
-                    previous_values[topic] = value
+                    # Update OPC UA node if the value has changed
+                    if node_id and (topic not in previous_values or previous_values[topic] != value):
+                        update_opcua_node(node_id, value)
+                        previous_values[topic] = value
+                except Exception as e:
+                    print(f"N2P skipped message on {msg.topic()}: {e}", flush=True)
 
     except Exception as e:
         print("Exception in Nexus2PLC:consume_messages:", e, flush=True)

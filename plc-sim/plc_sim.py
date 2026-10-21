@@ -28,6 +28,8 @@ from asyncua import Server, ua
 CYCLE_S = float(os.environ.get("PLC_CYCLE_S", "0.1"))   # Task interval PT0.1S
 OPC_PORT = int(os.environ.get("OPC_PORT", "4840"))
 HTTP_PORT = int(os.environ.get("HTTP_PORT", "8081"))
+# Demo only: shifts CM003_Pressure so it stays plausible on camera (the CODESYS logic goes below 0 bar)
+PRESSURE_OFFSET = float(os.environ.get("PRESSURE_OFFSET", "0"))
 PREFIX = "|var|CODESYS Control Win V3 x64.Application."
 NS = 4  # the bridges address ns=4
 
@@ -110,7 +112,7 @@ class PlcLogic:
 
         self.CM001_MTemp = cm("MTemp", 5.0, self.Scene1_Sin2, 8.0, self.Scene2_Sin)
         self.CM002_Speed = cm("Speed", 350.0, self.Scene1_Sin, 300.0, self.Scene2_Sin)
-        self.CM003_Pressure = cm("Pressure", 1.5, self.Scene1_Sin, 0.0, self.Scene2_Sin)
+        self.CM003_Pressure = cm("Pressure", 1.5, self.Scene1_Sin, 0.0, self.Scene2_Sin) + PRESSURE_OFFSET
         self.CM004_AmbTemp = cm("AmbTemp", 15.0, self.Scene1_Sin, 20.0, self.Scene2_Sin)
 
 
