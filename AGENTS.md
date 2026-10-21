@@ -37,6 +37,7 @@ cd code
 KAFKASERVER=localhost:9092 OPCUA_URL=opc.tcp://<plc-host>:4840 python PLC2Nexus.py   # PLC → Kafka
 KAFKASERVER=localhost:9092 OPCUA_URL=opc.tcp://<plc-host>:4840 python Nexus2PLC.py   # Kafka → PLC
 ```
+On Windows (PowerShell) set variables first, e.g. `$env:OPCUA_URL="opc.tcp://<plc-host>:4840"; $env:KAFKASERVER="localhost:9092"; python PLC2Nexus.py`.
 `OPCUA_URL` on `up` only feeds the dashboard health check. If the PLC runs on the same host as Docker,
 use `opc.tcp://host.docker.internal:4840` for the app and `opc.tcp://localhost:4840` for the bridges.
 
