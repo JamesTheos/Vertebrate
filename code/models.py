@@ -98,3 +98,11 @@ class DesignSpaceSet(db.Model):
     id = db.Column(db.String, primary_key=True)
     name = db.Column(db.String, nullable=False)
     data = db.Column(db.JSON, nullable=False)
+
+
+# Workflow release state, so a release survives restarts and lost Kafka history
+class WorkflowRelease(db.Model):
+    __tablename__ = 'workflow_releases'
+    name = db.Column(db.String, primary_key=True)
+    released = db.Column(db.Boolean, nullable=False, default=False)
+    changed_at = db.Column(db.DateTime, nullable=False)  # naive local time, like the Kafka 'timestamp'

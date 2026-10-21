@@ -1,0 +1,417 @@
+{% extends "base.html" %}
+
+{% block title %}Data Tree{% endblock %}
+{% block header_title %}Data Tree{% endblock %}
+
+{% block content %}
+<style>
+    .dt-page {
+        --dt-accent: var(--accent, #0f766e);
+        --dt-border: var(--table-border, #ddd);
+        --dt-muted: #6b7280;
+        --dt-card: #ffffff;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        gap: 12px;
+        font-size: 14px;
+    }
+    .dt-page .order-context { margin-bottom: 0; }
+    .dt-breadcrumb {
+        flex: none;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        color: var(--dt-muted);
+    }
+    .dt-breadcrumb .dt-crumb-current {
+        color: var(--text-color, #111);
+        font-weight: 600;
+    }
+    .dt-columns {
+        flex: 1;
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 30fr 40fr 30fr;
+        gap: 12px;
+    }
+    .dt-card {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        background: var(--dt-card);
+        border: 1px solid var(--dt-border);
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .dt-card h2 {
+        flex: none;
+        margin: 0;
+        padding: 10px 14px;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--dt-muted);
+        border-bottom: 1px solid var(--dt-border);
+    }
+    .dt-scroll {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 8px 10px;
+    }
+    .dt-empty {
+        padding: 16px 6px;
+        color: var(--dt-muted);
+        font-style: italic;
+    }
+
+    /* tree */
+    .dt-tree details { margin-left: 10px; }
+    .dt-tree > details { margin-left: 0; }
+    .dt-tree summary {
+        cursor: pointer;
+        padding: 3px 4px;
+        border-radius: 6px;
+        list-style-position: outside;
+    }
+    .dt-tree summary:hover { background: rgba(0, 0, 0, 0.04); }
+    .dt-level {
+        font-size: 11px;
+        color: var(--dt-muted);
+        margin-right: 6px;
+    }
+    .dt-leaves { margin: 4px 0 4px 14px; }
+    .dt-leaf {
+        display: grid;
+        grid-template-columns: 14px 1fr auto;
+        grid-template-rows: auto auto;
+        column-gap: 8px;
+        align-items: center;
+        width: 100%;
+        padding: 6px 8px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: none;
+        font: inherit;
+        color: inherit;
+        text-align: left;
+        cursor: pointer;
+    }
+    .dt-leaf:hover { background: rgba(0, 0, 0, 0.04); }
+    .dt-leaf.selected {
+        border-color: var(--dt-accent);
+        background: color-mix(in srgb, var(--dt-accent) 8%, transparent);
+    }
+    .dt-leaf-name { font-weight: 600; }
+    .dt-leaf-value {
+        grid-column: 3;
+        grid-row: 1;
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+    }
+    .dt-leaf-age {
+        grid-column: 2 / 4;
+        grid-row: 2;
+        font-size: 12px;
+        color: var(--dt-muted);
+    }
+    .dt-dot {
+        grid-row: 1 / 3;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #c4c9d1;
+    }
+    .dt-dot.live {
+        background: #16a34a;
+        animation: dt-pulse 1.4s ease-out infinite;
+    }
+    @keyframes dt-pulse {
+        0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.55); }
+        100% { box-shadow: 0 0 0 7px rgba(22, 163, 74, 0); }
+    }
+
+    /* detail */
+    .dt-detail-head { flex: none; padding: 12px 14px 4px; }
+    .dt-detail-name { font-size: 15px; font-weight: 600; }
+    .dt-big {
+        font-size: 40px;
+        font-weight: 700;
+        line-height: 1.15;
+        font-variant-numeric: tabular-nums;
+    }
+    .dt-big small { font-size: 18px; font-weight: 500; color: var(--dt-muted); margin-left: 6px; }
+    .dt-meta { color: var(--dt-muted); margin-top: 2px; min-height: 1.2em; }
+    .dt-spark {
+        flex: none;
+        margin: 6px 14px 8px;
+        height: 64px;
+        border-bottom: 1px solid var(--dt-border);
+    }
+    .dt-spark svg { width: 100%; height: 100%; display: block; }
+    .dt-spark polyline {
+        fill: none;
+        stroke: var(--dt-accent);
+        stroke-width: 2;
+        vector-effect: non-scaling-stroke;
+    }
+    .dt-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    .dt-table th {
+        position: sticky;
+        top: -8px;
+        background: var(--dt-card);
+        text-align: left;
+        font-weight: 600;
+        color: var(--dt-muted);
+        font-size: 12px;
+        padding: 6px;
+        border-bottom: 1px solid var(--dt-border);
+    }
+    .dt-table td { padding: 5px 6px; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
+    .dt-badge {
+        display: inline-block;
+        padding: 1px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+    }
+    .dt-badge.PLC { background: #e0f2f1; color: #0f766e; }
+    .dt-badge.UX { background: #ede9fe; color: #5b21b6; }
+
+    /* feed */
+    .dt-feed-row {
+        padding: 7px 6px;
+        border-bottom: 1px solid #f0f0f0;
+        animation: dt-fade 0.6s ease-out;
+    }
+    .dt-feed-time { font-size: 12px; color: var(--dt-muted); font-variant-numeric: tabular-nums; }
+    .dt-feed-text { margin-top: 1px; }
+    @keyframes dt-fade {
+        from { opacity: 0; background: color-mix(in srgb, var(--dt-accent) 15%, transparent); }
+        to { opacity: 1; background: transparent; }
+    }
+</style>
+
+<div class="dt-page">
+    {% include "partials/order-context.html" %}
+
+    <nav class="dt-breadcrumb" id="dt-breadcrumb" aria-label="ISA-95 path">Waiting for data…</nav>
+
+    <div class="dt-columns">
+        <section class="dt-card" aria-label="ISA-95 tree">
+            <h2>ISA-95 tree</h2>
+            <div class="dt-scroll dt-tree" id="dt-tree"><div class="dt-empty">Waiting for data…</div></div>
+        </section>
+
+        <section class="dt-card" aria-label="Selected value">
+            <div class="dt-detail-head">
+                <div class="dt-detail-name" id="dt-detail-name">Material temperature</div>
+                <div class="dt-big" id="dt-detail-value">–</div>
+                <div class="dt-meta" id="dt-detail-meta">Waiting for data…</div>
+            </div>
+            <div class="dt-spark" id="dt-spark"></div>
+            <div class="dt-scroll">
+                <table class="dt-table">
+                    <thead><tr><th>Time</th><th>Value</th><th>Source</th><th>Order</th><th>Health</th></tr></thead>
+                    <tbody id="dt-events"><tr><td colspan="5" class="dt-empty">Waiting for data…</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="dt-card" aria-label="Live event stream">
+            <h2>Live event stream</h2>
+            <div class="dt-scroll" id="dt-feed"><div class="dt-empty">Waiting for data…</div></div>
+        </section>
+    </div>
+</div>
+
+<script>
+(function () {
+    const POLL_MS = 1000;
+    const LIVE_MS = 5000;
+    let selected = 'ISPEMTemp';
+    let treeBuilt = false;
+    let path = [];
+    const seenFeed = new Set();
+
+    const $ = id => document.getElementById(id);
+
+    function esc(v) {
+        return String(v ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+    }
+
+    function ageText(ms) {
+        if (ms === null || ms === undefined) return 'no data yet';
+        const s = Math.max(0, Math.round(ms / 1000));
+        if (s < 60) return `${s} s ago`;
+        if (s < 3600) return `${Math.round(s / 60)} min ago`;
+        return `${Math.round(s / 3600)} h ago`;
+    }
+
+    function timeText(ts) {
+        return new Date(ts).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit', second: '2-digit'});
+    }
+
+    async function getJson(url) {
+        const r = await fetch(url, {cache: 'no-store'});
+        if (!r.ok) throw new Error(`${url}: ${r.status}`);
+        return r.json();
+    }
+
+    // ── tree ────────────────────────────────────────────────────────────────
+    function unitNode(tree) {
+        let node = tree;
+        while (node && node.level !== 'Unit') node = node.children[0];
+        return node;
+    }
+
+    function buildTree(tree) {
+        const render = node => {
+            if (node.level === 'Unit') {
+                const leaves = node.children.map(l => `
+                    <button type="button" class="dt-leaf" data-topic="${esc(l.topic)}" aria-pressed="false">
+                        <span class="dt-dot" id="dot-${esc(l.topic)}"></span>
+                        <span class="dt-leaf-name">${esc(l.name)}</span>
+                        <span class="dt-leaf-value" id="val-${esc(l.topic)}">–</span>
+                        <span class="dt-leaf-age" id="age-${esc(l.topic)}">no data yet</span>
+                    </button>`).join('');
+                return `<details open><summary><span class="dt-level">${esc(node.level)}</span>${esc(node.name)}</summary>
+                        <div class="dt-leaves">${leaves}</div></details>`;
+            }
+            return `<details open><summary><span class="dt-level">${esc(node.level)}</span>${esc(node.name)}</summary>
+                    ${node.children.map(render).join('')}</details>`;
+        };
+        $('dt-tree').innerHTML = render(tree);
+        $('dt-tree').querySelectorAll('.dt-leaf').forEach(btn =>
+            btn.addEventListener('click', () => select(btn.dataset.topic)));
+        treeBuilt = true;
+        markSelected();
+    }
+
+    function markSelected() {
+        $('dt-tree').querySelectorAll('.dt-leaf').forEach(btn => {
+            const on = btn.dataset.topic === selected;
+            btn.classList.toggle('selected', on);
+            btn.setAttribute('aria-pressed', on);
+        });
+    }
+
+    function renderBreadcrumb(leafName) {
+        if (!path.length) return;
+        $('dt-breadcrumb').innerHTML = path.map(p => `<span>${esc(p.name)}</span>`).join('<span>›</span>')
+            + `<span>›</span><span class="dt-crumb-current">${esc(leafName)}</span>`;
+    }
+
+    let leavesByTopic = {};
+
+    async function refreshTree() {
+        const data = await getJson('/api/tree');
+        path = data.path;
+        if (!treeBuilt) buildTree(data.tree);
+        const unit = unitNode(data.tree);
+        leavesByTopic = {};
+        unit.children.forEach(l => {
+            leavesByTopic[l.topic] = l;
+            const age = l.timestamp ? data.server_time - l.timestamp : null;
+            $(`val-${l.topic}`).textContent = l.display_value ?? '–';
+            $(`age-${l.topic}`).textContent = ageText(age)
+                + (l.events_last_60s ? ` · ${l.events_last_60s} in last 60 s` : '');
+            $(`dot-${l.topic}`).classList.toggle('live', age !== null && age < LIVE_MS);
+        });
+        renderBreadcrumb(leavesByTopic[selected]?.name || '');
+    }
+
+    // ── detail ──────────────────────────────────────────────────────────────
+    function sparkline(events, kind) {
+        const points = events.slice(0, 60).reverse()
+            .map(e => kind === 'bool' ? (String(e.value).toLowerCase() === 'true' ? 1 : 0) : parseFloat(e.value))
+            .filter(v => Number.isFinite(v));
+        if (kind === 'order' || points.length < 2) {
+            $('dt-spark').innerHTML = `<div class="dt-empty">${kind === 'order' ? 'Order status changes are listed below.' : 'Waiting for data…'}</div>`;
+            return;
+        }
+        const min = Math.min(...points), max = Math.max(...points);
+        const span = max - min || 1;
+        const coords = points.map((v, i) =>
+            `${(i / (points.length - 1) * 100).toFixed(2)},${(56 - (v - min) / span * 52).toFixed(2)}`).join(' ');
+        $('dt-spark').innerHTML = `<svg viewBox="0 0 100 60" preserveAspectRatio="none" role="img"
+            aria-label="Last ${points.length} values"><polyline points="${coords}"/></svg>`;
+    }
+
+    async function refreshDetail() {
+        const data = await getJson(`/api/topic/${encodeURIComponent(selected)}/events?limit=60`);
+        $('dt-detail-name').textContent = data.name;
+        const events = data.events;
+        const last = events[0];
+        if (!last) {
+            $('dt-detail-value').textContent = '–';
+            $('dt-detail-meta').textContent = 'Waiting for data…';
+            $('dt-events').innerHTML = '<tr><td colspan="5" class="dt-empty">Waiting for data…</td></tr>';
+            sparkline([], data.kind);
+            return;
+        }
+        if (data.kind === 'number') {
+            $('dt-detail-value').innerHTML = `${esc(parseFloat(last.value).toFixed(2))}<small>${esc(data.unit)}</small>`;
+        } else if (data.kind === 'order') {
+            $('dt-detail-value').innerHTML = `${esc(last.value)}<small>Order ${esc(last.orderNumber)}</small>`;
+        } else {
+            $('dt-detail-value').textContent = last.display_value;
+        }
+        const context = last.orderNumber
+            ? `Order ${last.orderNumber} · ${last.product ?? ''} · Lot ${last.lotNumber ?? '–'}`
+            : 'No order context';
+        $('dt-detail-meta').textContent = `${context} · ${ageText(data.server_time - last.timestamp)}`;
+        sparkline(events, data.kind);
+        $('dt-events').innerHTML = events.slice(0, 50).map(e => `
+            <tr>
+                <td>${esc(timeText(e.timestamp))}</td>
+                <td>${esc(e.display_value)}</td>
+                <td>${e.source ? `<span class="dt-badge ${esc(e.source)}">${esc(e.source)}</span>` : '–'}</td>
+                <td>${esc(e.orderNumber ?? '–')}</td>
+                <td>${esc(e.health_status ?? '–')}</td>
+            </tr>`).join('');
+    }
+
+    function select(topic) {
+        selected = topic;
+        markSelected();
+        renderBreadcrumb(leavesByTopic[topic]?.name || '');
+        refreshDetail().catch(console.error);
+    }
+
+    // ── feed ────────────────────────────────────────────────────────────────
+    async function refreshFeed() {
+        const data = await getJson('/api/events/recent?limit=30');
+        if (!data.events.length) {
+            $('dt-feed').innerHTML = '<div class="dt-empty">Waiting for data…</div>';
+            return;
+        }
+        const firstLoad = seenFeed.size === 0;
+        $('dt-feed').innerHTML = data.events.map(e => {
+            const key = `${e.topic}|${e.timestamp}|${e.value}`;
+            const isNew = !firstLoad && !seenFeed.has(key);
+            seenFeed.add(key);
+            return `<div class="dt-feed-row"${isNew ? '' : ' style="animation:none"'}>
+                <div class="dt-feed-time">${esc(timeText(e.timestamp))}</div>
+                <div class="dt-feed-text">${esc(e.text)}</div></div>`;
+        }).join('');
+        if (seenFeed.size > 2000) seenFeed.clear();
+    }
+
+    async function tick() {
+        await Promise.all([
+            refreshTree().catch(console.error),
+            refreshDetail().catch(console.error),
+            refreshFeed().catch(console.error),
+        ]);
+    }
+
+    tick();
+    setInterval(tick, POLL_MS);
+})();
+</script>
+{% endblock %}

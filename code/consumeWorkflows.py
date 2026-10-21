@@ -8,6 +8,7 @@ import threading
 from datetime import datetime
 import os
 from audit_trail import log_audit, log_field_change
+from models import db, WorkflowRelease
 
 # Load config
 config_path = os.path.join(os.path.dirname(__file__), 'config.json')
@@ -28,6 +29,41 @@ released_workflows = {}
 consumeWorkflows = Blueprint('consumerWorkflows', __name__)
 
 
+# ── Release state ────────────────────────────────────────────────────────────
+# Kafka 'workflows' events fill all_workflows; the workflow_releases table keeps the state across
+# restarts. For each workflow the newer of the two wins.
+
+def persist_release(workflow_name, released, changed_at=None):
+    """Upsert the release state in the database (needs an app context)."""
+    try:
+        row = db.session.get(WorkflowRelease, workflow_name)
+        if row is None:
+            row = WorkflowRelease(name=workflow_name)
+            db.session.add(row)
+        row.released = bool(released)
+        row.changed_at = changed_at or datetime.now()
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Could not persist release state of {workflow_name}: {e}")
+
+
+def release_state():
+    """{workflow_name: {'released': 0|1, 'timestamp': datetime}} from Kafka events and the database."""
+    state = {name: dict(info) for name, info in all_workflows.items()}
+    try:
+        rows = WorkflowRelease.query.all()
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Could not read release state: {e}")
+        rows = []
+    for row in rows:
+        known = state.get(row.name)
+        if known is None or known['timestamp'] <= row.changed_at:
+            state[row.name] = {'released': 1 if row.released else 0, 'timestamp': row.changed_at}
+    return state
+
+
 # ── Kafka helpers ────────────────────────────────────────────────────────────
 
 def _is_kafka_available(bootstrap_servers):
@@ -41,7 +77,11 @@ def _is_kafka_available(bootstrap_servers):
 kafka_workflows_conf = {
     'bootstrap.servers': Kafkaserver,
     'group.id': 'manufacturing_orders-workflows-released',
-    'auto.offset.reset': 'earliest'
+    'auto.offset.reset': 'earliest',
+    # reads from the beginning on every start anyway; a short session lets a restarted app take over
+    # the partitions after ~6 s instead of waiting 45 s for the old, uncleanly closed member
+    'session.timeout.ms': 6000,
+    'heartbeat.interval.ms': 2000,
 }
 kafka_produce_conf = {'bootstrap.servers': Kafkaserver}
 
@@ -142,7 +182,7 @@ def get_workflow(workflow_name):
         return jsonify({'error': 'Workflow not found'}), 404
     with open(file_path, 'r') as json_file:
         workflows = json.load(json_file)
-    return jsonify({'workflows': workflows, 'released_workflows': all_workflows})
+    return jsonify({'workflows': workflows, 'released_workflows': release_state()})
 
 
 @consumeWorkflows.route('/delete-workflow/<workflow_name>', methods=['POST'])
@@ -165,17 +205,19 @@ def delete_workflow(workflow_name):
 
 @consumeWorkflows.route('/deactivate-workflow/<workflow_name>', methods=['POST'])
 def deactivate_workflow(workflow_name):
-    # Derive real current state from the in-memory store before changing it
-    current_info = all_workflows.get(workflow_name)
+    # Derive real current state (Kafka + database) before changing it
+    current_info = release_state().get(workflow_name)
     if current_info is not None:
         old_status = 'Released' if current_info.get('released') == 1 else 'Deactivated'
     else:
         old_status = 'Unknown'  # workflow not yet seen via Kafka
 
+    changed_at = datetime.now()
     send_to_kafka('workflows', {
         'workflow_name': workflow_name, 'released': 0,
-        'timestamp': datetime.now().isoformat()
+        'timestamp': changed_at.isoformat()
     })
+    persist_release(workflow_name, 0, changed_at)
 
     log_field_change(
         action_type='UPDATE',
@@ -192,17 +234,19 @@ def deactivate_workflow(workflow_name):
 
 @consumeWorkflows.route('/release-workflow/<workflow_name>', methods=['POST'])
 def release_workflow(workflow_name):
-    # Derive real current state from the in-memory store before changing it
-    current_info = all_workflows.get(workflow_name)
+    # Derive real current state (Kafka + database) before changing it
+    current_info = release_state().get(workflow_name)
     if current_info is not None:
         old_status = 'Released' if current_info.get('released') == 1 else 'Deactivated'
     else:
         old_status = 'Unknown'  # workflow not yet seen via Kafka
 
+    changed_at = datetime.now()
     send_to_kafka('workflows', {
         'workflow_name': workflow_name, 'released': 1,
-        'timestamp': datetime.now().isoformat()
+        'timestamp': changed_at.isoformat()
     })
+    persist_release(workflow_name, 1, changed_at)
 
     log_field_change(
         action_type='UPDATE',
@@ -225,14 +269,14 @@ def get_topics():
 
 @consumeWorkflows.route('/get-released-workflows', methods=['GET'])
 def get_released_workflows():
-    return jsonify({'workflows': list(released_workflows.keys())})
+    return jsonify({'workflows': [name for name, info in release_state().items() if info['released'] == 1]})
 
 
 @consumeWorkflows.route('/get-all-workflows', methods=['GET'])
 def get_all_workflows_route():
     return jsonify([
         {'workflow_name': name, 'state': 'Released' if info['released'] == 1 else 'Deactivated'}
-        for name, info in all_workflows.items()
+        for name, info in release_state().items()
     ])
 
 
