@@ -20,16 +20,37 @@ Regulated context: 21 CFR Part 11 audit trail (immutable, checksummed) must neve
 - `code/seed_demo.py` – idempotent demo seed (roles, users, subscriptions, released workflow, QbD set)
 - `code/workflows/*.json` – workflows (electronic master recipes), e.g. `FluVaccineISPE`
 - `code/templates/`, `code/static/` – Jinja templates, `static/css/theme.css` is the shared theme
-- `plc-sim/` – Python OPC UA simulator replacing the CODESYS demo PLC (same node IDs, ns=4)
+- `plc-sim/` – Python OPC UA simulator mirroring the CODESYS demo PLC (same node IDs, ns=4) – only for mode B
 - `code/tests/` – pytest suite (SQLite in-memory, Kafka disabled via `DISABLE_KAFKA=1`)
 
-## Run
+## Run – two PLC modes
+The app stack is the same in both modes; only where the PLC data comes from differs.
+
+**A) Real or virtual PLC – default on the DEV machine.**
+A CODESYS PLC (hardware, or CODESYS Control Win / Virtual Control) runs project `ISPERome` and serves
+OPC UA (node IDs `ns=4;s=|var|CODESYS Control Win V3 x64.Application.…`). The simulator is NOT used.
 ```
-docker compose --profile sim up --build          # app :5001, Kafka :9092, PLC sim OPC UA :4840, status :8081
+OPCUA_URL=opc.tcp://<plc-host>:4840 docker compose up --build -d     # app :5001, Kafka :9092, Postgres
+docker compose exec vertebrate-app python seed_demo.py
+# PLC bridges run on the host (they are not containers in this mode):
+cd code
+KAFKASERVER=localhost:9092 OPCUA_URL=opc.tcp://<plc-host>:4840 python PLC2Nexus.py   # PLC → Kafka
+KAFKASERVER=localhost:9092 OPCUA_URL=opc.tcp://<plc-host>:4840 python Nexus2PLC.py   # Kafka → PLC
+```
+`OPCUA_URL` on `up` only feeds the dashboard health check. If the PLC runs on the same host as Docker,
+use `opc.tcp://host.docker.internal:4840` for the app and `opc.tcp://localhost:4840` for the bridges.
+
+**B) PLC simulator – laptops without a PLC, demos, automated/integration tests.**
+```
+docker compose --profile sim up --build     # adds plc-sim (OPC UA :4840, status :8081) + both bridges
 docker compose exec vertebrate-app python seed_demo.py
 ```
-Without `--profile sim` the bridges expect a real PLC. After a restart, run the seed again until
-restart robustness is implemented (released workflows are not yet persisted).
+Never run A and B against the same Kafka at the same time (two sources would write the same topics).
+Agents: assume mode A on the DEV machine; don't start the `sim` profile there unless asked.
+Unit tests need neither mode (no PLC, Kafka disabled).
+
+After a restart, run the seed again until restart robustness is implemented (released workflows are
+not yet persisted).
 Demo mode: manager on http://localhost:5001, operator on http://127.0.0.1:5001 (separate sessions).
 Demo users: `User_Admin` (all permissions), `prod.manager` (Production Manager), `operator` (Operator).
 Passwords come from `seed_demo.py` / env vars (`DEMO_PM_PW`, `DEMO_OP_PW`) – never write them into code,
