@@ -54,25 +54,31 @@ def ensure_order_management_access(app, client):
             db.session.add(perm)
             db.session.flush()
 
-        # Get or create a role and assign to User_Admin
+        # Get or create User_Admin — the app no longer seeds it on startup
         user = User.query.filter_by(username='User_Admin').first()
-        if user:
-            if not user.roles:
-                role = Role.query.filter_by(name='admin').first()
-                if not role:
-                    role = Role(name='admin')
-                    db.session.add(role)
-                    db.session.flush()
-                from models import UserRoles
-                db.session.add(UserRoles(user_id=user.uid, role_id=role.id))
-                db.session.flush()
-            else:
-                role = user.roles[0]
+        if not user:
+            from werkzeug.security import generate_password_hash
+            user = User(username='User_Admin', password=generate_password_hash('12345'))
+            db.session.add(user)
+            db.session.flush()
 
-            existing = RolePermission.query.filter_by(
-                role_id=role.id, permission_id=perm.id).first()
-            if not existing:
-                db.session.add(RolePermission(role_id=role.id, permission_id=perm.id))
+        # Get or create a role and assign to User_Admin
+        if not user.roles:
+            role = Role.query.filter_by(name='admin').first()
+            if not role:
+                role = Role(name='admin')
+                db.session.add(role)
+                db.session.flush()
+            from models import UserRoles
+            db.session.add(UserRoles(user_id=user.uid, role_id=role.id))
+            db.session.flush()
+        else:
+            role = user.roles[0]
+
+        existing = RolePermission.query.filter_by(
+            role_id=role.id, permission_id=perm.id).first()
+        if not existing:
+            db.session.add(RolePermission(role_id=role.id, permission_id=perm.id))
 
         db.session.commit()
 

@@ -14,7 +14,6 @@ Usage:
     docker compose exec vertebrate-app python -m pytest \
         tests/test_audit_immutability.py -v
 """
-pytestmark = pytest.mark.postgres_only
 import os
 import time
 from sqlalchemy import text
