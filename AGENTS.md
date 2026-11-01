@@ -21,35 +21,32 @@ Regulated context: 21 CFR Part 11 audit trail (immutable, checksummed) must neve
 - `code/workflows/*.json` – workflows (electronic master recipes), e.g. `FluVaccineISPE`
 - `code/templates/`, `code/static/` – Jinja templates, `static/css/theme.css` is the shared theme
 - `plc-sim/` – Python OPC UA simulator mirroring the CODESYS demo PLC (same node IDs, ns=4) – only for mode B
-- `code/tests/` – pytest suite (SQLite in-memory, Kafka disabled via `DISABLE_KAFKA=1`)
+- `code/tests/` – pytest suite, run via the `tests` compose service (SQLite in-memory, `DISABLE_KAFKA=1`)
 
-## Run – two PLC modes
-The app stack is the same in both modes; only where the PLC data comes from differs.
+## Run – everything in Docker
+All development, running and testing happens in Docker Compose. Don't install requirements or run
+Python, pytest, the app or the PLC bridges on the host.
 
 **A) Real or virtual PLC – default on the DEV machine.**
-A CODESYS PLC (hardware, or CODESYS Control Win / Virtual Control) runs project `ISPERome` and serves
+A CODESYS PLC (hardware, CODESYS Control Win or Virtual Control) runs project `ISPERome` and serves
 OPC UA (node IDs `ns=4;s=|var|CODESYS Control Win V3 x64.Application.…`). The simulator is NOT used.
 ```
-OPCUA_URL=opc.tcp://<plc-host>:4840 docker compose up --build -d     # app :5001, Kafka :9092, Postgres
+OPCUA_URL=opc.tcp://<plc-host>:4840 docker compose --profile plc up --build -d   # app, Kafka, Postgres, both bridges
 docker compose exec vertebrate-app python seed_demo.py
-# PLC bridges run on the host (they are not containers in this mode):
-cd code
-KAFKASERVER=localhost:9092 OPCUA_URL=opc.tcp://<plc-host>:4840 python PLC2Nexus.py   # PLC → Kafka
-KAFKASERVER=localhost:9092 OPCUA_URL=opc.tcp://<plc-host>:4840 python Nexus2PLC.py   # Kafka → PLC
 ```
-On Windows (PowerShell) set variables first, e.g. `$env:OPCUA_URL="opc.tcp://<plc-host>:4840"; $env:KAFKASERVER="localhost:9092"; python PLC2Nexus.py`.
-`OPCUA_URL` on `up` only feeds the dashboard health check. If the PLC runs on the same host as Docker,
-use `opc.tcp://host.docker.internal:4840` for the app and `opc.tcp://localhost:4840` for the bridges.
+PowerShell: `$env:OPCUA_URL="opc.tcp://<plc-host>:4840"; docker compose --profile plc up --build -d`
+If the PLC runs on the Docker host itself, use `opc.tcp://host.docker.internal:4840`.
 
-**B) PLC simulator – laptops without a PLC, demos, automated/integration tests.**
+**B) PLC simulator – laptops without a PLC, demos, integration tests.**
 ```
-docker compose --profile sim up --build     # adds plc-sim (OPC UA :4840, status :8081) + both bridges
+docker compose --profile sim up --build -d     # + plc-sim (OPC UA :4840, status :8081) and both bridges
 docker compose exec vertebrate-app python seed_demo.py
 ```
-Never run A and B against the same Kafka at the same time (two sources would write the same topics).
+Rules: never combine `--profile plc` and `--profile sim`, and never run both modes against the same Kafka.
 Agents: assume mode A on the DEV machine; don't start the `sim` profile there unless asked.
-Unit tests need neither mode (no PLC, Kafka disabled).
 
+After code changes rebuild the affected service, e.g. `docker compose --profile plc up --build -d vertebrate-app`.
+Logs: `docker compose logs -f vertebrate-app plc2nexus nexus2plc`.
 After a restart, run the seed again until restart robustness is implemented (released workflows are
 not yet persisted).
 Demo mode: manager on http://localhost:5001, operator on http://127.0.0.1:5001 (separate sessions).
@@ -75,14 +72,20 @@ Rules:
   check in the report.
 - Never delete or weaken an existing test to make the suite pass. Ask instead.
 
-Commands:
+Commands (Docker only – the `tests` service mounts `./code`, so it always tests the current working tree):
 ```
-pip install -r Requirements.txt -r requirements-dev.txt   # local
-pytest                                                    # from repo root, uses pytest.ini
-pytest code/tests/test_routes.py -k <name>                # single test
-docker compose build --build-arg BUILD_ENV=dev vertebrate-app   # image with pytest
-docker compose exec vertebrate-app python -m pytest /app/code/tests
+docker compose --profile test build tests                          # once, and after requirement changes
+docker compose --profile test run --rm tests                       # full suite (SQLite in-memory, no Kafka)
+docker compose --profile test run --rm tests python -m pytest tests/test_routes.py -k <name>   # single test
 ```
+Postgres-only tests (`@pytest.mark.postgres_only`, e.g. audit immutability) run against a separate test
+database, never the dev database:
+```
+docker compose exec db createdb -U vertebrate vertebrate_test      # once
+TEST_DATABASE_URL=postgresql+psycopg2://vertebrate:vertebrate@db:5432/vertebrate_test \
+  docker compose --profile test run --rm tests
+```
+Never run pytest with `docker compose exec vertebrate-app …`: that container points at the dev database.
 
 ## Git workflow
 - Never commit to `main`. One branch per feature/fix: `feature/<topic>`, `fix/<topic>`, `docs/<topic>`.

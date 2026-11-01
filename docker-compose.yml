@@ -67,12 +67,33 @@ services:
       SHOW_CHATBOT: ${SHOW_CHATBOT:-false}
       SESSION_IDLE_MINUTES: ${SESSION_IDLE_MINUTES:-60}   # demo: idle tab stays logged in
       OPCUA_URL: ${OPCUA_URL:-opc.tcp://plc-sim:4840}     # PLC endpoint for the dashboard health check
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # PLC on the Docker host (Linux; Desktop has it built in)
     ports:
       - "5001:5001"
     volumes:
       - ./code/instance:/app/code/instance
 
-  # ---- Demo PLC (no Windows/CODESYS needed): docker compose --profile sim up --build
+  # ---- Test runner (all tests run in Docker): docker compose --profile test run --rm tests
+  # Mounts ./code, so the current working tree is tested without rebuilding. SQLite in-memory,
+  # Kafka disabled; never touches the dev database. Postgres-only tests: see AGENTS.md.
+  tests:
+    profiles: ["test"]
+    build:
+      context: .
+      args:
+        BUILD_ENV: dev
+    environment:
+      DISABLE_KAFKA: "1"
+      SQLALCHEMY_DATABASE_URI: ${TEST_DATABASE_URL:-sqlite:///:memory:}
+    volumes:
+      - ./code:/app/code
+    working_dir: /app/code
+    command: ["python", "-m", "pytest"]
+
+  # ---- PLC modes ---------------------------------------------------------------------------
+  # A) real/virtual CODESYS PLC:  OPCUA_URL=opc.tcp://<plc-host>:4840 docker compose --profile plc up --build -d
+  # B) simulator (no PLC):        docker compose --profile sim up --build -d
   plc-sim:
     profiles: ["sim"]
     build: ./plc-sim
@@ -84,27 +105,35 @@ services:
     restart: unless-stopped
 
   plc2nexus:
-    profiles: ["sim"]
+    profiles: ["sim", "plc"]
     build:
       context: .
       dockerfile: Dockerfile.bridges
     command: ["python", "PLC2Nexus.py"]
-    depends_on: [kafka, plc-sim]
+    depends_on:
+      kafka:
+        condition: service_healthy
     environment:
       KAFKASERVER: kafka:29092
-      OPCUA_URL: opc.tcp://plc-sim:4840
+      OPCUA_URL: ${OPCUA_URL:-opc.tcp://plc-sim:4840}   # B: simulator; A: set OPCUA_URL to the real PLC
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
   nexus2plc:
-    profiles: ["sim"]
+    profiles: ["sim", "plc"]
     build:
       context: .
       dockerfile: Dockerfile.bridges
     command: ["python", "Nexus2PLC.py"]
-    depends_on: [kafka, plc-sim]
+    depends_on:
+      kafka:
+        condition: service_healthy
     environment:
       KAFKASERVER: kafka:29092
-      OPCUA_URL: opc.tcp://plc-sim:4840
+      OPCUA_URL: ${OPCUA_URL:-opc.tcp://plc-sim:4840}   # B: simulator; A: set OPCUA_URL to the real PLC
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
 volumes:
