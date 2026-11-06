@@ -16,9 +16,10 @@ Usage:
 """
 import os
 import time
+import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import ProgrammingError, InternalError
-import pytest
+
 pytestmark = pytest.mark.postgres_only
 
 os.environ.setdefault('DISABLE_KAFKA', '1')

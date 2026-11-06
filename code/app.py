@@ -1,4 +1,4 @@
-from flask import Flask, app, render_template, jsonify, request, abort, send_from_directory
+from flask import Flask, app, render_template, jsonify, request, abort, send_from_directory, redirect, url_for
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_sqlalchemy import SQLAlchemy
 import sqlite3
@@ -17,6 +17,7 @@ from colorsettings import colorsettings
 from demo_consumer import tempConsumerChatbot
 from auth import auth
 from models import db, User, Role, RolePermission, Permission, Subscriptions
+from werkzeug.security import generate_password_hash
 from functools import wraps
 from timeout import register_timeout_hook, session_idle_minutes
 from subscriptions import check_subscription,subscriptions
@@ -260,11 +261,39 @@ def create_app():
         # Now create all tables
         db.create_all()
 
+        # Seed the default admin on a fresh DB so the app (and the test suite)
+        # has a working login.  Idempotent: only runs when User_Admin is absent.
+        try:
+            if not User.query.filter_by(username='User_Admin').first():
+                admin_role = Role.query.filter_by(name='Admin').first()
+                if not admin_role:
+                    admin_role = Role(name='Admin')
+                    db.session.add(admin_role)
+                    db.session.flush()
+                admin_user = User(
+                    username='User_Admin',
+                    password=generate_password_hash('12345')
+                )
+                admin_user.roles.append(admin_role)
+                db.session.add(admin_user)
+                db.session.commit()
+                print("Seeded default admin: User_Admin / 12345", flush=True)
+        except Exception as e:
+            print(f"Note: Could not seed admin user: {e}", flush=True)
+            db.session.rollback()
+
     login_manager = LoginManager()
     login_manager.init_app(app)
     app.register_blueprint(auth)
-    
+
     register_timeout_hook(app)
+
+
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        if request.path.startswith('/audit/api/'):
+            return jsonify({'error': 'Authentication required'}), 401
+        return redirect(url_for('index'))
 
     @login_manager.user_loader
     def load_user(user_id):
@@ -978,6 +1007,7 @@ def create_app():
 
         return jsonify({'status': 'Configuration saved successfully'})
 
+
     ###########################################################################################################################
     #ROLES EDITING
     ###########################################################################################################################
@@ -1059,7 +1089,7 @@ def create_app():
                 return jsonify({'message': 'Role not found'}), 404
 
             permissions = [
-                {'key': perm.key} for perm in 
+                {'key': perm.key} for perm in
                 Permission.query.join(RolePermission, Permission.id == RolePermission.permission_id)
                 .filter(RolePermission.role_id == role.id).all()
             ]
@@ -1144,14 +1174,10 @@ def create_app():
                 json.dump(config, config_file, indent=4)
 
             return jsonify({'status': 'Username saved successfully'})
-        
+
+
+    from audit_dashboard import audit_bp
+    app.register_blueprint(audit_bp)
+
 
     return app
-    
-
-
-
-#if __name__ == '__main__':
-    #threading.Thread(target=consume_messages, daemon=True).start()
-
-    #app.run(debug=True, use_reloader=False,port=5001)

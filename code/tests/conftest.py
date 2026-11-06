@@ -71,6 +71,33 @@ def pytest_collection_modifyitems(config, items):
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 
+# Path to the real config.json the app reads (code/config.json), resolved
+# relative to this file (code/tests/conftest.py).
+_CONFIG_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config.json'
+)
+
+
+@pytest.fixture(autouse=True)
+def _preserve_config_json():
+    """Snapshot config.json before each test and restore it afterward.
+
+    Routes such as /save-plant-config write to the real config.json on disk.  A
+    test that mutates it and doesn't restore leaves the file corrupted — and if
+    required keys (Kafkaserver, clusterid, assets) are dropped the app crashes on
+    next startup.  Restoring keeps every test starting from a pristine file.
+    """
+    try:
+        with open(_CONFIG_PATH, 'rb') as f:
+            original = f.read()
+    except FileNotFoundError:
+        original = None
+    yield
+    if original is not None:
+        with open(_CONFIG_PATH, 'wb') as f:
+            f.write(original)
+
+
 @pytest.fixture(scope="session")
 def app():
     app = create_app()
