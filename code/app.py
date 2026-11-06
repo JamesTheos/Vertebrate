@@ -370,7 +370,7 @@ def create_app():
     #Updated User Info route
     @app.route('/updated-user')
     def updated_user():
-        return render_template('updated-User.html')
+        return render_template('Updated-User.html')
     
     @app.errorhandler(403)
     def forbidden(e):
