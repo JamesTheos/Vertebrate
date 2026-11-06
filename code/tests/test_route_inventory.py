@@ -13,7 +13,7 @@ here in the same commit.
 
 import pytest
 
-# Baseline: all routes of main after the demo stack was merged (#8, #9).
+# Baseline: all routes of main after the demo stack was merged (#8, #9), plus each merged branch.
 BASELINE_ROUTES = [
     ('/',                                   {'GET'}),
     ('/3d-view',                            {'GET'}),
@@ -87,6 +87,14 @@ BASELINE_ROUTES = [
     ('/user-profile',                       {'GET'}),
     ('/workflow-management',                {'GET'}),
     ('/workflow-overview',                  {'GET'}),
+
+    # audit-dashboard (merge step 3)
+    ('/audit/',                             {'GET'}),
+    ('/audit/api/stats',                    {'GET'}),
+    ('/audit/api/logs',                     {'GET'}),
+    ('/audit/api/integrity',                {'GET'}),
+    ('/audit/api/logs/export',              {'GET'}),
+    ('/audit/api/siem',                     {'GET'}),
 ]
 
 

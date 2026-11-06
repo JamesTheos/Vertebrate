@@ -37,6 +37,22 @@ class AuditLog(db.Model):
     checksum = db.Column(db.String(64), nullable=True)
 
 
+# Machine credentials for the SIEM audit-feed endpoint (/audit/api/siem).
+# Only the SHA-256 hash of a key is stored — the raw key is shown once at
+# provisioning time (create_siem_key.py) and cannot be recovered.
+
+class SiemApiKey(db.Model):
+    __tablename__ = 'siem_api_keys'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(255), nullable=False, unique=True)
+    key_hash = db.Column(db.String(64), nullable=False)
+    active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False,
+                           default=lambda: datetime.now(timezone.utc))
+    last_used_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+
 #Define user class
 
 class User(UserMixin, db.Model):
