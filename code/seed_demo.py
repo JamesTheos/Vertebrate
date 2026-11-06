@@ -34,7 +34,7 @@ ALL_PERMISSION_KEYS = [
     "pid", "3d-view", "design-space-definition", "design-space-representation",
     "product-analytics", "process-qbd-analytics", "plant-configuration",
     "process-configuration", "workflow-management", "user-management",
-    "role-management", "data-tree",
+    "role-management", "data-tree", "audit-view",
 ]
 
 ROLES = {
