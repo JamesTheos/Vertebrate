@@ -40,6 +40,7 @@ PAGES = [
     '/settings', '/plantconfig', '/processconfig', '/workflow-management',
     '/user-management', '/role-management', '/subscription-management',
     '/user-profile', '/updated-user', '/login-error', '/logout-message',
+    '/audit/',
 ]
 
 # Sidebar links (besides Home) as the demo showed them per role
@@ -50,8 +51,9 @@ SIDEBAR_LINKS = {
         '/equipment-overview', '/scada', '/3d-view',
         '/design-space-definition', '/design-space-representation',
         '/product_analytics', '/process-qbd-analysis',
+        '/audit/',
     },
-    'smoke.pm': {'/data-tree', '/manufacturing-orders', '/order-management', '/workflow-overview'},
+    'smoke.pm':{'/data-tree', '/manufacturing-orders', '/order-management', '/workflow-overview'},
     'smoke.operator': {
         '/data-tree', '/workflow-overview', '/process-instructions', '/scada',
         '/design-space-representation',
@@ -148,6 +150,8 @@ def test_branding_on_every_page(app):
     ('smoke.pm', '/process-instructions'),
     ('smoke.pm', '/design-space-definition'),
     ('smoke.pm', '/user-management'),
+    ('smoke.operator', '/audit/'),
+    ('smoke.pm', '/audit/'),
 ])
 def test_role_cannot_open_pages_outside_its_permissions(app, username, path):
     assert login(app, username).get(path).status_code == 403
