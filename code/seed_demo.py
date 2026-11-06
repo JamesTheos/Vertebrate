@@ -9,7 +9,8 @@ stay as they are, and the workflow is only released if no release state is store
 
 - Role 'Admin-All' (every permission key) -> User_Admin
 - Roles 'Production Manager' / 'Operator' + users prod.manager / operator
-  (passwords from DEMO_PM_PW / DEMO_OP_PW; User_Admin only gets DEMO_ADMIN_PW if it does not exist yet)
+  (passwords from DEMO_PM_PW / DEMO_OP_PW; User_Admin only gets DEMO_ADMIN_PW if it does not exist yet
+  or still has the default password create_app() seeds it with)
 - All app subscriptions -> subscribed
 - Workflow FluVaccineISPE released (same Kafka message as /release-workflow)
 - QbD set 'FluVaccine'
@@ -22,7 +23,7 @@ from datetime import datetime
 from confluent_kafka import Producer
 from flask import Flask
 from sqlalchemy import text
-from werkzeug.security import generate_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from audit_trail import log_audit
 from models import db, User, Role, Permission, Subscriptions, DesignSpaceSet, WorkflowRelease
@@ -48,6 +49,9 @@ USERS = [
     ("prod.manager", os.environ.get("DEMO_PM_PW", "VertDemo-PM26"), ["Production Manager"], True),
     ("operator", os.environ.get("DEMO_OP_PW", "VertDemo-OP26"), ["Operator"], True),
 ]
+
+# create_app() seeds User_Admin with this password on an empty database; the demo seed replaces it
+APP_DEFAULT_ADMIN_PW = "12345"
 
 # Not importing app.py on purpose: its blueprints start Kafka consumers in the app's consumer
 # groups at import time, which would steal partitions from the running app until they time out.
@@ -126,7 +130,7 @@ def seed_users():
             db.session.add(user)
             changes.append(f'user {username}')
             print(f"User '{username}' created.")
-        elif reset_pw:
+        elif reset_pw or (username == "User_Admin" and check_password_hash(user.password, APP_DEFAULT_ADMIN_PW)):
             user.password = generate_password_hash(password)
         for role_name in role_names:
             role = Role.query.filter_by(name=role_name).first()
