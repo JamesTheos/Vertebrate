@@ -1,0 +1,124 @@
+/* Theos-CES Data Vertebrate – shared theme, loaded last in base.html / basesettings.html */
+:root {
+    --accent: #0f766e;            /* teal, readable on white and next to the #02000e sidebar */
+    --accent-hover: #115e59;
+    --accent-soft: rgba(15, 118, 110, 0.12);
+
+    --status-created: #6b7280;
+    --status-released: #2563eb;
+    --status-started: #d97706;
+    --status-completed: #16a34a;
+    --status-aborted: #dc2626;
+}
+
+/* Order status pills (Order Overview, Workflow Overview, Home) */
+.status-pill {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.6;
+    color: #fff;
+    background: var(--status-created);
+    white-space: nowrap;
+}
+.status-pill.status-created { background: var(--status-created); }
+.status-pill.status-released { background: var(--status-released); }
+.status-pill.status-started { background: var(--status-started); }
+.status-pill.status-completed { background: var(--status-completed); }
+.status-pill.status-aborted { background: var(--status-aborted); }
+
+/* ── Content area: type, controls, tables (sidebar and header are left alone) ── */
+.content,
+.modal-content-login {
+    font-size: 15px;
+}
+
+.content :is(input:not([type="checkbox"]):not([type="radio"]):not([type="color"]), select, textarea),
+.modal-content-login input {
+    border: 1px solid #cbd2d9;
+    border-radius: 8px;
+    background-color: #fff;
+}
+
+/* Primary buttons: accent filled. .dt-leaf (Data Tree rows) are list items, not buttons visually. */
+.content button:not(.dt-leaf),
+.modal-content-login button {
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    background-color: var(--accent);
+    color: #fff;
+    cursor: pointer;
+}
+.content button:not(.dt-leaf):hover:not(:disabled),
+.modal-content-login button:hover {
+    background-color: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+/* Secondary buttons: outlined (close / cancel / remove / abort / delete / reset / deactivate) */
+.content :is(.close-button, .close-Set-button, .WorkflowMan-button, .button-dsd-row, .abort-btn,
+             #delete-workflow, #deactivate-workflow, #resetButton, #userMessageClose),
+.modal-content-login #close-login {
+    background-color: #fff;
+    color: var(--accent);
+}
+.content :is(.close-button, .close-Set-button, .WorkflowMan-button, .button-dsd-row, .abort-btn,
+             #delete-workflow, #deactivate-workflow, #resetButton, #userMessageClose):hover:not(:disabled),
+.modal-content-login #close-login:hover {
+    background-color: var(--accent-soft);
+    color: var(--accent-hover);
+}
+
+.content button:not(.dt-leaf):disabled {
+    background-color: #e5e7eb;
+    border-color: #e5e7eb;
+    color: #9ca3af;
+    box-shadow: none;
+    opacity: 1;
+    cursor: not-allowed;
+}
+
+.content :is(input, select, textarea, button, a):focus-visible,
+.modal-content-login :is(input, button):focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* Tables: zebra rows and sticky header. :where() keeps this weaker than page-specific table styles. */
+:where(.content) table tbody tr:nth-child(even) {
+    background-color: #f6f7f9;
+}
+:where(.content) table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: #fff;
+}
+
+/* ── Process Instructions: numbered steps, current step in accent, completed steps checked ── */
+.content .workflow-step-process-instr.current-step {
+    border: 2px solid var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-soft);
+}
+.content .workflow-step-process-instr.completed-step {
+    border-color: #d1d5db;
+    box-shadow: none;
+    opacity: 0.8;
+}
+.step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    margin-right: 8px;
+    border-radius: 50%;
+    background: #e5e7eb;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 700;
+}
+.current-step .step-number { background: var(--accent); color: #fff; }
+.completed-step .step-number { background: var(--status-completed); color: #fff; }

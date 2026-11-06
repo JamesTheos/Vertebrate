@@ -1,0 +1,8 @@
+# Image for the PLC <-> Kafka bridges (PLC2Nexus.py, Nexus2PLC.py)
+FROM python:3.11-slim
+WORKDIR /app
+COPY Requirements.txt ./
+RUN pip install --no-cache-dir -r Requirements.txt opcua==0.98.13
+COPY code ./code
+WORKDIR /app/code
+ENV PYTHONUNBUFFERED=1

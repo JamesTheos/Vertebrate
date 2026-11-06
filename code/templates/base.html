@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}My Application{% endblock %}</title>
+    <title>Data Vertebrate · {% block title %}Home{% endblock %}</title>
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon-32.png') }}" sizes="32x32">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
 
     <script>
         
@@ -25,7 +28,9 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/design-space-definition.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+    {% if show_chatbot %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/chatbot.css') }}">
+    {% endif %}
     <style>
         :root {
             --background-color: {{ appconfig.SidebarColor }};
@@ -91,6 +96,7 @@
         }
                       
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
 </head>
 
 
@@ -104,7 +110,7 @@
     ********************************************************************************************************************
      -->
 
-    <div class="header">
+    <div class="header{% if current_user.is_authenticated and current_user.roles %} role-{{ current_user.roles[0].name | lower | replace(' ', '-') }}{% endif %}">
     <!-- Left Section -->
     <div class="left-section">
         {% block header_title %}Welcome Screen{% endblock %}
@@ -120,7 +126,7 @@
         <img src="{{ url_for('static', filename='images/icons/user.svg') }}" alt="User" class="user-icon">
         <span class="user-name" id="user-name">
             {% if current_user.is_authenticated %}
-                {{ current_user.username }}
+                {{ current_user.username }}{% if current_user.roles %}<span class="user-role"> · {{ current_user.roles | map(attribute='name') | join(', ') }}</span>{% endif %}
             {% endif %}
             {% if not current_user.is_authenticated %}
                 {{ appconfig.Username }}
@@ -128,10 +134,15 @@
         </span>
     </div>
 
+    {% if current_user.is_authenticated %}
     <!-- Logout Button -->
-    <div class="user-logout" id="logout-button">
+    <button type="button" class="user-logout" id="logout-button" title="Logout" aria-label="Logout">
         <img src="{{ url_for('static', filename='images/icons/logout.svg') }}" alt="Logout" class="logout-icon">
-    </div>
+    </button>
+    {% else %}
+    <!-- Login Button -->
+    <button type="button" class="user-login" id="login-button">Login</button>
+    {% endif %}
 
     <!-- Settings Button -->
     <a href="/settings" class="settings">
@@ -143,19 +154,21 @@
 </div>
 
 <!-- Login Modal -->
-<div id="loginModal" class="modal-login">
+<div id="loginModal" class="modal-login" role="dialog" aria-modal="true" aria-label="Log in">
     <div class="modal-content-login">
-        <form>
+        <form id="login-form" method="post" action="#">
             <div class="form-group-login">
-                <label for="username">Username:</label>
-                <input type="text" id="username" class="input-style-login" name="username">
+                <label for="username">Username</label>
+                <input type="text" id="username" class="input-style-login" name="username" autocomplete="username">
             </div>
             <div class="form-group-login">
-                <label for="password">Password:</label>
-                <input type="password" id="password" class="input-style-login" name="password">
+                <label for="password">Password</label>
+                <input type="password" id="password" class="input-style-login" name="password" autocomplete="current-password">
             </div>
-            <button class="button-style-login">Log In</button>
-            <button id="close-login" class="button-style-login">Close</button>
+            <div class="login-actions">
+                <button type="submit" class="button-style-login">Log In</button>
+                <button type="button" id="close-login" class="button-style-login">Close</button>
+            </div>
         </form>
     </div>
 </div>
@@ -168,7 +181,13 @@
     ********************************************************************************************************************
      -->
     <nav class = "sidebar"> 
-        <div href="/index" class="logo">ISPE Demo</div>
+        <a href="/index" class="logo" aria-label="Theos-CES Data Vertebrate – Home">
+            <img src="{{ url_for('static', filename='images/favicon.svg') }}" alt="" class="logo-mark">
+            <span class="logo-text">
+                <span class="logo-company">Theos-CES</span>
+                <span class="logo-product">Data Vertebrate</span>
+            </span>
+        </a>
 
         <div id = "sidebar" class = "menu-content show-sidebar">
             <div class = "menu-items">
@@ -180,135 +199,57 @@
                     <a href="/index">Home</a>
                 </div>
 
-                <!-- SECOND SUBMENU -->
+                {% if 'data-tree' in user_permissions %}
+                <div class = "item"> 
+                    <a href="/data-tree">Data Tree</a>
+                </div>
+                {% endif %}
 
+                <!-- SUBMENUS: each entry is rendered only if the user's roles grant its permission key -->
+                {% set menu_groups = [
+                    ('Manufacturing Orders', [
+                        ('/manufacturing-orders', 'Order Management', 'manufacturing-orders'),
+                        ('/order-management', 'Order Overview', 'order-management')]),
+                    ('Workflows', [
+                        ('/workflow-overview', 'Overview', 'workflow-overview'),
+                        ('/batch', 'Batch', 'batch'),
+                        ('/process-instructions', 'Process Instructions', 'process-instructions'),
+                        ('/sampling', 'Sampling', 'sampling')]),
+                    ('SCADA', [
+                        ('/equipment-overview', 'Equipment Overview', 'equipment-overview'),
+                        ('/scada', 'P&ID', 'pid'),
+                        ('/3d-view', '3D-View', '3d-view')]),
+                    ('QBD', [
+                        ('/design-space-definition', 'Design Space<br> Definition'|safe, 'design-space-definition'),
+                        ('/design-space-representation', 'Design Space Representation', 'design-space-representation')]),
+                    ('Analytics', [
+                        ('/product_analytics', 'Product Analysis', 'product-analytics'),
+                        ('/process-qbd-analysis', 'Process QbD Analysis', 'process-qbd-analytics')]),
+                ] %}
+
+                {% for group_title, entries in menu_groups %}
+                {% set visible = entries | selectattr(2, 'in', user_permissions) | list %}
+                {% if visible %}
                 <div class = "item"> 
                     <div class="submenu-item">
-                        <span>Manufacturing Orders</span>
+                        <span>{{ group_title }}</span>
                         <img class="icon-button" src="{{ url_for('static', filename='images/icons/arrow_right.svg') }}">
                     </div>
 
                     <div class = "menu-items submenu">
                         <div class = "menu-topic">
                             <img class="icon-button" src="{{ url_for('static', filename='images/icons/arrow_left.svg') }}">
-                            <span>Manufacturing Orders</span>
+                            <span>{{ group_title }}</span>
                         </div>
-        
+                        {% for href, label, key in visible %}
                         <div class = "item"> 
-                            <a href="/manufacturing-orders" >Order Management</a>
+                            <a href="{{ href }}" >{{ label }}</a>
                         </div>
-                        <div class = "item"> 
-                            <a href="/order-management" >Order Overview</a>
-                        </div>
-                        
+                        {% endfor %}
                     </div>
                 </div>
-
-
-                <!-- THIRD SUBMENU -->
-
-
-                <div class = "item"> 
-                    <div class="submenu-item">
-                        <span>Workflows</span>
-                        <img class="icon-button" src="{{ url_for('static', filename='images/icons/arrow_right.svg') }}">
-                    </div>
-
-                    <div class = "menu-items submenu">
-                        <div class = "menu-topic">
-                            <img class="icon-button" src="{{ url_for('static', filename='images/icons/arrow_left.svg') }}">
-                            <span>Workflows</span>
-                        </div>
-        
-                        <div class = "item"> 
-                            <a href="/workflow-overview" >Overview</a>
-                        </div>
-                        <div class = "item"> 
-                            <a href="/batch" >Batch</a>
-                        </div>
-                        <div class = "item"> 
-                            <a href="/process-instructions" >Process Instructions</a>
-                        </div>
-                        <div class = "item"> 
-                            <a href="/sampling" >Sampling</a>
-                        </div>
-                
-                    </div>
-                </div>
-
-                <!-- Fourth Submenu -->
-
-                <div class = "item"> 
-                    <div class="submenu-item">
-                        <span>SCADA</span>
-                        <img class="icon-button" src="{{ url_for('static', filename='images/icons/arrow_right.svg') }}">
-                    </div>
-
-                    <div class = "menu-items submenu">
-                        <div class = "menu-topic">
-                            <img class="icon-button" src="{{ url_for('static', filename='images/icons/arrow_left.svg') }}">
-                            <span>SCADA</span>
-                        </div>
-        
-                        <div class = "item"> 
-                            <a href="/equipment-overview" >Equipment Overview</a>
-                        </div>
-                        <div class = "item"> 
-                            <a href="/scada" >P&ID</a>
-                        </div>
-                        <div class = "item"> 
-                            <a href="/3d-view" >3D-View</a>
-                        </div>
-                    </div>
-                </div>
-
-                 <!-- fifth Submenu -->
-
-                 <div class = "item"> 
-                    <div class="submenu-item">
-                        <span>QBD</span>
-                        <img class="icon-button" src="{{ url_for('static', filename='images/icons/arrow_right.svg') }}">
-                    </div>
-
-                    <div class = "menu-items submenu">
-                        <div class = "menu-topic">
-                            <img class="icon-button" src="{{ url_for('static', filename='images/icons/arrow_left.svg') }}">
-                            <span>QBD</span>
-                        </div>
-        
-                        <div class = "item"> 
-                            <a href="/design-space-definition" >Design Space<br> Definition</a>
-                        </div>
-                        <div class = "item"> 
-                            <a href="/design-space-representation" >Design Space Representation</a>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- sixth submenu -->
-
-                <div class = "item"> 
-                    <div class="submenu-item">
-                        <span>Analytics</span>
-                        <img class="icon-button" src="{{ url_for('static', filename='images/icons/arrow_right.svg') }}">
-                    </div>
-
-                    <div class = "menu-items submenu">
-                        <div class = "menu-topic">
-                            <img class="icon-button" src="{{ url_for('static', filename='images/icons/arrow_left.svg') }}">
-                            <span>Analytics</span>
-                        </div>
-        
-                        <div class = "item"> 
-                            <a href="/product_analytics" >Product Analysis</a>
-                        </div>
-                        <div class = "item"> 
-                            <a href="/process-qbd-analysis" >Process QbD Analysis</a>
-                        </div>
-                        
-                
-                    </div>
-                </div>
+                {% endif %}
+                {% endfor %}
             </div>
         </div>
     </nav>
@@ -333,6 +274,7 @@
     ********************************************************************************************************************
      -->
 
+     {% if show_chatbot %}
      <div id="chatbot-container">
         <div id="chatbot-button">
             <img src="{{ url_for('static', filename='images/icons/robot_2.svg') }}" alt="Chatbot Icon">
@@ -349,6 +291,7 @@
             </div>
         </div>
     </div>
+     {% endif %}
 
     <script>
     function updateDateTime() {
@@ -360,7 +303,9 @@
     updateDateTime();  
 
     </script>
+    {% if show_chatbot %}
     <script src="{{ url_for('static', filename='js/chatbot.js') }}" defer></script>
+    {% endif %}
     <script src="{{ url_for('static', filename='js/sidebar.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/login.js') }}" defer></script>
    

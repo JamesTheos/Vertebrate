@@ -1,3 +1,39 @@
+import os
+import subprocess
+import sys
+import time
+
+from confluent_kafka.admin import AdminClient
+
+
+def wait_for_kafka(timeout_s=180):
+    """In Docker, wait until the broker answers: the blueprints check Kafka once at import time
+    and start no consumers when it is down (e.g. right after `docker compose restart`)."""
+    server = os.environ.get('KAFKASERVER')
+    if not server or os.environ.get('IN_DOCKER', '').lower() not in ('1', 'true', 'yes'):
+        return
+    deadline = time.time() + timeout_s
+    while True:
+        try:
+            AdminClient({'bootstrap.servers': server}).list_topics(timeout=3)
+            print(f"Kafka at {server} is available.", flush=True)
+            return
+        except Exception as e:
+            if time.time() > deadline:
+                print(f"Kafka at {server} still unavailable after {timeout_s} s ({e}); starting anyway.", flush=True)
+                return
+            print(f"Waiting for Kafka at {server} ...", flush=True)
+            time.sleep(3)
+
+
+wait_for_kafka()
+
+# With an external database (Docker), add missing demo data on every start; never changes existing rows
+if os.environ.get('DATABASE_URL') or os.environ.get('SQLALCHEMY_DATABASE_URI'):
+    result = subprocess.run([sys.executable, os.path.join(os.path.dirname(__file__), 'seed_demo.py'), '--startup'])
+    if result.returncode != 0:
+        print(f"Warning: startup seed failed (exit code {result.returncode}).", flush=True)
+
 from app import create_app, create_topics_if_not_exist, consume_messages, data_store, Kafkaserver,Subscriptions, db
 import threading
 import subprocess

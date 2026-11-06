@@ -68,6 +68,30 @@ Run the Docker for the Kafka UI
  
 
 
+# Demo mode (PLC simulator, two users in two tabs)
+
+Start the stack with the simulated PLC and seed the demo data:
+
+    docker compose --profile sim up -d --build
+    docker compose exec vertebrate-app python seed_demo.py
+
+Two users can stay logged in side by side in one browser window. `localhost` and `127.0.0.1`
+are different hosts for the browser, so each tab keeps its own session cookie:
+
+| Tab | URL | User | Role |
+|---|---|---|---|
+| A | http://localhost:5001 | prod.manager | Production Manager – creates and releases orders |
+| B | http://127.0.0.1:5001 | operator | Operator – runs the order in Process Instructions |
+
+User_Admin (role Admin-All) can use either URL. The header shows `user · role` with a coloured
+stripe per role (blue Production Manager, amber Operator, purple Admin).
+
+- Idle logout: `SESSION_IDLE_MINUTES` (default 5, docker-compose sets 60 so the idle tab survives a recording).
+- After a release in tab A, refresh Process Instructions in tab B to see the order in the dropdown.
+- After rebuilding `plc-sim`, restart the bridges: `docker compose --profile sim restart plc2nexus nexus2plc`.
+- PLC simulator status page: http://localhost:8081
+
+
 # Testing
 
 This project includes a comprehensive test suite for both application functionality and 21 CFR Part 11 audit trail compliance.

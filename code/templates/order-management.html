@@ -23,7 +23,7 @@
                     <td class = "order-columns">{{ order.product }}</td>
                     <td class = "order-columns">{{ order.lotNumber }}</td>
                     <td class = "order-columns">{{ order.workflow }}</td>
-                    <td class = "order-columns">{{ order.status }}</td>
+                    <td class = "order-columns"><span class="status-pill status-{{ order.status | lower }}">{{ order.status }}</span></td>
                     <td class="action-buttons">
                         {% if order.status != 'Released' and order.status != 'Started' and order.status != 'Completed' and order.status != 'Aborted'%}
                             <button class="button-style-om release-btn" data-id="{{ order.orderNumber }}">Release</button>

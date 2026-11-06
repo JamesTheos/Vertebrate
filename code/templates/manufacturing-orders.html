@@ -57,7 +57,10 @@
 
             if (response.ok) {
             const modal = document.getElementById('successModal');
-            document.getElementById('genericMessageManOrder').innerHTML = '<strong>Order submitted successfully!</strong>';
+            const message = document.getElementById('genericMessageManOrder');
+            message.innerHTML = '<strong>Order submitted successfully!</strong><br>Order number: <strong class="order-number"></strong>';
+            message.querySelector('.order-number').textContent = orderNumber;
+            document.getElementById('order-form').reset();
             modal.style.display = 'block';
         } else {
             const modal = document.getElementById('successModal');

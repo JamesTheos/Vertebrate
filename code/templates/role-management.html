@@ -192,10 +192,12 @@ roleForm.addEventListener('submit', e => {
             role_apps: checkedBoxes
         })
     })
-    .then(res => res.json())
-    .then(() => {
-        roleForm.reset();
-        addBtn.disabled = true;
+    .then(res => {
+        if (res.ok) {
+            location.reload();  // re-render "Existing Roles" and the role dropdown
+        } else {
+            res.json().then(data => console.error('Add role failed:', data.message));
+        }
     });
 
     console.log("Added:", roleName, checkedBoxes);

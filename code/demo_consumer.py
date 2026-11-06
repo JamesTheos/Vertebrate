@@ -12,7 +12,7 @@ config_path = os.path.join(os.path.dirname(__file__), 'config.json')
 with open(config_path) as config_file:
     config = json.load(config_file)
     
-Kafkaserver = config['Kafkaserver']
+Kafkaserver = os.environ.get('KAFKASERVER', config['Kafkaserver'])
 
 # ISPEMTemp Consumer Configuration
 kafka_temp = {
@@ -144,7 +144,10 @@ def consume_man_orders():
                 
                 man_order_data = json.loads(msg.value().decode('utf-8'))  # Decode JSON message
                 product_name = man_order_data.get("product")
-                order_number = int(man_order_data.get("orderNumber"))
+                try:
+                    order_number = int(man_order_data.get("orderNumber"))
+                except (TypeError, ValueError):
+                    continue  # non-numeric order numbers (e.g. "MO-1001") must not kill this thread
                 if product_name not in order_number_dict.keys():
                     order_number_dict[product_name] = 0
                 if order_number > order_number_dict[product_name]:

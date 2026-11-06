@@ -1,13 +1,13 @@
-from flask import Flask, app, render_template, jsonify, request, abort
+from flask import Flask, app, render_template, jsonify, request, abort, send_from_directory
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_sqlalchemy import SQLAlchemy
 import sqlite3
-from confluent_kafka import Consumer, Producer, KafkaError, OFFSET_BEGINNING
+from confluent_kafka import Consumer, Producer, KafkaError, OFFSET_BEGINNING, TopicPartition
 from confluent_kafka import KafkaException
 from confluent_kafka.admin import AdminClient, NewTopic
 #from LLM_Consumer import get_kafka_data
 #from Neo4j import get_neo4j_data
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 ## Import the blueprints from the other modules
 from product_analytics_app import product_analytics_app
 from DesignSpaceApp import design_space_app  # Import the blueprint from the DesignSpaceApp module
@@ -18,10 +18,12 @@ from demo_consumer import tempConsumerChatbot
 from auth import auth
 from models import db, User, Role, RolePermission, Permission, Subscriptions
 from functools import wraps
-from timeout import register_timeout_hook
+from timeout import register_timeout_hook, session_idle_minutes
 from subscriptions import check_subscription,subscriptions
 from audit_trail import log_audit, log_field_change
 from utils import permission_required
+import data_hub as data_hub_store
+from data_hub import data_hub
 
 # User-defined Roles
 
@@ -136,14 +138,9 @@ def send_to_kafka(topic, value):
         print(f"Kafka producer unavailable, message for topic '{topic}' not sent: {value}")
 
 
+# PLC / UX value topics share the capped full-event deques of the data hub
 data_store = {
-    'ISPEScene1': [],
-    'ISPEScene2': [],
-    'ISPEMTemp': [],
-    'ISPESpeed': [],
-    'ISPEPressure': [],
-    'ISPEAmbTemp': [],
-    'ISPEStartPhase1': [],
+    **{topic: data_hub_store.events[topic] for topic in data_hub_store.VALUE_TOPICS},
     'ISPESelectPhase1': [],
     'manufacturing_orders': [],
     'order-management': [],
@@ -176,11 +173,15 @@ def consume_messages():
     global data_store
     print("App: Starting consume_messages thread", flush=True)  # Initial print statement
 
-    def temp_on_assign(consumer, partitions):
-        for partition in partitions:
-            partition.offset = OFFSET_BEGINNING
-        consumer.assign(partitions)
-    consumer.subscribe(['ISPEScene1', 'ISPEScene2','ISPEMTemp','ISPESpeed','ISPEPressure','ISPEAmbTemp','ISPEStartPhase1', 'manufacturing_orders'], on_assign=temp_on_assign)
+    # Assign every partition directly from the beginning instead of joining the consumer group:
+    # this consumer always replays the full history, and a group join after a restart can wait
+    # ~45 s for the previous (uncleanly stopped) member.
+    topics = ['ISPEScene1', 'ISPEScene2','ISPEMTemp','ISPESpeed','ISPEPressure','ISPEAmbTemp','ISPEStartPhase1', 'manufacturing_orders']
+    metadata = consumer.list_topics(timeout=10)
+    partitions = [TopicPartition(topic, p, OFFSET_BEGINNING)
+                  for topic in topics if topic in metadata.topics
+                  for p in metadata.topics[topic].partitions]
+    consumer.assign(partitions)
     #tbd: Scene1, Scene2 Start, needed?
     while True:
         try:
@@ -197,13 +198,11 @@ def consume_messages():
             topic = msg.topic()
             data = json.loads(msg.value().decode('utf-8'))
             timestamp = msg.timestamp()[1]  # Get the timestamp from the message
-            if topic != 'manufacturing_orders':
-                data_store[topic].append({
-                    'timestamp': timestamp,
-                    'value': data['value']  # Assuming the message contains 'value'
-                })
+            kafka_key = msg.key().decode('utf-8', errors='replace') if msg.key() else None
+            # Keep the full event (also fills data_store[topic] for the value topics)
+            data_hub_store.record_event(topic, kafka_key, timestamp, data)
 
-            elif topic == 'manufacturing_orders':
+            if topic == 'manufacturing_orders':
                 existing_order = next((order for order in data_store[topic] if order['orderNumber'] == data['orderNumber'] and order['product'] == data['product']), None)
                 if existing_order:
                 # Replace the existing order with the new data and timestamp
@@ -211,6 +210,8 @@ def consume_messages():
                         'timestamp': timestamp,
                         'status': data['status']
                     })
+                    if data.get('startedAt'):
+                        existing_order['startedAt'] = data['startedAt']
                 else:
                     data_store[topic].append(data)
             #print(f"New data for {topic}: {data['value']} at {timestamp}", flush=True)  # Debugging log
@@ -239,7 +240,8 @@ def create_app():
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     app.secret_key = 'your_secret_key'  # Set a secret key for session management
-    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes = 10) #generalt time session
+    # session lifetime: twice the idle timeout, at least 10 min (defaults 5 / 10 min, demo 60 / 120)
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=max(10, 2 * session_idle_minutes()))
 
     db.init_app(app)
 
@@ -276,6 +278,7 @@ def create_app():
     app.register_blueprint(colorsettings)
     app.register_blueprint(tempConsumerChatbot)
     app.register_blueprint(subscriptions)
+    app.register_blueprint(data_hub)
 #app.register_blueprint(nexus2plc)
 
     @app.context_processor
@@ -284,6 +287,18 @@ def create_app():
         with open(config_path) as config_file:
             config = json.load(config_file)
         return dict(appconfig=config)
+
+    @app.context_processor
+    def inject_feature_flags():
+        """SHOW_CHATBOT=true shows the (unfinished) chatbot button; hidden by default."""
+        return dict(show_chatbot=os.environ.get('SHOW_CHATBOT', 'false').lower() in ('1', 'true', 'yes'))
+
+    @app.context_processor
+    def inject_user_permissions():
+        """Permission keys of the logged-in user's roles (empty for guests), used to build the sidebar."""
+        if not current_user.is_authenticated:
+            return dict(user_permissions=set())
+        return dict(user_permissions={perm.key for role in current_user.roles for perm in role.permissions})
     
     #######################################################################################
     
@@ -308,6 +323,11 @@ def create_app():
     def index():
         return render_template('index.html')
     
+    # Browsers request /favicon.ico directly, regardless of the <link rel="icon"> tags
+    @app.route('/favicon.ico')
+    def favicon():
+        return send_from_directory(app.static_folder, 'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
     #login-error route
     @app.route('/login-error')
     def Login_error():
@@ -345,7 +365,7 @@ def create_app():
     #######################################################################################
     #Orders route
     @app.route('/manufacturing-orders', methods=['GET', 'POST'])
-    @check_subscription("order-overview")
+    @check_subscription("manufacturing-orders")
     @permission_required('manufacturing-orders')
 
     def manufacturing_orders():
@@ -407,7 +427,11 @@ def create_app():
 
     @app.route('/data/<topic>')
     def get_data(topic):
-        data = data_store.get(topic, [])
+        if topic in data_hub_store.VALUE_TOPICS:
+            # backwards compatible shape; the full events are served by /api/topic/<topic>/events
+            data = [{'timestamp': e['timestamp'], 'value': e['value']} for e in data_hub_store.snapshot(topic)]
+        else:
+            data = data_store.get(topic, [])
         #print(f"Serving data for {topic}: {data}", flush=True)  # Debugging log
         return jsonify(data)
 
@@ -506,6 +530,163 @@ def create_app():
         released_orders = [order for order in data_store['manufacturing_orders'] if order['status'] == 'Released' or order['status'] == 'Started']
         return jsonify({'orders': released_orders})
 
+    def running_order_info():
+        """The order in status Started (most recent), with its step from the server-side step store."""
+        running = [o for o in data_store['manufacturing_orders'] if o.get('status') == 'Started']
+        if not running:
+            return None
+        order = max(running, key=lambda o: str(o.get('startedAt') or o.get('timestamp') or ''))
+        steps = []
+        workflow_path = os.path.join(os.path.dirname(__file__), 'workflows', f"{order.get('workflow')}.json")
+        if os.path.exists(workflow_path):
+            with open(workflow_path) as workflow_file:
+                steps = json.load(workflow_file).get('options') or []
+        # current step name, as Process Instructions shows "Current Step"
+        step_index = order.get('currentStep')
+        step_name = None
+        if step_index is not None:
+            step_name = steps[step_index].get('option') if step_index < len(steps) else 'Completed'
+        return {
+            'orderNumber': order.get('orderNumber'),
+            'product': order.get('product'),
+            'lotNumber': order.get('lotNumber'),
+            'workflow': order.get('workflow'),
+            'step': step_name,
+            'stepIndex': step_index,
+            'stepTotal': len(steps),
+            'since': order.get('startedAt'),
+            'quality': data_hub_store.quality(order.get('product'), order.get('orderNumber')),
+        }
+
+    def load_steps(workflow):
+        workflow_path = os.path.join(os.path.dirname(__file__), 'workflows', f"{workflow}.json")
+        if not os.path.exists(workflow_path):
+            return []
+        with open(workflow_path) as workflow_file:
+            return json.load(workflow_file).get('options') or []
+
+    def iso_to_ms(value):
+        try:
+            return int(datetime.fromisoformat(value).timestamp() * 1000)
+        except (TypeError, ValueError):
+            return None
+
+    def order_card(order, now):
+        """Running order (or last completed one) for the dashboard: steps, times, out-of-spec seconds."""
+        times = data_hub_store.order_times(order.get('orderNumber'))
+        started = times.get('Started') or iso_to_ms(order.get('startedAt'))
+        finished = times.get('Completed') or times.get('Aborted')
+        is_running = order.get('status') == 'Started'
+        steps = load_steps(order.get('workflow'))
+        current = order.get('currentStep')
+        if current is None:
+            current = len(steps) if order.get('status') == 'Completed' else (1 if is_running else 0)
+        step_times = order.get('stepTimes', {})
+        tracker = []
+        for i, step in enumerate(steps):
+            done_at = iso_to_ms(step_times.get(str(i + 1)))
+            if done_at is None and i == 0 and started:
+                done_at = started
+            if done_at is None and i == len(steps) - 1 and finished and i < current:
+                done_at = finished
+            tracker.append({'name': step.get('option'),
+                            'state': 'done' if i < current else ('current' if i == current else 'next'),
+                            'done_at': done_at})
+        end = finished if not is_running else now
+        return {
+            'orderNumber': order.get('orderNumber'),
+            'product': order.get('product'),
+            'lotNumber': order.get('lotNumber'),
+            'workflow': order.get('workflow'),
+            'status': order.get('status'),
+            'started': started,
+            'finished': finished,
+            'duration_ms': (end - started) if started and end else None,
+            'steps': tracker,
+            'out_of_spec_seconds': data_hub_store.out_of_spec_seconds(
+                order.get('orderNumber'), order.get('product'), started, end, final=not is_running),
+        }
+
+    @app.route('/api/running-order', methods=['GET'])
+    @permission_required(*data_hub_store.API_PERMISSIONS, 'process-instructions', 'design-space-representation')
+    def get_running_order():
+        return jsonify({'running': running_order_info()})
+
+    @app.route('/api/dashboard', methods=['GET'])
+    @permission_required(*data_hub_store.API_PERMISSIONS)
+    def get_dashboard():
+        now = data_hub_store.now_ms()
+        orders_by_status = {}
+        for order in data_store['manufacturing_orders']:
+            orders_by_status[order.get('status')] = orders_by_status.get(order.get('status'), 0) + 1
+
+        plc_events = [e for t in data_hub_store.VALUE_TOPICS
+                      if (e := data_hub_store.latest(t)) and e.get('kafka_key') == 'FromPLC']
+        last_plc = max((e['timestamp'] for e in plc_events), default=None)
+
+        events_last_minute = sum(
+            sum(1 for e in data_hub_store.snapshot(t) if now - e['timestamp'] <= 60_000)
+            for t in data_hub_store.TOPICS)
+
+        live_values = []
+        for topic in ('ISPEMTemp', 'ISPESpeed', 'ISPEPressure', 'ISPEAmbTemp'):
+            name, unit, _ = data_hub_store.TOPICS[topic]
+            last = data_hub_store.latest(topic)
+            live_values.append({
+                'topic': topic, 'name': name, 'unit': unit,
+                'value': last['value'] if last else None,
+                'display_value': data_hub_store.format_value(topic, last['value']) if last else None,
+                'timestamp': last['timestamp'] if last else None,
+                'orderNumber': last['message'].get('orderNumber') if last else None,
+            })
+
+        running = running_order_info()
+        orders = data_store['manufacturing_orders']
+        last_activity = lambda o: max(data_hub_store.order_times(o.get('orderNumber')).values(), default=0)
+        recent = sorted(orders, key=last_activity, reverse=True)[:6]
+        recent_orders = []
+        for order in recent:
+            times = data_hub_store.order_times(order.get('orderNumber'))
+            started = times.get('Started')
+            end = times.get('Completed') or times.get('Aborted') or (now if order.get('status') == 'Started' else None)
+            recent_orders.append({
+                'orderNumber': order.get('orderNumber'), 'product': order.get('product'),
+                'lotNumber': order.get('lotNumber'), 'status': order.get('status'),
+                'started': started, 'duration_ms': (end - started) if started and end else None,
+            })
+
+        # order card: the running order, otherwise the last completed one
+        card_order = None
+        if running:
+            card_order = next((o for o in orders if o.get('orderNumber') == running['orderNumber']), None)
+        else:
+            completed = [o for o in orders if o.get('status') == 'Completed']
+            if completed:
+                card_order = max(completed, key=last_activity)
+        card = order_card(card_order, now) if card_order else None
+
+        product = card_order.get('product') if card_order else None
+        design = data_hub_store.design_space(product)
+        since = now - 5 * 60_000
+        for value in live_values:
+            value['series'] = data_hub_store.series(value['topic'], since)
+            value['band'] = design['band'].get(value['topic']) if design else None
+
+        return jsonify({
+            'server_time': now,
+            'orders_by_status': orders_by_status,
+            'running': running,
+            'order_card': card,
+            'design_space': design['name'] if design else None,
+            'recent_orders': recent_orders,
+            'recent_events': data_hub_store.recent_feed(8),
+            'health': data_hub_store.health(),
+            'plc': {'last_event': last_plc, 'age_ms': now - last_plc if last_plc else None},
+            'events_last_minute': events_last_minute,
+            'live_values': live_values,
+            'path': [{'level': level, 'name': name} for level, name in data_hub_store.ISA95_PATH],
+        })
+
     @app.route('/api/order-status', methods=['GET'])
     def get_orderOverview():
         return jsonify({'ordersOverview': data_store['manufacturing_orders']})
@@ -541,12 +722,18 @@ def create_app():
             if total_steps == 0:
                 return jsonify({'error': 'No steps found in the workflow'}), 400
 
+            # Start time of the order, set before the 'Started' message is published so it survives restarts
+            if current_step_index == 1:
+                for order in data_store['manufacturing_orders']:
+                    if order['orderNumber'] == order_number:
+                        order['startedAt'] = datetime.now(timezone.utc).isoformat()
+
             # Handle the first step of the workflow
             if current_step_index == 1 and total_steps > 1:
                 for order in data_store['manufacturing_orders']:
                     if order['orderNumber'] == order_number:
                         order['status'] = 'Started'
-                        order['timestamp'] = datetime.now(datetime.UTC).isoformat()
+                        order['timestamp'] = datetime.now(timezone.utc).isoformat()
                         for actions in workflow_data['options'][0].get('actions', []):
                             if actions.get('action') == button_pressed:
                                 if actions.get('external'):
@@ -572,7 +759,7 @@ def create_app():
             if current_step_index < total_steps and current_step_index > 1:
                 for order in data_store['manufacturing_orders']:
                     if order['orderNumber'] == order_number:
-                        order['timestamp'] = datetime.now(datetime.UTC).isoformat()
+                        order['timestamp'] = datetime.now(timezone.utc).isoformat()
 
                         for option in workflow_data['options'][current_step_index - 1].get('actions', []):
                             if option.get('action') == button_pressed:
@@ -599,7 +786,7 @@ def create_app():
                 for order in data_store['manufacturing_orders']:
                     if order['orderNumber'] == order_number:
                         order['status'] = 'Completed'
-                        order['timestamp'] = datetime.now(datetime.UTC).isoformat()
+                        order['timestamp'] = datetime.now(timezone.utc).isoformat()
 
                         for actions in workflow_data['options'][current_step_index - 1].get('actions', []):
             
@@ -632,6 +819,14 @@ def create_app():
                                     topic = action.get('topic')
                                     send_to_kafka(topic, {'value': False, **order})
 
+            # Remember progress on the server so Process Instructions doesn't depend on localStorage
+            for order in data_store['manufacturing_orders']:
+                if order['orderNumber'] == order_number:
+                    order['currentStep'] = current_step_index
+                    order['lastAction'] = button_pressed
+                    # completion time per step (1-based), for the dashboard step tracker
+                    order.setdefault('stepTimes', {})[str(current_step_index)] = datetime.now(timezone.utc).isoformat()
+
             return jsonify({'success': True})
 
         except Exception as e:
@@ -656,13 +851,29 @@ def create_app():
             with open(workflow_path) as workflow_file:
                 workflow_data = json.load(workflow_file)
 
+            steps = workflow_data.get('options') or []
+            status = order.get('status')
+            if status == 'Completed':
+                current_step = len(steps)
+            elif status == 'Started':
+                current_step = order.get('currentStep')  # None -> client falls back to localStorage
+            else:
+                current_step = 0
+
             data = {
-                'workflows': workflow_data.get('options'),
+                'workflows': steps,
                 'workflow_name': workflow_data.get('workflowName'),
+                'currentStep': current_step,
             }
             return jsonify(data)
         else:
             return jsonify({'error': 'Workflow not found'}), 404
+
+    @app.route('/data-tree')
+    @check_subscription("data-tree")
+    @permission_required('data-tree')
+    def data_tree():
+        return render_template('data-tree.html')
 
     @app.route('/sampling')
     @check_subscription("sampling")
@@ -772,168 +983,168 @@ def create_app():
     ###########################################################################################################################
 
 
-@app.route('/get-role', methods=["POST"])
-def define_role():
-    data = request.get_json()
-    new_role = data.get('created_role')
-    allowed_apps = data.get('role_apps')
+    @app.route('/get-role', methods=["POST"])
+    def define_role():
+        data = request.get_json()
+        new_role = data.get('created_role')
+        allowed_apps = data.get('role_apps')
 
-    if not new_role or not allowed_apps:
-        return jsonify({'message': 'Role name and at least one function required.'}), 400
+        if not new_role or not allowed_apps:
+            return jsonify({'message': 'Role name and at least one function required.'}), 400
 
-    if isinstance(allowed_apps, dict):
-        perm_keys = list(allowed_apps.keys())
-    else:
-        perm_keys = list(allowed_apps)
+        if isinstance(allowed_apps, dict):
+            perm_keys = list(allowed_apps.keys())
+        else:
+            perm_keys = list(allowed_apps)
 
-    # Capture existence BEFORE any mutations
-    existing_role = Role.query.filter_by(name=new_role).first()
-    is_existing = existing_role is not None
+        # Capture existence BEFORE any mutations
+        existing_role = Role.query.filter_by(name=new_role).first()
+        is_existing = existing_role is not None
 
-    if is_existing:
+        if is_existing:
+            # Capture real old permissions BEFORE deletion
+            old_perm_keys = [
+                row[0] for row in
+                db.session.query(Permission.key)
+                .join(RolePermission, RolePermission.permission_id == Permission.id)
+                .filter(RolePermission.role_id == existing_role.id)
+                .all()
+            ]
+            RolePermission.query.filter_by(role_id=existing_role.id).delete()
+            db.session.flush()
+            role = existing_role
+        else:
+            old_perm_keys = []
+            role = Role(name=new_role)
+            db.session.add(role)
+            db.session.flush()
+
+        for key in perm_keys:
+            perm = Permission.query.filter_by(key=key).first()
+            if not perm:
+                perm = Permission(key=key)
+                db.session.add(perm)
+                db.session.flush()
+            rp = RolePermission(role_id=role.id, permission_id=perm.id)
+            db.session.add(rp)
+
+        db.session.commit()
+
+        action_type = 'UPDATE' if is_existing else 'CREATE'
+        log_audit(
+            action_type=action_type,
+            record_type='ROLE',
+            record_id=str(role.id),
+            change_reason=f'Role "{new_role}" {"updated" if is_existing else "created"} with permissions: {perm_keys}'
+        )
+
+        # Log field-level change for UPDATE so old vs new permissions are captured
+        if is_existing:
+            log_field_change(
+                action_type='UPDATE',
+                record_type='ROLE',
+                record_id=str(role.id),
+                field_name='permissions',
+                old_value=str(old_perm_keys),
+                new_value=str(perm_keys),
+                change_reason=f'Role "{new_role}" permissions updated'
+            )
+
+        return jsonify({'message': f'Role "{new_role}" saved in database.', 'role_id': role.id, 'permissions': perm_keys})
+
+        @app.route('/get-role/<role_name>', methods=["GET"])
+        def get_role(role_name):
+            role = Role.query.filter_by(name=role_name).first()
+            if not role:
+                return jsonify({'message': 'Role not found'}), 404
+
+            permissions = [
+                {'key': perm.key} for perm in 
+                Permission.query.join(RolePermission, Permission.id == RolePermission.permission_id)
+                .filter(RolePermission.role_id == role.id).all()
+            ]
+
+            return jsonify({'name': role.name, 'permissions': permissions})
+
+
+    @app.route('/update-role', methods=["POST"])
+    def update_role():
+        data = request.get_json()
+        role_name = data.get('role_name')
+        updated_apps = data.get('updated_role_apps')
+
+        if not role_name or not updated_apps:
+            return jsonify({'message': 'Role name and at least one function required.'}), 400
+
+        role = Role.query.filter_by(name=role_name).first()
+        if not role:
+            return jsonify({'message': 'Role not found'}), 404
+
+        if isinstance(updated_apps, dict):
+            perm_keys = list(updated_apps.keys())
+        else:
+            perm_keys = list(updated_apps)
+
         # Capture real old permissions BEFORE deletion
         old_perm_keys = [
             row[0] for row in
             db.session.query(Permission.key)
             .join(RolePermission, RolePermission.permission_id == Permission.id)
-            .filter(RolePermission.role_id == existing_role.id)
+            .filter(RolePermission.role_id == role.id)
             .all()
         ]
-        RolePermission.query.filter_by(role_id=existing_role.id).delete()
-        db.session.flush()
-        role = existing_role
-    else:
-        old_perm_keys = []
-        role = Role(name=new_role)
-        db.session.add(role)
+
+        # Remove existing permissions
+        RolePermission.query.filter_by(role_id=role.id).delete()
         db.session.flush()
 
-    for key in perm_keys:
-        perm = Permission.query.filter_by(key=key).first()
-        if not perm:
-            perm = Permission(key=key)
-            db.session.add(perm)
-            db.session.flush()
-        rp = RolePermission(role_id=role.id, permission_id=perm.id)
-        db.session.add(rp)
+        # Recreate permissions
+        for key in perm_keys:
+            perm = Permission.query.filter_by(key=key).first()
+            if not perm:
+                perm = Permission(key=key)
+                db.session.add(perm)
+                db.session.flush()
+            rp = RolePermission(role_id=role.id, permission_id=perm.id)
+            db.session.add(rp)
 
-    db.session.commit()
+        db.session.commit()
 
-    action_type = 'UPDATE' if is_existing else 'CREATE'
-    log_audit(
-        action_type=action_type,
-        record_type='ROLE',
-        record_id=str(role.id),
-        change_reason=f'Role "{new_role}" {"updated" if is_existing else "created"} with permissions: {perm_keys}'
-    )
-
-    # Log field-level change for UPDATE so old vs new permissions are captured
-    if is_existing:
         log_field_change(
             action_type='UPDATE',
             record_type='ROLE',
             record_id=str(role.id),
             field_name='permissions',
-            old_value=str(old_perm_keys),
+            old_value=str(old_perm_keys),  # ← real previous state
             new_value=str(perm_keys),
-            change_reason=f'Role "{new_role}" permissions updated'
+            change_reason=f'Role "{role_name}" permissions updated'
         )
 
-    return jsonify({'message': f'Role "{new_role}" saved in database.', 'role_id': role.id, 'permissions': perm_keys})
+        return jsonify({'message': f'Role "{role_name}" updated successfully.', 'permissions': perm_keys})
 
-    @app.route('/get-role/<role_name>', methods=["GET"])
-    def get_role(role_name):
-        role = Role.query.filter_by(name=role_name).first()
-        if not role:
-            return jsonify({'message': 'Role not found'}), 404
-
-        permissions = [
-            {'key': perm.key} for perm in 
-            Permission.query.join(RolePermission, Permission.id == RolePermission.permission_id)
-            .filter(RolePermission.role_id == role.id).all()
-        ]
-
-        return jsonify({'name': role.name, 'permissions': permissions})
-
-
-@app.route('/update-role', methods=["POST"])
-def update_role():
-    data = request.get_json()
-    role_name = data.get('role_name')
-    updated_apps = data.get('updated_role_apps')
-
-    if not role_name or not updated_apps:
-        return jsonify({'message': 'Role name and at least one function required.'}), 400
-
-    role = Role.query.filter_by(name=role_name).first()
-    if not role:
-        return jsonify({'message': 'Role not found'}), 404
-
-    if isinstance(updated_apps, dict):
-        perm_keys = list(updated_apps.keys())
-    else:
-        perm_keys = list(updated_apps)
-
-    # Capture real old permissions BEFORE deletion
-    old_perm_keys = [
-        row[0] for row in
-        db.session.query(Permission.key)
-        .join(RolePermission, RolePermission.permission_id == Permission.id)
-        .filter(RolePermission.role_id == role.id)
-        .all()
-    ]
-
-    # Remove existing permissions
-    RolePermission.query.filter_by(role_id=role.id).delete()
-    db.session.flush()
-
-    # Recreate permissions
-    for key in perm_keys:
-        perm = Permission.query.filter_by(key=key).first()
-        if not perm:
-            perm = Permission(key=key)
-            db.session.add(perm)
-            db.session.flush()
-        rp = RolePermission(role_id=role.id, permission_id=perm.id)
-        db.session.add(rp)
-
-    db.session.commit()
-
-    log_field_change(
-        action_type='UPDATE',
-        record_type='ROLE',
-        record_id=str(role.id),
-        field_name='permissions',
-        old_value=str(old_perm_keys),  # ← real previous state
-        new_value=str(perm_keys),
-        change_reason=f'Role "{role_name}" permissions updated'
-    )
-
-    return jsonify({'message': f'Role "{role_name}" updated successfully.', 'permissions': perm_keys})
-
-    ##########################################################################################################################
-    #LOGIN - USERNAME
-    ##########################################################################################################################
+        ##########################################################################################################################
+        #LOGIN - USERNAME
+        ##########################################################################################################################
 
 
 
-    @app.route('/api/login', methods=['POST'])
-    def login():
+        @app.route('/api/login', methods=['POST'])
+        def login():
 
-        username = request.json.get('username')
-        password = request.json.get('password')
+            username = request.json.get('username')
+            password = request.json.get('password')
 
-        config_path = os.path.join(os.path.dirname(__file__), 'appconfig.json')
-        with open(config_path) as config_file:
-            config = json.load(config_file)
+            config_path = os.path.join(os.path.dirname(__file__), 'appconfig.json')
+            with open(config_path) as config_file:
+                config = json.load(config_file)
 
-        config['Username'] = username
+            config['Username'] = username
 
-        with open(config_path, 'w') as config_file:
-            json.dump(config, config_file, indent=4)
+            with open(config_path, 'w') as config_file:
+                json.dump(config, config_file, indent=4)
 
-        return jsonify({'status': 'Username saved successfully'})
-    
+            return jsonify({'status': 'Username saved successfully'})
+        
 
     return app
     

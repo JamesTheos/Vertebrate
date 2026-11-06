@@ -1,8 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Access denied!{% endblock %}
-{% block header_title %}Access denied!{% endblock %}
+{% block title %}{% if current_user.is_authenticated %}No access{% else %}Please log in{% endif %}{% endblock %}
+{% block header_title %}{% if current_user.is_authenticated %}No access{% else %}Please log in{% endif %}{% endblock %}
 
 {% block content %}
-You do not have access to this page. Please Log-In with an other Account.
+{% if current_user.is_authenticated %}
+<p>Your role has no access to this page.</p>
+{% else %}
+<p>Please log in to open this page.</p>
+{% endif %}
+<p><a href="/index">Back to Home</a></p>
 {% endblock %}
