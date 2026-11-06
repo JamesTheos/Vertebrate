@@ -44,8 +44,10 @@ jobs:
       DISABLE_KAFKA: '1'
       # create_app() resolves DATABASE_URL or SQLALCHEMY_DATABASE_URI; conftest
       # drives pytest off SQLALCHEMY_DATABASE_URI. Set both to the service.
-      SQLALCHEMY_DATABASE_URI: postgresql://vertebrate:vertebrate@localhost:5432/vertebrate
-      DATABASE_URL: postgresql://vertebrate:vertebrate@localhost:5432/vertebrate
+      # Name the driver: SQLAlchemy 2.1 maps a bare postgresql:// to psycopg (v3),
+      # but Requirements.txt installs psycopg2.
+      SQLALCHEMY_DATABASE_URI: postgresql+psycopg2://vertebrate:vertebrate@localhost:5432/vertebrate
+      DATABASE_URL: postgresql+psycopg2://vertebrate:vertebrate@localhost:5432/vertebrate
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
