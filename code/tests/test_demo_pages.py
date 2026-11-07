@@ -22,6 +22,10 @@ from seed_demo import ALL_PERMISSION_KEYS, ROLES
 
 PASSWORD = 'smoke-pw'
 
+# Subscription names are not always permission keys: the AAS viewer is subscription 'aas',
+# permission 'aas_export'
+SUBSCRIPTION_APPS = sorted(set(ALL_PERMISSION_KEYS) | {'aas'})
+
 # username -> (role name, permission keys); role names are prefixed so they never clash with other tests
 DEMO_USERS = {
     'smoke.admin': ('smoke Admin-All', ALL_PERMISSION_KEYS),
@@ -40,7 +44,7 @@ PAGES = [
     '/settings', '/plantconfig', '/processconfig', '/workflow-management',
     '/user-management', '/role-management', '/subscription-management',
     '/user-profile', '/updated-user', '/login-error', '/logout-message',
-    '/audit/',
+    '/audit/', '/aas-viewer',
 ]
 
 # Sidebar links (besides Home) as the demo showed them per role
@@ -51,7 +55,7 @@ SIDEBAR_LINKS = {
         '/equipment-overview', '/scada', '/3d-view',
         '/design-space-definition', '/design-space-representation',
         '/product_analytics', '/process-qbd-analysis',
-        '/audit/',
+        '/audit/', '/aas-viewer',
     },
     'smoke.pm':{'/data-tree', '/manufacturing-orders', '/order-management', '/workflow-overview'},
     'smoke.operator': {
@@ -70,7 +74,7 @@ def demo_users(app):
 
     with app.app_context():
         previous = {s.apps: s.subscribed for s in Subscriptions.query.all()}
-        for key in ALL_PERMISSION_KEYS:
+        for key in SUBSCRIPTION_APPS:
             sub = Subscriptions.query.filter_by(apps=key).first()
             if sub:
                 sub.subscribed = True
@@ -152,6 +156,8 @@ def test_branding_on_every_page(app):
     ('smoke.pm', '/user-management'),
     ('smoke.operator', '/audit/'),
     ('smoke.pm', '/audit/'),
+    ('smoke.operator', '/aas-viewer'),
+    ('smoke.pm', '/aas-viewer'),
 ])
 def test_role_cannot_open_pages_outside_its_permissions(app, username, path):
     assert login(app, username).get(path).status_code == 403

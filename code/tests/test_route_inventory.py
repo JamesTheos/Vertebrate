@@ -95,6 +95,15 @@ BASELINE_ROUTES = [
     ('/audit/api/integrity',                {'GET'}),
     ('/audit/api/logs/export',              {'GET'}),
     ('/audit/api/siem',                     {'GET'}),
+
+    # feature/aas-integration (merge step 4)
+    ('/aas-viewer',                         {'GET'}),
+    ('/login',                              {'GET'}),
+    ('/api/aas/<asset_type>/<asset_id>',    {'GET'}),
+    ('/api/aas/export/<asset_type>/<asset_id>', {'GET'}),
+    ('/api/aas/export-aasx/<asset_type>/<asset_id>', {'GET'}),
+    ('/api/aas/sync/<asset_type>/<asset_id>', {'POST'}),
+    ('/api/aas/nameplate/<asset_type>/<asset_id>', {'GET', 'POST'}),
 ]
 
 
