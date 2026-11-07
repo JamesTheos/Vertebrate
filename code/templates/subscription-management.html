@@ -198,8 +198,16 @@
                         </td>
                         <td>
                             <label for="role-management">Role Management</label>
-                            <input type="checkbox" id="role-management" 
+                            <input type="checkbox" id="role-management"
                                 {% if subscription_status['role-management'] %} checked {% endif %}>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Digital Twin:</th>
+                        <td>
+                            <label for="aas">AAS Export</label>
+                            <input type="checkbox" id="aas"
+                                {% if subscription_status['aas'] %} checked {% endif %}>
                         </td>
                     </tr>
                 </table>

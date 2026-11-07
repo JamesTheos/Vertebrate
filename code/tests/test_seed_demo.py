@@ -75,3 +75,34 @@ def test_seed_keeps_a_changed_admin_password(app, user_admin):
     password, roles = admin(app)
     assert check_password_hash(password, 'changed-by-admin')
     assert 'Admin-All' in roles
+
+
+def test_seed_gives_admin_all_the_aas_viewer(app, user_admin):
+    """feature/aas-integration: Admin-All gets permission 'aas_export' (the AAS Viewer)."""
+    from models import Role
+    run_seed(app)
+    with app.app_context():
+        keys = {p.key for p in Role.query.filter_by(name='Admin-All').first().permissions}
+    assert 'aas_export' in keys
+
+
+def test_seed_subscribes_the_aas_app(app, monkeypatch):
+    """The AAS Viewer checks subscription 'aas', which is not a permission key."""
+    from models import db, Subscriptions
+    monkeypatch.setattr(seed_demo, 'STARTUP', False)
+    monkeypatch.setattr(seed_demo, 'changes', [])
+    with app.app_context():
+        previous = {s.apps: s.subscribed for s in Subscriptions.query.all()}
+        try:
+            seed_demo.seed_subscriptions()
+            db.session.commit()
+            sub = Subscriptions.query.filter_by(apps='aas').first()
+            assert sub is not None and sub.subscribed
+        finally:
+            db.session.rollback()
+            for sub in Subscriptions.query.all():
+                if sub.apps in previous:
+                    sub.subscribed = previous[sub.apps]
+                else:
+                    db.session.delete(sub)
+            db.session.commit()

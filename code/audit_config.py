@@ -20,6 +20,8 @@ ACTION_VIEW = 'VIEW'
 
 # System actions
 ACTION_SYSTEM = 'SYSTEM'
+ACTION_EXPORT = 'EXPORT'
+ACTION_SYNC = 'SYNC'
 
 # ============================================================================
 # RECORD TYPES - What was affected
@@ -35,6 +37,9 @@ RECORD_PASSWORD = 'PASSWORD'
 RECORD_SUBSCRIPTION = 'SUBSCRIPTION'
 RECORD_WORKFLOW = 'WORKFLOW'
 RECORD_ORDER = 'ORDER'
+
+# Digital Twin / AAS
+RECORD_AAS = 'AAS'
 
 # System
 RECORD_SYSTEM = 'SYSTEM'

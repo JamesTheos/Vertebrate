@@ -6,7 +6,7 @@ from models import Role, RolePermission, Permission, db
 def permission_required(*permission_keys):
     """
     Require at least one of permission_keys for any role the current_user has.
-    Works with User.roles (many-to-many) or legacy current_user.role_id if present.
+    Roles come from the User.roles many-to-many relationship.
     """
     def decorator(f):
         @wraps(f)
@@ -14,17 +14,11 @@ def permission_required(*permission_keys):
             if not current_user.is_authenticated:
                 abort(403)
 
-            # collect role ids from relationship or single role_id
-            role_ids = set()
-            user_roles = getattr(current_user, 'roles', None)
-            if user_roles:
-                for r in user_roles:
-                    if getattr(r, 'id', None) is not None:
-                        role_ids.add(r.id)
-
-            single_role_id = getattr(current_user, 'role_id', None)
-            if single_role_id is not None:
-                role_ids.add(single_role_id)
+            # collect role ids from the roles relationship
+            role_ids = {
+                r.id for r in getattr(current_user, 'roles', None) or []
+                if getattr(r, 'id', None) is not None
+            }
 
             if not role_ids:
                 abort(403)
