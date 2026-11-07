@@ -34,7 +34,7 @@ if os.environ.get('DATABASE_URL') or os.environ.get('SQLALCHEMY_DATABASE_URI'):
     if result.returncode != 0:
         print(f"Warning: startup seed failed (exit code {result.returncode}).", flush=True)
 
-from app import create_app, create_topics_if_not_exist, consume_messages, data_store, Kafkaserver,Subscriptions, db
+from app import create_app, create_topics_if_not_exist, consume_messages, data_store, Kafkaserver, db
 import threading
 import subprocess
 import sys
@@ -74,7 +74,6 @@ def get_kafka_cluster_id(bootstrap_servers: str):
     try:
         admin = AdminClient({'bootstrap.servers': bootstrap_servers})
         md = admin.list_topics(timeout=5)
-        # md.cluster_id is available in recent librdkafka; fallback if missing
         return getattr(md, 'cluster_id', None)
     except KafkaException as e:
         print(f"Warning: Could not fetch cluster ID from Kafka at '{bootstrap_servers}' (KafkaException): {e}")
@@ -87,8 +86,12 @@ cluster_id = get_kafka_cluster_id(Kafkaserver) or config.get("clusterid")
 print("Cluster ID (active):", cluster_id)
 
 
-# Only perform SQLite reset logic when not using an external DB
-if not (os.environ.get('DATABASE_URL') or os.environ.get('SQLALCHEMY_DATABASE_URI')) and cluster_id != cluster_id_temp:
+# Only perform SQLite reset logic when:
+#   1. Not using an external DB (Postgres)
+#   2. Kafka returned a real cluster_id (not None) — never wipe the DB just because Kafka is down
+#   3. The cluster_id actually changed from what's stored in the DB
+using_external_db = bool(os.environ.get('DATABASE_URL') or os.environ.get('SQLALCHEMY_DATABASE_URI'))
+if not using_external_db and cluster_id is not None and cluster_id != cluster_id_temp:
     print("Cluster ID has changed (SQLite mode). Resetting local DB.")
     db_path = os.path.join(os.path.dirname(__file__), 'instance', 'UserManagement.db')
     if os.path.exists(db_path):
@@ -112,7 +115,6 @@ if __name__ == "__main__":
         consumer = None
 
     if consumer is not None:
-        import threading
         threading.Thread(target=consume_messages, daemon=True).start()
     else:
         print("Not starting consume_messages thread because Kafka is unavailable.")

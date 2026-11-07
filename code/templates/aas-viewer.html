@@ -1,0 +1,650 @@
+{% extends "base.html" %}
+
+{% block title %}AAS Viewer — Digital Twin Export{% endblock %}
+{% block header_title %}AAS Viewer — Digital Twin Export{% endblock %}
+
+{% block content %}
+<style>
+    .aas-layout {
+        display: grid;
+        grid-template-columns: 360px 1fr;
+        gap: 20px;
+        height: 100%;
+        min-height: 0;
+    }
+
+    /* ── Left Panel ─────────────────────────────────────────── */
+    .aas-panel-left {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        overflow-y: auto;
+    }
+
+    .aas-section-title {
+        font-size: 11pt;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-color);
+        opacity: 0.55;
+        margin-bottom: 6px;
+    }
+
+    .aas-card {
+        background: var(--box-background-color);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 18px 20px;
+    }
+
+    .aas-form-group {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 12px;
+    }
+
+    .aas-form-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .aas-form-group label {
+        font-size: 10pt;
+        font-weight: 500;
+        color: var(--text-color);
+        opacity: 0.8;
+        margin-bottom: 5px;
+    }
+
+    .aas-input {
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        background: var(--content-background);
+        color: var(--text-color);
+        font-size: 10.5pt;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+
+    .aas-input::placeholder {
+        color: var(--text-color);
+        opacity: 0.4;
+    }
+
+    .aas-input:focus {
+        border-color: var(--button-background);
+        box-shadow: 0 0 0 2px var(--border-focus-color);
+    }
+
+    .aas-divider {
+        border: none;
+        border-top: 1px solid var(--border-color);
+        margin: 4px 0 12px;
+    }
+
+    .aas-btn-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 6px;
+    }
+
+    .aas-btn {
+        flex: 1;
+        padding: 10px 0;
+        border: none;
+        border-radius: 8px;
+        font-size: 10.5pt;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.2s, transform 0.15s;
+    }
+
+    .aas-btn:active {
+        transform: scale(0.97);
+    }
+
+    .aas-btn-primary {
+        background: var(--button-background);
+        color: var(--button-text-color);
+    }
+
+    .aas-btn-secondary {
+        background: var(--box-background-color);
+        color: var(--text-color);
+        border: 1px solid var(--border-color);
+    }
+
+    .aas-btn:hover {
+        opacity: 0.82;
+    }
+
+    .aas-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 9.5pt;
+        color: var(--text-color);
+        padding: 8px 12px;
+        border-radius: 8px;
+        background: var(--box-background-color);
+        border: 1px solid var(--border-color);
+        min-height: 36px;
+    }
+
+    .aas-status-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        background: var(--text-color);
+        opacity: 0.3;
+    }
+
+    .aas-status-dot.ok   { background: #3a9e6e; opacity: 1; }
+    .aas-status-dot.err  { background: #c94040; opacity: 1; }
+    .aas-status-dot.busy {
+        background: var(--button-background);
+        opacity: 1;
+        animation: aas-pulse 1s ease-in-out infinite;
+    }
+
+    @keyframes aas-pulse {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0.3; }
+    }
+
+    /* ── Right Panel ────────────────────────────────────────── */
+    .aas-panel-right {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    .aas-viewer-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .aas-viewer-title {
+        font-size: 11pt;
+        font-weight: 600;
+        color: var(--text-color);
+    }
+
+    .aas-expand-btns {
+        display: flex;
+        gap: 8px;
+    }
+
+    .aas-expand-btn {
+        font-size: 9pt;
+        padding: 4px 10px;
+        border-radius: 6px;
+        border: 1px solid var(--border-color);
+        background: var(--box-background-color);
+        color: var(--text-color);
+        cursor: pointer;
+        opacity: 0.8;
+    }
+
+    .aas-expand-btn:hover { opacity: 1; }
+
+    .aas-tree-box {
+        flex: 1;
+        overflow-y: auto;
+        background: var(--box-background-color);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 16px 18px;
+        font-size: 9.5pt;
+        font-family: 'Consolas', 'Courier New', monospace;
+        line-height: 1.6;
+        color: var(--text-color);
+    }
+
+    .aas-tree-box.empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-color);
+        opacity: 0.4;
+        gap: 10px;
+        font-family: 'Segoe UI', sans-serif;
+        font-size: 11pt;
+    }
+
+    /* ── JSON Tree Styles ───────────────────────────────────── */
+    .jt-node { margin-left: 18px; }
+
+    .jt-toggle {
+        cursor: pointer;
+        user-select: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        color: var(--text-color);
+    }
+
+    .jt-toggle::before {
+        content: '▶';
+        font-size: 8pt;
+        display: inline-block;
+        transition: transform 0.15s;
+        color: var(--button-background);
+    }
+
+    .jt-toggle.open::before {
+        transform: rotate(90deg);
+    }
+
+    /* Token colours — derived from the theme accent so they
+       always contrast against --box-background-color.        */
+    .jt-key  { color: var(--button-background); font-weight: 600; }
+    .jt-str  { color: var(--text-color); }
+    .jt-num  { color: var(--text-color); opacity: 0.75; font-style: italic; }
+    .jt-bool { color: var(--button-background); opacity: 0.85; }
+    .jt-null { color: var(--text-color); opacity: 0.45; }
+    .jt-bracket { color: var(--text-color); opacity: 0.55; }
+
+    .jt-children { display: none; }
+    .jt-children.open { display: block; }
+</style>
+
+<div class="aas-layout">
+
+    <!-- ═══════════════════════════════════════════════════════
+         LEFT: Configuration Panel
+    ═══════════════════════════════════════════════════════ -->
+    <div class="aas-panel-left">
+
+        <!-- Asset Identity -->
+        <div class="aas-card">
+            <p class="aas-section-title">Asset Identity</p>
+            <div class="aas-form-group">
+                <label>Asset Type</label>
+                <input id="aas-asset-type" class="aas-input" type="text"
+                       placeholder="e.g. equipment" value="equipment">
+            </div>
+            <div class="aas-form-group">
+                <label>Asset ID</label>
+                <input id="aas-asset-id" class="aas-input" type="text"
+                       placeholder="e.g. filling-machine-1" value="filling-machine-1">
+            </div>
+        </div>
+
+        <!-- Nameplate Properties -->
+        <div class="aas-card">
+            <p class="aas-section-title">Nameplate Properties</p>
+            <div class="aas-form-group">
+                <label>Manufacturer</label>
+                <input id="aas-manufacturer" class="aas-input" type="text"
+                       placeholder="e.g. Syntegon">
+            </div>
+            <div class="aas-form-group">
+                <label>Product Designation</label>
+                <input id="aas-product-designation" class="aas-input" type="text"
+                       placeholder="e.g. Rotary Filling Machine">
+            </div>
+            <div class="aas-form-group">
+                <label>Product Root</label>
+                <input id="aas-product-root" class="aas-input" type="text"
+                       placeholder="e.g. Filling Equipment">
+            </div>
+            <div class="aas-form-group">
+                <label>URI of Product</label>
+                <input id="aas-uri" class="aas-input" type="text"
+                       placeholder="e.g. https://example.com/product/fm1">
+            </div>
+            <div class="aas-form-group">
+                <label>Serial Number</label>
+                <input id="aas-serial" class="aas-input" type="text"
+                       placeholder="e.g. SN-0042">
+            </div>
+            <div class="aas-form-group">
+                <label>Country of Origin</label>
+                <input id="aas-country" class="aas-input" type="text"
+                       placeholder="e.g. DE">
+            </div>
+            <div class="aas-form-group">
+                <label>Year of Construction</label>
+                <input id="aas-year" class="aas-input" type="text"
+                       placeholder="e.g. 2022">
+            </div>
+            <div class="aas-form-group">
+                <label>Hardware Version</label>
+                <input id="aas-hw" class="aas-input" type="text"
+                       placeholder="e.g. HW-2.1">
+            </div>
+            <div class="aas-form-group">
+                <label>Software Version</label>
+                <input id="aas-sw" class="aas-input" type="text"
+                       placeholder="e.g. SW-4.3.1">
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="aas-card">
+            <p class="aas-section-title">Actions</p>
+            <div class="aas-btn-row">
+                <button class="aas-btn aas-btn-primary" onclick="generateAAS()">&#9654; View AAS</button>
+                <button class="aas-btn aas-btn-secondary" onclick="downloadAAS()">&#8681; JSON</button>
+                <button class="aas-btn aas-btn-secondary" onclick="downloadAASX()">&#8681; AASX</button>
+            </div>
+            <div class="aas-btn-row" style="margin-top:8px">
+                <button class="aas-btn aas-btn-secondary" onclick="saveNameplate()">&#128190; Save Nameplate</button>
+                <button class="aas-btn aas-btn-secondary" onclick="loadNameplate()">&#8635; Load Saved</button>
+                <button class="aas-btn aas-btn-secondary" onclick="pushToBasyx()">&#8593; Push to BaSyx</button>
+            </div>
+        </div>
+
+        <!-- Status -->
+        <div class="aas-status" id="aas-status">
+            <span class="aas-status-dot" id="aas-dot"></span>
+            <span id="aas-status-text">Enter asset details and click View AAS</span>
+        </div>
+
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         RIGHT: AAS Tree Viewer
+    ═══════════════════════════════════════════════════════ -->
+    <div class="aas-panel-right">
+        <div class="aas-viewer-header">
+            <span class="aas-viewer-title">AAS JSON — IEC 63278 / Part 2</span>
+            <div class="aas-expand-btns">
+                <button class="aas-expand-btn" onclick="setAllNodes(true)">Expand all</button>
+                <button class="aas-expand-btn" onclick="setAllNodes(false)">Collapse all</button>
+            </div>
+        </div>
+
+        <div class="aas-tree-box empty-state" id="aas-tree">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="1.4">
+                <rect x="3" y="3" width="7" height="7" rx="1"/>
+                <rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+                <path d="M17.5 17.5m-2.5 0a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0"/>
+                <path d="M14 17.5h1m5 0h1m-3.5-3.5v1m0 5v1"/>
+            </svg>
+            <span>No AAS generated yet</span>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// ─── Helpers ─────────────────────────────────────────────────
+function _assetType() { return document.getElementById('aas-asset-type').value.trim() || 'equipment'; }
+function _assetId()   { return document.getElementById('aas-asset-id').value.trim()   || 'unknown'; }
+
+// ─── Build query string from form ────────────────────────────
+function buildURL(base) {
+    const url = new URL(`${base}/${encodeURIComponent(_assetType())}/${encodeURIComponent(_assetId())}`, window.location.origin);
+    const params = {
+        manufacturer:         document.getElementById('aas-manufacturer').value.trim(),
+        product_designation:  document.getElementById('aas-product-designation').value.trim(),
+        product_root:         document.getElementById('aas-product-root').value.trim(),
+        uri_of_product:       document.getElementById('aas-uri').value.trim(),
+        serial:               document.getElementById('aas-serial').value.trim(),
+        country:              document.getElementById('aas-country').value.trim(),
+        year_of_construction: document.getElementById('aas-year').value.trim(),
+        hw_version:           document.getElementById('aas-hw').value.trim(),
+        sw_version:           document.getElementById('aas-sw').value.trim(),
+    };
+    Object.entries(params).forEach(([k, v]) => { if (v) url.searchParams.set(k, v); });
+    return url.toString();
+}
+
+function setStatus(state, text) {
+    const dot  = document.getElementById('aas-dot');
+    const span = document.getElementById('aas-status-text');
+    dot.className  = 'aas-status-dot ' + (state || '');
+    span.textContent = text;
+}
+
+// ─── Session-aware fetch ─────────────────────────────────────
+// The backend answers /api/ calls with a JSON 401 when the session has expired
+// or the user isn't authenticated (instead of redirecting to the HTML login
+// page).  apiFetch turns that into a recoverable, clearly-labelled error so the
+// viewer never tries to JSON-parse a login page ("Unexpected token '<'").
+const LOGIN_URL = '/login?next=/aas-viewer';
+
+function sessionExpiredError() {
+    const e = new Error('Your session has expired. Please log in again.');
+    e.sessionExpired = true;
+    return e;
+}
+
+async function apiFetch(url, opts) {
+    const res = await fetch(url, opts);
+    if (res.status === 401) throw sessionExpiredError();
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || err.reason || `HTTP ${res.status}`);
+    }
+    return res;
+}
+
+function showError(e) {
+    setStatus('err', e.sessionExpired ? 'Session expired — please log in again' : 'Error: ' + e.message);
+}
+
+// ─── Generate + render AAS ───────────────────────────────────
+async function generateAAS() {
+    setStatus('busy', 'Generating AAS…');
+    const url = buildURL('/api/aas');
+    try {
+        const res  = await apiFetch(url);
+        const data = await res.json();
+        renderTree(data);
+        const ts = new Date().toLocaleTimeString();
+        setStatus('ok', `AAS generated at ${ts}`);
+    } catch (e) {
+        showError(e);
+        const box = document.getElementById('aas-tree');
+        box.className = 'aas-tree-box empty-state';
+        box.innerHTML = e.sessionExpired
+            ? '<span style="color:#c94040">&#9888; Your session has expired. '
+              + '<a href="' + LOGIN_URL + '" style="color:var(--button-background)">Log in again</a> and retry.</span>'
+            : '<span style="color:#c94040">&#9888; ' + escHtml(e.message) + '</span>';
+    }
+}
+
+// ─── File download via fetch ─────────────────────────────────
+// Fetching (rather than navigating with window.location.href) lets us catch a
+// 401 and show "session expired" instead of replacing the page with a raw JSON
+// error or the login form.
+async function downloadFile(url, filename) {
+    setStatus('busy', 'Preparing download…');
+    try {
+        const res  = await apiFetch(url);
+        const blob = await res.blob();
+        const objUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = objUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(objUrl);
+        setStatus('ok', 'Downloaded ' + filename);
+    } catch (e) {
+        showError(e);
+    }
+}
+
+// ─── Download AAS (JSON) ─────────────────────────────────────
+function downloadAAS() {
+    downloadFile(buildURL('/api/aas/export'), `aas_${_assetType()}_${_assetId()}.json`);
+}
+
+// ─── Download AASX ───────────────────────────────────────────
+function downloadAASX() {
+    downloadFile(buildURL('/api/aas/export-aasx'), `aas_${_assetType()}_${_assetId()}.aasx`);
+}
+
+// ─── Push to BaSyx server ────────────────────────────────────
+// POSTs the shell + submodels to the configured BaSyx environment.  When no
+// server is configured the backend returns {status:'skipped'} — surfaced here
+// as an informational message rather than an error.
+async function pushToBasyx() {
+    setStatus('busy', 'Pushing to BaSyx…');
+    try {
+        const res    = await apiFetch(buildURL('/api/aas/sync'), { method: 'POST' });
+        const result = await res.json();
+        if (result.status === 'synced') {
+            setStatus('ok', `Pushed to BaSyx — shell + ${result.submodel_count} submodels`);
+        } else if (result.status === 'skipped') {
+            setStatus('', 'BaSyx not configured — nothing pushed (set BASYX_AAS_ENV_URL)');
+        } else {
+            setStatus('err', 'BaSyx push failed: ' + (result.reason || 'unknown error'));
+        }
+    } catch (e) {
+        showError(e);
+    }
+}
+
+// ─── JSON Tree Renderer ──────────────────────────────────────
+function renderTree(data) {
+    const box = document.getElementById('aas-tree');
+    box.className = 'aas-tree-box';
+    box.innerHTML = '';
+    box.appendChild(buildNode(data, null, true));
+}
+
+function buildNode(val, key, expanded) {
+    const wrapper = document.createElement('div');
+
+    if (val !== null && typeof val === 'object') {
+        const isArr    = Array.isArray(val);
+        const entries  = isArr ? val : Object.entries(val);
+        const isEmpty  = entries.length === 0;
+
+        const toggle   = document.createElement('span');
+        toggle.className = 'jt-toggle' + (expanded ? ' open' : '');
+
+        const keySpan = key !== null ? `<span class="jt-key">${escHtml(String(key))}</span>: ` : '';
+        const preview = isEmpty
+            ? `<span class="jt-bracket">${isArr ? '[]' : '{}'}</span>`
+            : `<span class="jt-bracket">${isArr ? '[' : '{'}</span>`
+              + `<span class="jt-bracket" style="font-size:8.5pt"> ${entries.length} ${entries.length === 1 ? 'item' : 'items'} </span>`
+              + `<span class="jt-bracket">${isArr ? '…]' : '…}'}</span>`;
+
+        toggle.innerHTML = keySpan + preview;
+        wrapper.appendChild(toggle);
+
+        // `kids` must live in the function scope and be built BEFORE the click
+        // handler closes over it.  Declaring it with `const` inside the
+        // if-block put it out of the handler's scope, so every individual
+        // toggle click threw "kids is not defined" and the row never
+        // expanded/collapsed (Expand/Collapse-all still worked because they
+        // toggle the .jt-children elements directly).
+        let kids = null;
+        if (!isEmpty) {
+            kids = document.createElement('div');
+            kids.className = 'jt-node jt-children' + (expanded ? ' open' : '');
+            if (isArr) {
+                val.forEach((v, i) => kids.appendChild(buildNode(v, i, false)));
+            } else {
+                Object.entries(val).forEach(([k, v]) => kids.appendChild(buildNode(v, k, false)));
+            }
+            wrapper.appendChild(kids);
+        }
+
+        toggle.addEventListener('click', () => {
+            toggle.classList.toggle('open');
+            if (kids) kids.classList.toggle('open');
+        });
+    } else {
+        const line = document.createElement('div');
+        const keySpan = key !== null ? `<span class="jt-key">${escHtml(String(key))}</span>: ` : '';
+        line.innerHTML = keySpan + valueSpan(val);
+        wrapper.appendChild(line);
+    }
+    return wrapper;
+}
+
+function valueSpan(v) {
+    if (v === null)             return `<span class="jt-null">null</span>`;
+    if (typeof v === 'boolean') return `<span class="jt-bool">${v}</span>`;
+    if (typeof v === 'number')  return `<span class="jt-num">${v}</span>`;
+    return `<span class="jt-str">"${escHtml(String(v))}"</span>`;
+}
+
+function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function setAllNodes(open) {
+    document.querySelectorAll('.jt-toggle').forEach(t => {
+        open ? t.classList.add('open') : t.classList.remove('open');
+    });
+    document.querySelectorAll('.jt-children').forEach(c => {
+        open ? c.classList.add('open') : c.classList.remove('open');
+    });
+}
+
+// ─── Nameplate field map: IDTA key → input element id ────────
+const _NAMEPLATE_FIELDS = {
+    ManufacturerName:               'aas-manufacturer',
+    ManufacturerProductDesignation: 'aas-product-designation',
+    ManufacturerProductRoot:        'aas-product-root',
+    URIOfTheProduct:                'aas-uri',
+    SerialNumber:                   'aas-serial',
+    CountryOfOrigin:                'aas-country',
+    YearOfConstruction:             'aas-year',
+    HardwareVersion:                'aas-hw',
+    SoftwareVersion:                'aas-sw',
+};
+
+// ─── Save Nameplate ──────────────────────────────────────────
+async function saveNameplate() {
+    const body = {};
+    Object.entries(_NAMEPLATE_FIELDS).forEach(([idta, elemId]) => {
+        const v = document.getElementById(elemId).value.trim();
+        if (v) body[idta] = v;
+    });
+
+    setStatus('busy', 'Saving nameplate…');
+    const url = `/api/aas/nameplate/${encodeURIComponent(_assetType())}/${encodeURIComponent(_assetId())}`;
+    try {
+        await apiFetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        setStatus('ok', 'Nameplate saved');
+    } catch (e) {
+        e.sessionExpired ? showError(e) : setStatus('err', 'Save failed: ' + e.message);
+    }
+}
+
+// ─── Load Saved Nameplate ────────────────────────────────────
+async function loadNameplate() {
+    setStatus('busy', 'Loading saved nameplate…');
+    const url = `/api/aas/nameplate/${encodeURIComponent(_assetType())}/${encodeURIComponent(_assetId())}`;
+    try {
+        const res = await fetch(url);
+        if (res.status === 401) throw sessionExpiredError();
+        if (res.status === 404) {
+            setStatus('err', 'No saved nameplate for this asset');
+            return;
+        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        Object.entries(_NAMEPLATE_FIELDS).forEach(([idta, elemId]) => {
+            if (data[idta] !== undefined) {
+                document.getElementById(elemId).value = data[idta];
+            }
+        });
+        setStatus('ok', 'Nameplate loaded');
+    } catch (e) {
+        e.sessionExpired ? showError(e) : setStatus('err', 'Load failed: ' + e.message);
+    }
+}
+</script>
+{% endblock %}

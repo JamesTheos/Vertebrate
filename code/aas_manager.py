@@ -1,0 +1,441 @@
+"""
+aas_manager.py
+
+Stateless AAS (Asset Administration Shell) export for Vertebrate assets.
+
+Builds an IEC 63278 / Industry 4.0 AAS from the ISA-95 site hierarchy in
+config.json and returns it as JSON (Part 2 API format) or as a binary AASX
+package (IEC 63278-5).  Three submodels are always included:
+
+  - DigitalNameplate  (IDTA-02006-3-0): manufacturer, serial, HW/SW version,
+                       etc., each carrying its IDTA/IEC CDD semanticId.
+  - SiteHierarchy:    ISA-95 location context (enterprise → unit)
+  - OperationalData:  on-demand snapshot of live Kafka values (Temperature,
+                      Speed, Pressure) supplied by the caller at export time.
+
+No continuous sync with a BaSyx server — exports are generated on demand.
+"""
+
+import base64
+import json
+import os
+from datetime import datetime, timezone
+
+import basyx.aas.model as model
+import basyx.aas.adapter.json as aas_json
+import basyx.aas.adapter.aasx as aas_aasx
+import io
+import requests
+
+# ---------------------------------------------------------------------------
+# Load site hierarchy from config.json
+# ---------------------------------------------------------------------------
+
+_CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.json')
+
+with open(_CONFIG_PATH, 'r') as _f:
+    _SITE_CONFIG = json.load(_f)
+
+ENTERPRISE   = _SITE_CONFIG.get('enterprise',    'Unknown')
+SITE         = _SITE_CONFIG.get('site',          'Unknown')
+AREA         = _SITE_CONFIG.get('area',          'Unknown')
+PROCESS_CELL = _SITE_CONFIG.get('process_cell',  'Unknown')
+UNIT         = _SITE_CONFIG.get('unit',          'Unknown')
+
+# Set of (type, id) tuples that are permitted to produce AAS output.
+# Populated from the 'assets' list in config.json; empty means no assets defined.
+KNOWN_ASSETS: frozenset = frozenset(
+    (a['type'].lower(), a['id'].lower())
+    for a in _SITE_CONFIG.get('assets', [])
+)
+
+# BaSyx AAS-server endpoint.  Env overrides config.json (same precedence as
+# KAFKASERVER/DATABASE_URL).  When blank, sync_to_basyx() is a clean no-op.
+_BASYX_CONFIG = _SITE_CONFIG.get('basyx', {})
+BASYX_AAS_ENV_URL = os.environ.get('BASYX_AAS_ENV_URL') or _BASYX_CONFIG.get('aas_env_url', '')
+
+
+def is_valid_asset(asset_type: str, asset_id: str) -> bool:
+    """Return True if (asset_type, asset_id) is declared in config.json assets."""
+    return (asset_type.lower(), asset_id.lower()) in KNOWN_ASSETS
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _make_asset_id(asset_type: str, asset_id: str) -> str:
+    """Build a deterministic URN for an asset.
+
+    Format: urn:vertebrate:<enterprise>:<site>:<asset_type>:<asset_id>
+    Example: urn:vertebrate:ISPE:Boston:equipment:filling-machine-1
+    """
+    return (
+        f"urn:vertebrate:{ENTERPRISE.lower()}:{SITE.lower()}"
+        f":{asset_type.lower()}:{asset_id.lower()}"
+    )
+
+
+def _external_ref(value: str) -> model.ExternalReference:
+    """Build a semanticId (ExternalReference) from a single global-reference key."""
+    return model.ExternalReference((model.Key(model.KeyTypes.GLOBAL_REFERENCE, value),))
+
+
+def _prop(id_short: str, value: str, value_type=model.datatypes.String,
+          semantic_id: str | None = None) -> model.Property:
+    """Convenience wrapper for a typed AAS Property.
+
+    semantic_id: optional identifier string, wrapped as an ExternalReference so
+                 receiving AAS tools can map the property to a standard concept.
+    """
+    return model.Property(
+        id_short=id_short,
+        value_type=value_type,
+        value=value,
+        semantic_id=_external_ref(semantic_id) if semantic_id else None,
+    )
+
+
+def _flatten_aas_json(raw: str) -> str:
+    """
+    basyx-python-sdk >= 1.1.0 writes the wrapped format:
+        {"assetAdministrationShells": [...], "submodels": [...], ...}
+
+    The Vertebrate API and tests expect a flat list:
+        [{"modelType": "AssetAdministrationShell", ...}, {"modelType": "Submodel", ...}, ...]
+
+    This function normalises both formats to the flat list so the rest of the
+    codebase is insulated from SDK serialisation changes.
+    """
+    parsed = json.loads(raw)
+
+    # Already a flat list (SDK < 1.1.0 format) — nothing to do
+    if isinstance(parsed, list):
+        return raw
+
+    # Wrapped dict format (SDK >= 1.1.0)
+    flat = []
+    for shell in parsed.get('assetAdministrationShells', []):
+        shell.setdefault('modelType', 'AssetAdministrationShell')
+        flat.append(shell)
+    for submodel in parsed.get('submodels', []):
+        submodel.setdefault('modelType', 'Submodel')
+        flat.append(submodel)
+    for concept in parsed.get('conceptDescriptions', []):
+        concept.setdefault('modelType', 'ConceptDescription')
+        flat.append(concept)
+
+    return json.dumps(flat)
+
+
+# ---------------------------------------------------------------------------
+# Submodel builders
+# ---------------------------------------------------------------------------
+
+# IDTA-02006-3-0 Digital Nameplate semanticIds, verified against the published
+# IDTA submodel template (admin-shell-io/submodel-templates, Digital nameplate
+# 3/0).  The submodel-level IRI lets AAS tooling recognise this as a standard
+# Digital Nameplate; the per-field IEC CDD identifiers map each property to its
+# standardised concept.
+NAMEPLATE_SEMANTIC_ID = 'https://admin-shell.io/idta/nameplate/3/0/Nameplate'
+_NAMEPLATE_FIELD_SEMANTIC_IDS = {
+    'ManufacturerName':               '0112/2///61987#ABA565#009',
+    'ManufacturerProductDesignation': '0112/2///61987#ABA567#009',
+    'ManufacturerProductRoot':        '0112/2///61360_7#AAS011#001',
+    'URIOfTheProduct':                '0112/2///61987#ABN590#002',
+    'SerialNumber':                   '0112/2///61987#ABA951#009',
+    'HardwareVersion':                '0112/2///61987#ABA926#008',
+    'SoftwareVersion':                '0112/2///61987#ABA601#008',
+    'CountryOfOrigin':                '0112/2///61987#ABP462#001',
+    'YearOfConstruction':             '0112/2///61987#ABP000#002',
+}
+
+
+def build_digital_nameplate(asset_type: str, asset_id: str, extra: dict | None = None) -> model.Submodel:
+    """
+    IDTA-02006-3-0 Digital Nameplate Submodel (subset of fields).
+
+    Each property and the submodel itself carry their IDTA/IEC CDD semanticId so
+    receiving AAS tools recognise the export as a standard Digital Nameplate.
+
+    extra: optional dict of additional key/value properties to include,
+           e.g. {"ManufacturerName": "Siemens", "SerialNumber": "SN-0042"}
+    """
+    extra = extra or {}
+
+    field_values = [
+        ('ManufacturerName',               extra.get('ManufacturerName', 'Unknown')),
+        ('ManufacturerProductDesignation', extra.get('ManufacturerProductDesignation', asset_type)),
+        ('ManufacturerProductRoot',        extra.get('ManufacturerProductRoot', 'N/A')),
+        ('URIOfTheProduct',                extra.get('URIOfTheProduct', 'N/A')),
+        ('SerialNumber',                   extra.get('SerialNumber', asset_id)),
+        ('HardwareVersion',                extra.get('HardwareVersion', 'N/A')),
+        ('SoftwareVersion',                extra.get('SoftwareVersion', 'N/A')),
+        ('CountryOfOrigin',                extra.get('CountryOfOrigin', 'N/A')),
+        ('YearOfConstruction',             extra.get('YearOfConstruction', 'N/A')),
+    ]
+    elements = [
+        _prop(id_short, value, semantic_id=_NAMEPLATE_FIELD_SEMANTIC_IDS.get(id_short))
+        for id_short, value in field_values
+    ]
+
+    return model.Submodel(
+        id_=_make_asset_id(asset_type, asset_id) + ':nameplate',
+        id_short='DigitalNameplate',
+        semantic_id=_external_ref(NAMEPLATE_SEMANTIC_ID),
+        submodel_element=set(elements),
+    )
+
+
+def build_operational_data_submodel(
+    asset_type: str, asset_id: str, operational_data: dict | None = None
+) -> model.Submodel:
+    """
+    Custom Vertebrate Submodel: on-demand snapshot of live process values.
+
+    operational_data: dict with string-valued keys Temperature, Speed, Pressure
+                      (sourced from Kafka data_store at export time).
+                      Missing or None values default to 'N/A'.
+    """
+    ops = operational_data or {}
+
+    def _val(key: str) -> str:
+        v = ops.get(key)
+        return str(v) if v is not None else 'N/A'
+
+    elements = [
+        _prop('Temperature',      _val('Temperature')),
+        _prop('Speed',            _val('Speed')),
+        _prop('Pressure',         _val('Pressure')),
+        _prop('SnapshotTimestamp', datetime.now(timezone.utc).isoformat()),
+    ]
+
+    return model.Submodel(
+        id_=_make_asset_id(asset_type, asset_id) + ':operational-data',
+        id_short='OperationalData',
+        submodel_element=set(elements),
+    )
+
+
+def build_site_hierarchy_submodel(asset_type: str, asset_id: str) -> model.Submodel:
+    """
+    Custom Vertebrate Submodel: ISA-95 site location context.
+    Tells a receiving system exactly where in the plant this asset lives.
+    """
+    elements = [
+        _prop('Enterprise',   ENTERPRISE),
+        _prop('Site',         SITE),
+        _prop('Area',         AREA),
+        _prop('ProcessCell',  PROCESS_CELL),
+        _prop('Unit',         UNIT),
+        _prop('AssetType',    asset_type),
+        _prop('AssetId',      asset_id),
+        _prop('ExportedAt',   datetime.now(timezone.utc).isoformat()),
+    ]
+
+    return model.Submodel(
+        id_=_make_asset_id(asset_type, asset_id) + ':site-hierarchy',
+        id_short='SiteHierarchy',
+        submodel_element=set(elements),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Main export function
+# ---------------------------------------------------------------------------
+
+def build_aas_model(
+    asset_type: str,
+    asset_id: str,
+    extra: dict | None = None,
+    operational_data: dict | None = None,
+):
+    """Build the AAS object graph for an asset.
+
+    Returns ``(shell, submodels)`` — the AssetAdministrationShell plus the
+    ordered list of its three submodels [DigitalNameplate, SiteHierarchy,
+    OperationalData].  This is the single source of truth shared by the JSON
+    export, the AASX export, and (next sprint) the BaSyx push, so the three can
+    never drift apart.
+    """
+    global_asset_id = _make_asset_id(asset_type, asset_id)
+
+    asset_info = model.AssetInformation(
+        global_asset_id=global_asset_id,
+        asset_kind=model.AssetKind.INSTANCE,
+    )
+
+    nameplate_sm   = build_digital_nameplate(asset_type, asset_id, extra)
+    site_hierarchy = build_site_hierarchy_submodel(asset_type, asset_id)
+    operational_sm = build_operational_data_submodel(asset_type, asset_id, operational_data)
+
+    submodels = [nameplate_sm, site_hierarchy, operational_sm]
+
+    shell = model.AssetAdministrationShell(
+        id_=global_asset_id + ':aas',
+        asset_information=asset_info,
+        submodel={model.ModelReference.from_referable(sm) for sm in submodels},
+    )
+
+    return shell, submodels
+
+
+def build_aas_export(
+    asset_type: str,
+    asset_id: str,
+    extra: dict | None = None,
+    operational_data: dict | None = None,
+) -> str:
+    """
+    Build a complete AAS for the given asset and return it as a JSON string.
+
+    Parameters
+    ----------
+    asset_type       : str   e.g. 'equipment', 'batch', 'filling-line'
+    asset_id         : str   Unique identifier, e.g. 'filling-machine-1'
+    extra            : dict  Nameplate overrides (ManufacturerName, SerialNumber, …)
+    operational_data : dict  Live process values (Temperature, Speed, Pressure)
+
+    Returns
+    -------
+    str
+        Flat-list AAS JSON string.  Format: [{"modelType": ..., ...}, ...]
+    """
+    shell, submodels = build_aas_model(asset_type, asset_id, extra, operational_data)
+    object_store = model.DictObjectStore([shell, *submodels])
+
+    buf = io.StringIO()
+    aas_json.write_aas_json_file(buf, object_store)
+
+    # Normalise to flat list regardless of SDK version
+    return _flatten_aas_json(buf.getvalue())
+
+
+def build_aas_aasx(
+    asset_type: str,
+    asset_id: str,
+    extra: dict | None = None,
+    operational_data: dict | None = None,
+) -> bytes:
+    """
+    Build a complete AAS for the given asset and return it as an AASX binary.
+
+    AASX is an OPC/ZIP package (IEC 63278-5) required by most Industry 4.0
+    toolchains.  The same three submodels produced by build_aas_export() are
+    embedded as JSON inside the package.
+
+    Returns
+    -------
+    bytes
+        Raw AASX package bytes suitable for serving as a binary download.
+    """
+    shell, submodels = build_aas_model(asset_type, asset_id, extra, operational_data)
+    object_store = model.DictObjectStore([shell, *submodels])
+
+    all_ids = [shell.id, *(sm.id for sm in submodels)]
+    files   = aas_aasx.DictSupplementaryFileContainer()
+
+    buf = io.BytesIO()
+    with aas_aasx.AASXWriter(buf) as writer:
+        writer.write_aas_objects(
+            '/aasx/data.json',
+            all_ids,
+            object_store,
+            files,
+            write_json=True,
+        )
+
+    return buf.getvalue()
+
+
+# ---------------------------------------------------------------------------
+# BaSyx server sync (Eclipse BaSyx v2 — DotAAS Part 2 HTTP/REST API)
+# ---------------------------------------------------------------------------
+
+class BasyxSyncError(Exception):
+    """Raised when the BaSyx server rejects an object with an unexpected status."""
+
+
+_OK_STATUSES = {200, 201, 204}
+_HTTP_TIMEOUT = 5.0  # seconds — fail fast; sync is interactive, not background
+
+
+def _b64url(identifier: str) -> str:
+    """Base64URL-encode an AAS identifier for use in a REST path (no padding).
+
+    BaSyx Part 2 addresses shells/submodels by their Base64URL-encoded id, e.g.
+    GET /shells/{base64url(aasId)}.
+    """
+    return base64.urlsafe_b64encode(identifier.encode()).decode().rstrip('=')
+
+
+def _to_jsonable(obj) -> dict:
+    """Serialise a single AAS object to the Part 2 JSON dict the REST API wants."""
+    return json.loads(json.dumps(obj, cls=aas_json.AASToJsonEncoder))
+
+
+def _push_object(base_url: str, collection: str, obj) -> None:
+    """Idempotently upsert one AAS object into a BaSyx repository collection.
+
+    POST {base}/{collection}; if it already exists (HTTP 409) replace it with
+    PUT {base}/{collection}/{base64url(id)}.  Raises BasyxSyncError on any other
+    non-success status; lets requests' own RequestException propagate.
+
+    collection is 'shells' for the AAS or 'submodels' for a submodel.
+    """
+    body = _to_jsonable(obj)
+    resp = requests.post(f'{base_url}/{collection}', json=body, timeout=_HTTP_TIMEOUT)
+    if resp.status_code in _OK_STATUSES:
+        return
+    if resp.status_code == 409:
+        put = requests.put(
+            f'{base_url}/{collection}/{_b64url(obj.id)}',
+            json=body,
+            timeout=_HTTP_TIMEOUT,
+        )
+        if put.status_code in _OK_STATUSES:
+            return
+        raise BasyxSyncError(f'PUT {collection}/{obj.id} failed: HTTP {put.status_code}')
+    raise BasyxSyncError(f'POST {collection} failed: HTTP {resp.status_code}')
+
+
+def sync_to_basyx(
+    asset_type: str,
+    asset_id: str,
+    extra: dict | None = None,
+    operational_data: dict | None = None,
+) -> dict:
+    """Push an asset's AAS to the configured BaSyx server.
+
+    Builds the shell + submodels through build_aas_model() (the single source of
+    truth), then upserts them into the BaSyx v2 environment over the DotAAS
+    Part 2 REST API: each submodel first, then the shell (so the shell's
+    references resolve).
+
+    When no BaSyx server is configured (BASYX_AAS_ENV_URL blank) it is a clean
+    no-op — the same way the app treats Kafka as an optional dependency — so a
+    caller can invoke it unconditionally without guarding.  Network/HTTP
+    failures are reported as a status dict, never raised, for the same reason.
+
+    Returns a status dict:
+      - {'status': 'skipped', 'reason': 'BaSyx not configured', ...}
+      - {'status': 'synced',  'aas_env_url': ..., ...}
+      - {'status': 'error',   'reason': <message>, ...}
+    each carrying 'shell_id' and 'submodel_count'.
+    """
+    # Build via the shared seam regardless of config, so wiring stays honest.
+    shell, submodels = build_aas_model(asset_type, asset_id, extra, operational_data)
+    base = {'shell_id': shell.id, 'submodel_count': len(submodels)}
+
+    if not BASYX_AAS_ENV_URL:
+        return {'status': 'skipped', 'reason': 'BaSyx not configured', **base}
+
+    base_url = BASYX_AAS_ENV_URL.rstrip('/')
+    try:
+        for sm in submodels:
+            _push_object(base_url, 'submodels', sm)
+        _push_object(base_url, 'shells', shell)
+    except (requests.RequestException, BasyxSyncError) as e:
+        return {'status': 'error', 'reason': str(e), **base}
+
+    return {'status': 'synced', 'aas_env_url': BASYX_AAS_ENV_URL, **base}

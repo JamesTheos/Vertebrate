@@ -35,8 +35,12 @@ ALL_PERMISSION_KEYS = [
     "pid", "3d-view", "design-space-definition", "design-space-representation",
     "product-analytics", "process-qbd-analytics", "plant-configuration",
     "process-configuration", "workflow-management", "user-management",
-    "role-management", "data-tree", "audit-view",
+    "role-management", "data-tree", "audit-view", "aas_export",
 ]
+
+# Subscriptions to switch on: the permission keys plus subscription names that differ from them
+# (the AAS viewer is subscription 'aas', permission 'aas_export')
+SUBSCRIPTION_APPS = sorted(set(ALL_PERMISSION_KEYS) | {"aas"})
 
 ROLES = {
     "Production Manager": ["manufacturing-orders", "order-management", "workflow-overview", "data-tree"],
@@ -141,7 +145,7 @@ def seed_users():
 
 def seed_subscriptions():
     existing = {s.apps: s for s in Subscriptions.query.all()}
-    for app_name in set(ALL_PERMISSION_KEYS) | set(existing):
+    for app_name in set(SUBSCRIPTION_APPS) | set(existing):
         sub = existing.get(app_name)
         if sub is None:
             db.session.add(Subscriptions(apps=app_name, subscribed=True))

@@ -25,6 +25,7 @@ from audit_trail import log_audit, log_field_change
 from utils import permission_required
 import data_hub as data_hub_store
 from data_hub import data_hub
+from aas_api import aas_bp
 
 # User-defined Roles
 
@@ -37,6 +38,7 @@ Created_Roles = {}
 import threading
 import json
 import os
+import secrets
 import time
 import sys
 
@@ -240,7 +242,15 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = db_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-    app.secret_key = 'your_secret_key'  # Set a secret key for session management
+    # Session-signing key: source from the environment.  Falling back to a
+    # generated key keeps dev/test working, but it is ephemeral — sessions won't
+    # survive a restart unless SECRET_KEY is set, so set it in any real deploy.
+    secret_key = os.environ.get('SECRET_KEY')
+    if not secret_key:
+        secret_key = secrets.token_hex(32)
+        print('WARNING: SECRET_KEY not set — using a generated ephemeral key; '
+              'set SECRET_KEY for stable sessions across restarts.', flush=True)
+    app.secret_key = secret_key
     # session lifetime: twice the idle timeout, at least 10 min (defaults 5 / 10 min, demo 60 / 120)
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=max(10, 2 * session_idle_minutes()))
 
@@ -291,7 +301,10 @@ def create_app():
 
     @login_manager.unauthorized_handler
     def unauthorized():
-        if request.path.startswith('/audit/api/'):
+        # XHR/API callers (the AAS viewer, the audit dashboard) parse the response
+        # as JSON, so answer them with a JSON 401; browser pages go to Home, which
+        # asks the guest to log in.
+        if request.path.startswith(('/api/', '/audit/api/')):
             return jsonify({'error': 'Authentication required'}), 401
         return redirect(url_for('index'))
 
@@ -308,6 +321,7 @@ def create_app():
     app.register_blueprint(tempConsumerChatbot)
     app.register_blueprint(subscriptions)
     app.register_blueprint(data_hub)
+    app.register_blueprint(aas_bp)
 #app.register_blueprint(nexus2plc)
 
     @app.context_processor
@@ -352,6 +366,13 @@ def create_app():
     def index():
         return render_template('index.html')
     
+    # Stand-alone login page; the Docker HEALTHCHECK calls it (public, 200 when serving)
+    @app.route('/login')
+    def login_page():
+        if current_user.is_authenticated:
+            return redirect(url_for('index'))
+        return render_template('login.html')
+
     # Browsers request /favicon.ico directly, regardless of the <link rel="icon"> tags
     @app.route('/favicon.ico')
     def favicon():
@@ -514,7 +535,15 @@ def create_app():
     @permission_required('equipment-overview')
     def equipmentoverview():
         return render_template('equipment-overview.html')
-    
+
+    # AAS viewer: subscription 'aas', permission 'aas_export' (they differ on purpose)
+    @app.route('/aas-viewer')
+    @login_required
+    @check_subscription('aas')
+    @permission_required('aas_export')
+    def aas_viewer():
+        return render_template('aas-viewer.html')
+
 
     @app.route('/3d-view')
     @check_subscription("3d-view")
@@ -941,11 +970,10 @@ def create_app():
     
     @app.route('/subscription-management')
     def subscription_management():
-        # Fetch all subscriptions from DB
-        subscriptions = Subscriptions.query.all()
-        
-        # Build a dict for easier lookup in the template
-        subscription_status = {sub.apps: sub.subscribed for sub in subscriptions}
+        from app_registry import KNOWN_APPS
+        # Every known app gets a toggle state, also when it has no DB row yet (e.g. 'aas')
+        subscription_status = {app_name: False for app_name in KNOWN_APPS}
+        subscription_status.update({sub.apps: sub.subscribed for sub in Subscriptions.query.all()})
         
         return render_template(
             'subscription-management.html', 
@@ -986,8 +1014,9 @@ def create_app():
         new_config['Kafkaserver'] = Kafkaserver
         new_config['clusterid'] = clusterid
 
+        # Keep keys the form doesn't send (AAS 'assets', 'basyx', ...)
         with open(config_path, 'w') as config_file:
-            json.dump(new_config, config_file, indent=4)
+            json.dump({**old_config, **new_config}, config_file, indent=4)
 
         global enterprise, site, area, process_cell, unit
         enterprise = new_config['enterprise']

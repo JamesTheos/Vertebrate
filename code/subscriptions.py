@@ -10,41 +10,39 @@ def subscription_management():
     subscribed_list = data.get("subscribed", [])
     not_subscribed_list = data.get("not_subscribed", [])
 
-    # Update DB
-    for app_name in subscribed_list:
-        sub = Subscriptions.query.filter_by(apps=app_name).first()
-        if not sub:
-            sub = Subscriptions(apps=app_name, subscribed=True)
-            db.session.add(sub)
-        else:
-            sub.subscribed = True
-
-    for app_name in not_subscribed_list:
-        sub = Subscriptions.query.filter_by(apps=app_name).first()
-        if not sub:
-            sub = Subscriptions(apps=app_name, subscribed=False)
-            db.session.add(sub)
-        else:
-            sub.subscribed = False
+    # Update DB — upsert each app to its requested state
+    for app_name, flag in ([(a, True) for a in subscribed_list]
+                           + [(a, False) for a in not_subscribed_list]):
+        sub = (Subscriptions.query.filter_by(apps=app_name).first()
+               or Subscriptions(apps=app_name))
+        sub.subscribed = flag
+        db.session.add(sub)
 
     db.session.commit()
     return {"status": "success"}  # JSON response
 
 
-def check_subscription(app_name):
-    """Decorator that checks subscription status in the DB."""
+def check_subscription(arg=None):
+    """Decorator that checks subscription status in the DB.
+
+    Supports two call styles:
+        @check_subscription                  # bare — app_name derived from view function name
+        @check_subscription('my_app_name')   # explicit app_name string
+    """
+    # When used bare, `arg` is the view function; when explicit, it's the name.
+    explicit_name = None if callable(arg) else arg
+
     def decorator(func):
+        name = explicit_name if explicit_name is not None else func.__name__
+
         @wraps(func)
         def wrapper(*args, **kwargs):
-            db.session.expire_all()  # Ensure fresh data from DB
-            sub = Subscriptions.query.filter_by(apps=app_name).with_for_update().first()
-            #print(f"app_name: {app_name}")
-            #print(f"sub: {sub}, subscribed={sub.subscribed if sub else None}")
-
-            if sub and bool(sub.subscribed):   # explicit True check
+            db.session.expire_all()
+            sub = Subscriptions.query.filter_by(apps=name).with_for_update().first()
+            if sub and bool(sub.subscribed):
                 return func(*args, **kwargs)
-            else:
-                return render_template("subscription-denied.html")
+            return render_template("subscription-denied.html")
 
         return wrapper
-    return decorator
+
+    return decorator(arg) if callable(arg) else decorator

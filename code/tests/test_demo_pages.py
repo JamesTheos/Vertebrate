@@ -18,13 +18,9 @@ import re
 import pytest
 from werkzeug.security import generate_password_hash
 
-from seed_demo import ALL_PERMISSION_KEYS, ROLES
+from seed_demo import ALL_PERMISSION_KEYS, ROLES, SUBSCRIPTION_APPS
 
 PASSWORD = 'smoke-pw'
-
-# Subscription names are not always permission keys: the AAS viewer is subscription 'aas',
-# permission 'aas_export'
-SUBSCRIPTION_APPS = sorted(set(ALL_PERMISSION_KEYS) | {'aas'})
 
 # username -> (role name, permission keys); role names are prefixed so they never clash with other tests
 DEMO_USERS = {

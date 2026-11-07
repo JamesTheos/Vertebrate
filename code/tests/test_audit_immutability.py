@@ -123,6 +123,7 @@ class TestAuditImmutability:
                 assert tampered_checksum != entry.checksum, \
                     "Tampered checksum should not match the stored checksum"
 
+
 class TestChecksumCompleteness:
 
     def test_no_audit_entry_has_null_checksum(self, app):

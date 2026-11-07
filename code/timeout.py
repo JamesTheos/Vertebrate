@@ -1,5 +1,5 @@
 import os
-from flask import session, redirect, url_for
+from flask import session, redirect, url_for, request, jsonify
 from flask_login import current_user, logout_user
 from datetime import datetime, UTC
 
@@ -30,6 +30,11 @@ def register_timeout_hook(app):
                     #print("Logging out due to inactivity.")
                     logout_user()
                     session.pop('last_activity', None)
+                    # API/XHR callers (the AAS viewer, the audit dashboard) parse
+                    # responses as JSON; give them a 401 rather than an HTML redirect
+                    # to /logout-message so they can show a clean "session expired".
+                    if request.path.startswith(('/api/', '/audit/api/')):
+                        return jsonify({'error': 'Session expired due to inactivity. Please log in again.'}), 401
                     return redirect(url_for('Logout_message'))
 
             session['last_activity'] = now.isoformat()

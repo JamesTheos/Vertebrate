@@ -106,6 +106,13 @@
                                 <input type="checkbox" id="audit-view" disabled>
                             </td>
                         </tr>
+                        <tr>
+                            <th>Digital Twin:</th>
+                            <td>
+                                <label for="aas_export">AAS Export</label>
+                                <input type="checkbox" id="aas_export" data-subscription="aas" disabled>
+                            </td>
+                        </tr>
                     </table>
                 </fieldset>
 
@@ -249,11 +256,16 @@ saveBtn.addEventListener('click', () => {
     console.log("Updated:", roleToUpdate, checkedBoxes);
 });
 
-// Enable checkboxes for subscribed apps.  'audit-view' is a pure permission
-// (no subscription gates the audit trail), so it is always grantable.
+// Enable checkboxes for subscribed apps.  A checkbox is gated by the
+// subscription named in its data-subscription attribute, falling back to its id
+// (the permission key) when the two coincide — as they do for every app except
+// AAS, whose permission key (aas_export) differs from its subscription (aas).
+// 'audit-view' is a pure permission (no subscription gates the audit trail),
+// so it is always grantable.
 const subscribedAppsList = JSON.parse('{{ subscribed_apps | tojson | safe }}');
 roleForm.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-    if (subscribedAppsList.includes(cb.id) || cb.id === 'audit-view') {
+    const subKey = cb.dataset.subscription || cb.id;
+    if (subscribedAppsList.includes(subKey) || cb.id === 'audit-view') {
         cb.disabled = false;
     }
 });
