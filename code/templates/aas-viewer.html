@@ -513,10 +513,11 @@ function renderTree(data) {
     const box = document.getElementById('aas-tree');
     box.className = 'aas-tree-box';
     box.innerHTML = '';
-    box.appendChild(buildNode(data, null, true));
+    box.appendChild(buildNode(data, null, 2));  // root + first level open
 }
 
-function buildNode(val, key, expanded) {
+function buildNode(val, key, openLevels) {
+    const expanded = openLevels > 0;
     const wrapper = document.createElement('div');
 
     if (val !== null && typeof val === 'object') {
@@ -548,9 +549,9 @@ function buildNode(val, key, expanded) {
             kids = document.createElement('div');
             kids.className = 'jt-node jt-children' + (expanded ? ' open' : '');
             if (isArr) {
-                val.forEach((v, i) => kids.appendChild(buildNode(v, i, false)));
+                val.forEach((v, i) => kids.appendChild(buildNode(v, i, openLevels - 1)));
             } else {
-                Object.entries(val).forEach(([k, v]) => kids.appendChild(buildNode(v, k, false)));
+                Object.entries(val).forEach(([k, v]) => kids.appendChild(buildNode(v, k, openLevels - 1)));
             }
             wrapper.appendChild(kids);
         }
